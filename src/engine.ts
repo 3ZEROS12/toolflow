@@ -1187,7 +1187,7 @@ export function synthesizeBlueprint(
           expectedArtifact: profile.reportPath,
           expectedArtifacts: [profile.reportPath, ...(isWebOrUI || !profile.testPath ? [] : [profile.testPath])],
           targetPatterns: ["reports/**", "tests/**", "docs/**", "*.test.*", "*.spec.*"],
-          artifactContract: `包含 64 位 SHA-256 物理指纹与测试结果，落盘于 ${profile.reportPath}。`,
+          artifactContract: `包含 SHA-256 校验和与测试结果，落盘于 ${profile.reportPath}。`,
           verificationCommands: !isWebOrUI && profile.testCommands && profile.testCommands.length > 0 ? profile.testCommands : undefined,
           allowedTools: stage3Tools,
           isReviewStage: true,
@@ -1279,7 +1279,7 @@ export function synthesizeBlueprint(
           title: "终审归档与高保真通知 (终审交付)",
           roleProfile: "quality_auditor",
           dependsOn: ["stage_4_testing"],
-          coreObjective: `生成 64 位 SHA-256 物理交付账本，并通过终端 TUI 输出高保真富文本成果卡片。`,
+          coreObjective: `生成交付成果清单与文件校验和，并通过终端 TUI 输出交付卡片。`,
           boundCapabilities: {
             extensions: Array.from(activatedExts).filter(e => e.includes("goal") || e.includes("tui")),
             skills: []

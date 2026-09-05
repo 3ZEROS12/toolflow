@@ -70,7 +70,7 @@ export function renderExecutionPipelineCard(params: {
   const totalCount = params.stages.length;
 
   const lines: string[] = [
-    `● **执行拓扑流水线** (${completedCount}/${totalCount})  \`${params.blueprintId}\``,
+    `● **执行进度** (${completedCount}/${totalCount})  \`${params.blueprintId}\``,
     `> 🎯 目标: **${params.task}**`,
     ""
   ];
@@ -203,7 +203,7 @@ export function renderCompactEcosystemOverview(tax: EcosystemTaxonomy): string {
     `- **通用基础工具**: ${l1}`,
     `- **信息与搜索**: ${l2}`,
     `- **多工协同与编排**: ${l3}`,
-    `- **审查与质量门禁**: ${l4}`,
+    `- **质量验证与走查**: ${l4}`,
     `- **技能库 (Skills)**: ${skills}`,
     `- **提示词模版**: ${prompts}`,
     `> 提示: 输入 \`/toolflow <任务目标>\` 即可一键自适应生成最优执行蓝图。`
@@ -593,13 +593,13 @@ export function openArchitectNavigator(
             if (selectedPlan === "A") {
               lines.push("    1. 方案设计与契约 (docs/design.md)");
               lines.push("    2. ⭐ 敏捷编码与实机走查 (核心源码 + 浏览器/终端展示)");
-              lines.push("    3. 门禁验收与终审交付 (物理指纹结算)");
+              lines.push("    3. 运行验证与交付归档 (构建测试与交付结果)");
             } else {
-              lines.push("    1. 方案设计与意图契约 (docs/design.md)");
+              lines.push("    1. 方案设计与契约 (docs/design.md)");
               lines.push("    2. 核心功能编写与模块构建 (核心源码编写)");
-              lines.push("    3. ⭐ 效果展示与客户共创走查 (实机走查与建议征询)");
-              lines.push("    4. 自动化单测与物理门禁 (单测用例与测试断言)");
-              lines.push("    5. 终审归档与高保真通知 (物理交付账本)");
+              lines.push("    3. ⭐ 效果展示与实机走查 (效果预览与反馈征询)");
+              lines.push("    4. 自动化测试与质量校验 (单元测试与功能验证)");
+              lines.push("    5. 交付结算与最终归档 (交付结果清单)");
             }
             lines.push("");
             lines.push("─".repeat(innerWidth));
