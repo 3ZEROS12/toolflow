@@ -1,7 +1,7 @@
 {
   "name": "toolflow",
   "version": "3.1.1",
-  "description": "Adaptive tool & extension workflow orchestrator for Pi: 0-Token ecosystem introspection, Kahn DAG wave scheduling, 3-attempt self-healing physical gates, topology-aware dehydration, instant Git rollbacks, cold-start review isolation, deep MCP & Skill contracts, zero-specialization LLM-driven architecture reasoning, ecosystem catalog radar, bundled package installation, and automated session compaction.",
+  "description": "Adaptive tool workflow & prompt workbench for Pi: dynamic task blueprint generation, native prompts visualization, stage-gated tool pruning, and rollback safety.",
   "type": "module",
   "main": "index.ts",
   "pi": {
