@@ -133,6 +133,17 @@ export class BlastRadiusGuard {
    * 检查路径是否在工作区根目录范围内 (防止跨盘符 / 越界穿越)
    */
   public isPathWithinWorkspace(targetPath: string, cwd: string = process.cwd()): boolean {
+    // 跨平台盘符越界检测：在 Linux 环境下若路径包含 Windows 绝对盘符（如 D:\...），判定为跨环境外部路径
+    if (/^[a-zA-Z]:[/\\]/.test(targetPath)) {
+      if (process.platform !== "win32") {
+        return false;
+      }
+      const targetDrive = targetPath[0].toLowerCase();
+      const cwdDrive = cwd[0]?.toLowerCase();
+      if (targetDrive !== cwdDrive) {
+        return false;
+      }
+    }
     const resolved = path.resolve(cwd, targetPath);
     const normResolved = this.normalizePath(resolved);
     const normCwd = this.normalizePath(cwd);
