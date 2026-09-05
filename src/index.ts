@@ -552,6 +552,16 @@ export default function (pi: ExtensionAPI) {
           dehydrator.pruneOldRuns();
         } catch (_) {}
 
+        // 阶段流转核心：原地触发上下文脱水压缩，削减前序阶段冗余日志与执行过程
+        if (ctx && typeof (ctx as any).compact === "function") {
+          try {
+            (ctx as any).compact({
+              customInstructions: `Stage ${state.currentStageIndex + 1} ("${currentStage.title}") completed. Verified artifact: ${currentStage.expectedArtifact}. Dehydrate prior stage logs and preserve only essential architectural decisions and verified artifact fingerprint.`,
+              onError: (err: any) => console.warn("[ToolFlow] Stage-wise compact non-fatal:", err?.message)
+            });
+          } catch (_) {}
+        }
+
         const turnCwd = ctx.cwd || process.cwd();
         const hasNext = advanceStage(turnCwd);
         const updatedState = getSessionState();
