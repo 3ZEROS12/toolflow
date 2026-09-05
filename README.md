@@ -1,29 +1,34 @@
 # ToolFlow ⌬
 
-> Dynamic Tool Sandbox & Context Dehydrator for Pi.  
-> Stage-gated tool scoping, log dehydration to disk, and physical write guards.
+> Organize your installed tools into focused pipelines to hit complex goals.  
+> Dynamic capability orchestration, log dehydration to disk, and built-in prompt workbench.
 
 [English](README.md) | [简体中文](README_zh.md)
 
 ---
 
-### In 30 Seconds
+### Office Chats: Sam and Alex at the Coffee Bar
 
-**Q**: "I installed a dozen MCPs and plugins. Now the model picks the wrong tools, terminal commands dump hundreds of log lines, and my context window fills up fast."  
-**A**: "Don't carry the whole workshop at once. Search tools for research, edit tools for coding, read-only tools for review. If a tool isn't needed right now, its schema stays out of the prompt."
+> **Scene**: 3:30 PM Friday. Break room. Sam is staring at their laptop, looking exhausted with an oversized coffee. Alex walks over after wrapping up a PR.
 
-**Q**: "What happens to verbose terminal output?"  
-**A**: "Outputs over 40 lines save to disk. The model gets a short summary and a file path, saving thousands of tokens."
+**Sam** 😫: "Alex, I'm losing my mind. To build this new feature, I loaded up every MCP I could find—browser automation, DB query tools, docs search, code reviewers. But now the model acts like a drunk intern: I ask for a pure function and it tries to spin up Chromium; I ask for an error trace and it queries the production database. Run one test suite, and 2,000 lines of console output flood the context. On top of that, I'm constantly hunting through notes to find my favorite prompt templates..."
 
-**Q**: "What happens when the task finishes?"  
-**A**: "All original tools are restored without leftover state."
+**Alex** ☕: "Haha, you strapped an entire hardware store to your back and wondered why you can't run. Having tools installed is useless if they aren't **organized to achieve your goal**. Aren't you using ToolFlow?"
 
-**Q**: "How do I run it?"  
-**A**: "Run `/toolflow build feature X`. It handles the stages from there."
+**Sam** 😯: "Wait, how does it organize them?"
+
+**Alex** 🛠️: "Think of it as a pragmatic, lazy architect on your team:
+1. **Orchestrates Tools by Stage**: It breaks your task into phases. During exploration, it gives the model search tools and locks write permissions. During implementation, it hides unrelated heavy MCPs so the model stays razor-sharp and never misfires. During review, it physically strips edit privileges so the model can't secretly mutate code.
+2. **Dehydrates Verbose Logs in Milliseconds**: Test threw 500 lines of stack trace? ToolFlow archives the full dump to disk, leaving only the return code, key failure summary, and file path in context. That saves tens of thousands of tokens.
+3. **Built-in Prompt Workbench**: Hit `[p]` on startup to pick your battle-tested prompts right away, or press `[+]` to draft one on the fly. You can even press `Ctrl+L` and let the LLM auto-tag and summarize it. No more copy-pasting from scratch."
+
+**Sam** 🤩: "What happens when the mission is done? Does it mess up my environment?"
+
+**Alex** 🚀: "Not a chance. Everything resets back to your original native toolset cleanly. Just run `/toolflow build a user auth system` and watch it deploy the right tools at each step."
 
 ---
 
-> **Scope**: Built for medium-to-large projects with multiple MCPs/plugins. For simple single-file fixes, stock Pi is fine. For multi-step, multi-tool work, ToolFlow manages tools and context.
+> **Scope**: Designed for multi-tool, multi-MCP orchestration on complex tasks. For trivial single-file edits, stock Pi is sufficient. For multi-phase workflows, ToolFlow takes command.
 
 ---
 
