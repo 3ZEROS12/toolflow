@@ -299,12 +299,19 @@ export function openArchitectNavigator(
       const ecoToggles: Record<string, boolean> = {};
 
       function getFilteredPrompts(): PromptItemInfo[] {
-        if (promptTab === "recent") {
-          return PromptsManager.getRecentPrompts(promptsList, 5);
-        } else if (promptTab === "user") {
-          return promptsList.filter(p => p.category === "user");
-        } else {
-          return promptsList.filter(p => p.category === "system");
+        try {
+          if (promptTab === "recent") {
+            if (typeof (PromptsManager as any).getRecentPrompts === "function") {
+              return PromptsManager.getRecentPrompts(promptsList, 5);
+            }
+            return [...promptsList].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
+          } else if (promptTab === "user") {
+            return promptsList.filter(p => p.category === "user");
+          } else {
+            return promptsList.filter(p => p.category === "system");
+          }
+        } catch (_) {
+          return promptsList.slice(0, 5);
         }
       }
 
@@ -698,7 +705,9 @@ export function openArchitectNavigator(
             } else if (key === "p") {
               const sel = currentFiltered[selectedPromptIdx];
               if (sel) {
-                PromptsManager.recordPromptUsage(sel);
+                if (typeof (PromptsManager as any).recordPromptUsage === "function") {
+                  PromptsManager.recordPromptUsage(sel.command);
+                }
                 done({ kind: "prompt_invoke", command: sel.command, filePath: sel.filePath });
               }
             } else if (isEnter || key === "i" || key === " ") {

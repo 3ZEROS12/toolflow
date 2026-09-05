@@ -129,6 +129,20 @@ export class PromptsManager {
   }
 
   /**
+   * 获取最近使用的提示词列表（Top N），若无使用记录则回退为按最新添加时间排序
+   */
+  public static getRecentPrompts(prompts: PromptItemInfo[], limit: number = 5): PromptItemInfo[] {
+    const mruMap = this.loadMruMap();
+    const withUsage = prompts.filter(p => mruMap[p.command] !== undefined);
+    if (withUsage.length > 0) {
+      withUsage.sort((a, b) => (mruMap[b.command] || 0) - (mruMap[a.command] || 0));
+      return withUsage.slice(0, limit);
+    }
+    // 回退展示按更新时间排序的前 N 个
+    return [...prompts].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, limit);
+  }
+
+  /**
    * 提取指定提示词文件的正文前 N 行用于即时预览（自动剥离 frontmatter 头部）
    */
   public static getPromptPreviewLines(item: PromptItemInfo, maxLines: number = 3): string[] {
