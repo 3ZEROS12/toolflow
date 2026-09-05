@@ -895,7 +895,7 @@ export async function synthesizeBlueprintPlanWithLLM(
   userDecisions: Record<string, string>,
   taxonomy: EcosystemTaxonomy,
   ctx?: any
-): Promise<{ primaryArtifact: string; targetLanguage: string; isFrontend: boolean }> {
+): Promise<{ primaryArtifact: string; targetLanguage: string; isFrontend: boolean; stageHeavyTools?: { stage1?: string[]; stage2?: string[]; stage3?: string[] } }> {
   // 默认由工程拓扑保底
   const fp = taxonomy.projectFingerprint || sniffProjectFingerprint();
   const profile = inferArtifactProfile(fp);
@@ -913,17 +913,33 @@ export async function synthesizeBlueprintPlanWithLLM(
     const mr = (ctx as any).modelRegistry;
     const model = (ctx as any).model;
 
-    const prompt = `[ROLE: Senior Software Architect]
-Analyze the user's task and choices, then determine the optimal deliverable file path and project nature.
-User Task: "${task}"
-Selected Architecture Decisions: ${JSON.stringify(userDecisions)}
-Detected Workspace Language: ${fp.language} (${fp.projectType})
+    const extraHeavyTools = (taxonomy.tools || [])
+      .map(t => t.name)
+      .filter(name => !["read", "write", "edit", "bash", "powershell", "grep", "find"].includes(name));
 
-STRICT RULES:
-1. If the task is a backend service, communication bridge, message hook, daemon, CLI tool, or protocol adapter (e.g. WeChat, Telegram, API bridge, background bot), primaryArtifact MUST BE a backend/script source file such as 'src/index.ts', 'src/main.ts', or 'main.py'—NEVER 'index.html'!
-2. Only if the task is explicitly a web application, browser game, dashboard, or UI component, set isFrontend to true and primaryArtifact to 'index.html' or 'src/App.tsx'.
-3. Output ONLY a valid JSON object:
-{"primaryArtifact": "src/index.ts", "targetLanguage": "typescript", "isFrontend": false}`;
+    const prompt = `[ROLE: Senior Architect & Heavy Tool Allocator]
+Analyze the user task, project architecture, and available heavy tools/MCPs for medium-large execution.
+User Task: "${task}"
+Selected Decisions: ${JSON.stringify(userDecisions)}
+Workspace: ${fp.language} (${fp.projectType})
+Available Heavy Tools & MCPs: ${extraHeavyTools.join(", ") || "none"}
+
+RULES:
+1. primaryArtifact: src/index.ts, main.py for backend/CLI/daemon/bot. Only use index.html for web/UI.
+2. Dynamic Heavy Tool Allocation (Token Optimization):
+   - ONLY allocate heavy tools/MCPs to the stage where they are genuinely required.
+   - stage1: Research/perception (e.g. web_search, fetch_content, documentation MCP).
+   - stage2: Implementation/orchestration (e.g. workflow, subagent, database/api MCP).
+   - stage3: Review/verification (e.g. browser/playwright MCP, test/lint MCP).
+   - Omit unused heavy tools to save massive context token overhead.
+
+Output ONLY a single JSON object:
+{
+  "primaryArtifact": "src/index.ts",
+  "targetLanguage": "typescript",
+  "isFrontend": false,
+  "stageHeavyTools": { "stage1": [], "stage2": [], "stage3": [] }
+}`;
 
     const res = await mr.complete(
       model,
@@ -936,7 +952,7 @@ STRICT RULES:
           }
         ]
       },
-      { temperature: 0.1, maxTokens: 200 }
+      { temperature: 0.1, maxTokens: 400 }
     );
 
     const textBlocks = (res.content || [])
@@ -963,7 +979,7 @@ export function synthesizeBlueprint(
   taxonomy: EcosystemTaxonomy,
   selectedPlan?: "A" | "B",
   customRequirements?: string[],
-  llmArtifactPlan?: { primaryArtifact: string; targetLanguage?: string; isFrontend?: boolean }
+  llmArtifactPlan?: { primaryArtifact: string; targetLanguage?: string; isFrontend?: boolean; stageHeavyTools?: { stage1?: string[]; stage2?: string[]; stage3?: string[] } }
 ): Blueprint {
   const blueprintId = `bp_${crypto.randomBytes(4).toString("hex")}`;
   const fp = taxonomy.projectFingerprint || sniffProjectFingerprint();
@@ -1033,53 +1049,50 @@ export function synthesizeBlueprint(
     .map(t => t.name)
     .filter(name => !["read", "write", "edit", "bash", "powershell", "grep", "find"].includes(name));
 
-  // 1. Stage 1 设计与调研阶段：感知为主，动态装配已识别的感知/调研类工具
+  // 🧠 核心架构：若大模型推导给出了精细的阶段重型工具编排 (stageHeavyTools)，优先采用 LLM 深度推理分配！
+  const llmAlloc = llmArtifactPlan?.stageHeavyTools;
   const stage1Tools = ["read", "bash", "powershell", "grep", "find"];
-  if (l2PerceptionExts.length > 0 || hasTool("web_search") || hasTool("fetch_content") || hasTool("source_check")) {
-    ["web_search", "fetch_content", "source_check"].forEach(t => { if (hasTool(t)) stage1Tools.push(t); });
-  }
-  if (hasTool("mcp")) stage1Tools.push("mcp");
-  if (hasTool("mcpScript")) stage1Tools.push("mcpScript");
-  if (hasTool("workflow")) stage1Tools.push("workflow");
-  // 动态自动汇入真实存在的感知与查询类自定义工具
-  extraTools.forEach(toolName => {
-    const item = (taxonomy.tools || []).find(t => t.name === toolName);
-    if (item && item.layer === "L2_PERCEPTION" && !stage1Tools.includes(toolName)) {
-      stage1Tools.push(toolName);
-    }
-  });
-  // 灵活开放：若属于敏捷模式或小型修补任务，阶段 1 允许编辑工具以降低摩擦
+  const stage2Tools = ["read", "edit", "write", "bash", "powershell", "grep", "find"];
+  const stage3Tools = ["read", "bash", "powershell", "grep", "find"];
+
   if (isAgile) {
     stage1Tools.push("edit", "write");
   }
-
-  // 2. Stage 2 实施编码阶段：全量核心实现工具链 + 动态汇入所有业务与编排类扩展工具
-  const stage2Tools = ["read", "edit", "write", "bash", "powershell", "grep", "find"];
-  if (hasTool("workflow")) stage2Tools.push("workflow");
-  if (hasTool("subagent")) stage2Tools.push("subagent");
-  if (hasTool("mcp")) stage2Tools.push("mcp");
-  if (hasTool("mcpScript")) stage2Tools.push("mcpScript");
-  // 动态自动汇入所有已安装的第三方工具（如 Docker、DB、Git、生成器等业务工具）
-  extraTools.forEach(toolName => {
-    if (!stage2Tools.includes(toolName)) {
-      stage2Tools.push(toolName);
-    }
-  });
-
-  // 3. Stage 3 验收与走查阶段：以验证与门禁为主，动态汇入审查类与门禁工具
-  const stage3Tools = ["read", "bash", "powershell", "grep", "find"];
   ["goal_complete", "goal_blocked", "goal_wait"].forEach(t => { if (hasTool(t)) stage3Tools.push(t); });
-  if (hasTool("workflow")) stage3Tools.push("workflow");
-  if (hasTool("mcp")) stage3Tools.push("mcp");
-  if (hasTool("mcpScript")) stage3Tools.push("mcpScript");
-  // 动态自动汇入审查与门禁类自定义工具（如 visual_review, lint, test_runner 等）
-  extraTools.forEach(toolName => {
-    const item = (taxonomy.tools || []).find(t => t.name === toolName);
-    if (item && item.layer === "L4_REVIEW_GUARD" && !stage3Tools.includes(toolName)) {
-      stage3Tools.push(toolName);
-    }
-  });
 
+  if (llmAlloc && typeof llmAlloc === "object") {
+    // 🎯 方案 A：大模型精准推理分配，严格按需下发重型工具，彻底消灭不相关 MCP 的 Token 暴利税
+    if (Array.isArray(llmAlloc.stage1)) {
+      llmAlloc.stage1.forEach(t => { if (hasTool(t) && !stage1Tools.includes(t)) stage1Tools.push(t); });
+    }
+    if (Array.isArray(llmAlloc.stage2)) {
+      llmAlloc.stage2.forEach(t => { if (hasTool(t) && !stage2Tools.includes(t)) stage2Tools.push(t); });
+    }
+    if (Array.isArray(llmAlloc.stage3)) {
+      llmAlloc.stage3.forEach(t => { if (hasTool(t) && !stage3Tools.includes(t)) stage3Tools.push(t); });
+    }
+  } else {
+    // 🛡️ 方案 B：无大模型分配时的启发式通用降级
+    if (l2PerceptionExts.length > 0 || hasTool("web_search") || hasTool("fetch_content") || hasTool("source_check")) {
+      ["web_search", "fetch_content", "source_check"].forEach(t => { if (hasTool(t)) stage1Tools.push(t); });
+    }
+    if (hasTool("mcp")) stage1Tools.push("mcp");
+    if (hasTool("mcpScript")) stage1Tools.push("mcpScript");
+    if (hasTool("workflow")) stage1Tools.push("workflow");
+    extraTools.forEach(toolName => {
+      const item = (taxonomy.tools || []).find(t => t.name === toolName);
+      if (item && item.layer === "L2_PERCEPTION" && !stage1Tools.includes(toolName)) stage1Tools.push(toolName);
+      if (!stage2Tools.includes(toolName)) stage2Tools.push(toolName);
+      if (item && item.layer === "L4_REVIEW_GUARD" && !stage3Tools.includes(toolName)) stage3Tools.push(toolName);
+    });
+    if (hasTool("workflow")) stage2Tools.push("workflow");
+    if (hasTool("subagent")) stage2Tools.push("subagent");
+    if (hasTool("mcp")) stage2Tools.push("mcp");
+    if (hasTool("mcpScript")) stage2Tools.push("mcpScript");
+    if (hasTool("workflow")) stage3Tools.push("workflow");
+    if (hasTool("mcp")) stage3Tools.push("mcp");
+    if (hasTool("mcpScript")) stage3Tools.push("mcpScript");
+  }
   // 交付物产物：若 LLM 推导给出了明确产物则 100% 采纳，否则由工程拓扑保底
   const defaultSrcPath = (llmArtifactPlan && llmArtifactPlan.primaryArtifact)
     ? llmArtifactPlan.primaryArtifact

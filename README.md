@@ -14,6 +14,10 @@ When you install multiple MCPs, plugins, and CLI tools in Pi, the agent faces th
 
 ---
 
+> **Target Audience & Best Fit**: ToolFlow is purpose-built for **medium-to-large multi-tool engineering projects** (environments with multiple MCPs, databases, browsers, and subagents). For simple 1-file scratchpad edits, standard interactive Pi is already sufficient; for autonomous pipelines and heavy toolchains, ToolFlow eliminates tool bloat and guarantees execution safety.
+
+---
+
 ## Installation
 
 Install directly via git:
