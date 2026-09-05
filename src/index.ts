@@ -203,6 +203,17 @@ export default function (pi: ExtensionAPI) {
       `Contract: ${firstStage.artifactContract}\n` +
       `Action: ${actionGuidance} (/toolflow rollback to revert)`;
 
+    // 🎯 核心省 Token 机制：生成蓝图并开工后，原地触发上下文脱水压缩
+    // 清除前置推导、方案探讨的数千 Token 历史，让模型在最纯净的会话中执行阶段 1
+    if (ctx && typeof (ctx as any).compact === "function") {
+      try {
+        (ctx as any).compact({
+          customInstructions: `Blueprint generated for task "${rawTask}". Transitioning to active execution. Dehydrate preliminary planning dialogues and retain only the execution blueprint contract and primary target: ${firstStage.expectedArtifact}.`,
+          onError: (err: any) => console.warn("[ToolFlow] Blueprint start compact non-fatal:", err?.message)
+        });
+      } catch (_) {}
+    }
+
     if (typeof pi.sendUserMessage === "function") {
       pi.sendUserMessage(guidancePrompt, { deliverAs: "followUp" });
     }
