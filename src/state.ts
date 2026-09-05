@@ -718,6 +718,26 @@ export function verifyStageArtifacts(
 
 export const BASELINE_TOOLS = ["read", "grep", "find", "bash", "powershell"];
 
+// 记录任务流启动前的原始激活工具快照，用于任务结束或重置时无损还原
+let originalActiveToolsSnapshot: string[] | undefined;
+
+export function recordInitialActiveTools(ctx: any): void {
+  if (originalActiveToolsSnapshot === undefined && typeof ctx?.getActiveTools === "function") {
+    originalActiveToolsSnapshot = ctx.getActiveTools();
+  }
+}
+
+export function restoreInitialActiveTools(ctx: any): void {
+  if (originalActiveToolsSnapshot !== undefined && typeof ctx?.setActiveTools === "function") {
+    ctx.setActiveTools(originalActiveToolsSnapshot);
+    originalActiveToolsSnapshot = undefined;
+  } else if (typeof ctx?.getAllTools === "function" && typeof ctx?.setActiveTools === "function") {
+    const all = ctx.getAllTools();
+    const allNames = Array.isArray(all) ? all.map((t: any) => typeof t === "string" ? t : t?.name) : [];
+    if (allNames.length > 0) ctx.setActiveTools(allNames);
+  }
+}
+
 export function computeStageTools(stageAllowedTools: string[] = []): string[] {
   if (stageAllowedTools && stageAllowedTools.length > 0) {
     return Array.from(new Set(stageAllowedTools));
