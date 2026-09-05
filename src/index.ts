@@ -479,24 +479,12 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  // 注册 tool_call 安全拦截钩子 (写权限与影响面防穿透 + 审查隔离只读硬防线)
+  // 注册 tool_call 安全拦截钩子 (物理级关键文件保护防线)
   if (typeof (pi as any).on === "function") {
     (pi as any).on("tool_call", async (event: any) => {
       const state = getSessionState();
       if (state.status === "in_progress" && state.currentBlueprint) {
-        // 1. 审查阶段只读物理硬防线：物理拦截 write, edit 等篡改代码工具
-        if (reviewGuard.isActive()) {
-          const tool = (event.toolName || "").toLowerCase();
-          if (!reviewGuard.isToolAllowedInReview(tool)) {
-            return {
-              block: true,
-              reason: `[ToolFlow 审查隔离防线] 当前处于只读审查与质量验收阶段，已物理阻断代码修改工具 "${tool}"。请保持客观视角执行测试或检查 diff。`,
-              terminate: false
-            };
-          }
-        }
-
-        // 2. 核心敏感文件爆炸半径安全拦截
+        // 核心敏感文件与系统防线拦截 (杜绝 AI 误操作 .env、.git、lock 文件及系统设备)
         const check = blastGuard.verifyToolCall(event);
         if (check.block) {
           return {
@@ -545,7 +533,10 @@ export default function (pi: ExtensionAPI) {
         const protectIndex = Math.max(0, total - 6);
         for (let i = 0; i < protectIndex; i++) {
           const msg = msgs[i];
-          if (msg && msg.role === "tool") {
+          if (!msg) continue;
+
+          // 1. 修剪过旧的历史 tool 输出 (Tool Output)
+          if (msg.role === "tool") {
             if (typeof msg.content === "string") {
               if (msg.content.length > 800 && !msg.content.includes("ToolFlow Context Slimmer")) {
                 const lines = msg.content.split("\n");
@@ -563,6 +554,50 @@ export default function (pi: ExtensionAPI) {
                     const head = lines.slice(0, 4).join("\n");
                     const tail = lines.slice(-2).join("\n");
                     part.text = `${head}\n... [⚡ ToolFlow Context Slimmer: Pruned ${lines.length - 6} lines of historical tool output] ...\n${tail}`;
+                  }
+                }
+              }
+            }
+          }
+
+          // 2. ⚡ 折叠历史旧轮次中 assistant 的超长写参回声 (write/edit/bash 入参回声防膨胀)
+          // 大模型在 6 轮以前写入的长代码或超长命令，无需在后续每一轮都全文携带
+          if (msg.role === "assistant") {
+            // 情况 A：toolCalls / tool_calls 结构化参数
+            const toolCalls = msg.toolCalls || msg.tool_calls;
+            if (Array.isArray(toolCalls)) {
+              for (const tc of toolCalls) {
+                const fnName = (tc?.function?.name || tc?.name || "").toLowerCase();
+                if (["write", "edit"].includes(fnName)) {
+                  // 针对写入内容执行无损物理折叠
+                  if (tc.function && typeof tc.function.arguments === "string" && tc.function.arguments.length > 600) {
+                    try {
+                      const parsed = JSON.parse(tc.function.arguments);
+                      if (parsed.content && typeof parsed.content === "string" && parsed.content.length > 400) {
+                        const originalLines = parsed.content.split("\n").length;
+                        parsed.content = `[⚡ ToolFlow Slimmer: ${originalLines} lines already written to ${parsed.path || "disk"}]`;
+                        tc.function.arguments = JSON.stringify(parsed);
+                      }
+                    } catch (_) {}
+                  } else if (tc.input && typeof tc.input === "object") {
+                    if (tc.input.content && typeof tc.input.content === "string" && tc.input.content.length > 400) {
+                      const originalLines = tc.input.content.split("\n").length;
+                      tc.input.content = `[⚡ ToolFlow Slimmer: ${originalLines} lines already written to ${tc.input.path || "disk"}]`;
+                    }
+                  }
+                }
+              }
+            }
+            // 情况 B：部分模型将工具调用渲染在 content 数组中
+            if (Array.isArray(msg.content)) {
+              for (const part of msg.content) {
+                if (part && (part.type === "tool_use" || part.type === "tool_call")) {
+                  const fnName = (part.name || "").toLowerCase();
+                  if (["write", "edit"].includes(fnName) && part.input && typeof part.input === "object") {
+                    if (part.input.content && typeof part.input.content === "string" && part.input.content.length > 400) {
+                      const originalLines = part.input.content.split("\n").length;
+                      part.input.content = `[⚡ ToolFlow Slimmer: ${originalLines} lines already written to ${part.input.path || "disk"}]`;
+                    }
                   }
                 }
               }

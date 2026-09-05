@@ -551,6 +551,7 @@ async function runFullRegressionVerification() {
 
     // 12.2 影响面文件锁与 Monorepo / 配置保护
     const guard = new BlastRadiusGuard();
+    guard.setStrictArtifactScope(true);
     guard.updateAllowedScope({
       stageId: "s1",
       title: "Title",
@@ -716,6 +717,7 @@ async function runFullRegressionVerification() {
 
     // 13.2 BlastRadiusGuard: Glob 模式匹配 (src/**)
     const guard = new BlastRadiusGuard();
+    guard.setStrictArtifactScope(true);
     const mockStage: BlueprintStage = {
       stageId: "stage_multi_file",
       title: "多文件实现",
@@ -898,6 +900,7 @@ async function runFullRegressionVerification() {
     assert.strictEqual(bundles[1].tasks.length, 2, "14.3 波次 2 并发调度 2 个子任务");
 
     const guard = new BlastRadiusGuard();
+    guard.setStrictArtifactScope(true);
     guard.updateAllowedScope(tsStages[2], tsRoot); // API backend stage
     const crossPkgBlock = guard.verifyToolCall({ toolName: "write", input: { path: "apps/web/src/hack.ts", content: "bad" } }, tsRoot);
     assert.strictEqual(crossPkgBlock.block, true, "14.4 跨包未授权写入物理拦截");
@@ -993,6 +996,7 @@ async function runFullRegressionVerification() {
       tokenCostNotice: "low",
       boundCapabilities: {}
     };
+    guard.setStrictArtifactScope(true);
     guard.updateAllowedScope(globStage, edgeSandbox);
     const rootTsCheck = guard.verifyToolCall({ toolName: "write", input: { path: "index.ts" } }, edgeSandbox);
     assert.strictEqual(rootTsCheck.block, false, "15.5 **/*.ts 正确匹配根目录下的 index.ts");
@@ -1554,6 +1558,7 @@ Always verify diff before finalizing.
 
   // 配置 BlastRadiusGuard 作用域
   const testGuard = new BlastRadiusGuard();
+  testGuard.setStrictArtifactScope(true);
   testGuard.updateAllowedScope({
     stageId: "stage_test",
     title: "Test",

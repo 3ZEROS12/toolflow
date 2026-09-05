@@ -22,6 +22,11 @@ const WRITE_TOOLS = new Set([
 export class BlastRadiusGuard {
   private allowedExactPaths: Set<string> = new Set();
   private allowedGlobPatterns: string[] = [];
+  private strictArtifactScope: boolean = false;
+
+  public setStrictArtifactScope(enabled: boolean): void {
+    this.strictArtifactScope = enabled;
+  }
 
   private static readonly DOS_DEVICE_REGEX =
     /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]|CONIN\$|CONOUT\$)(\..*)?$/i;
@@ -234,7 +239,7 @@ export class BlastRadiusGuard {
         }
       }
 
-      // 3. 影响面白名单与 Glob 校验 (当白名单非空时生效)
+      // 3. 智能写操作影响面指引 (核心敏感文件已在步骤 2 严密死锁；默认完全放开普通业务代码自由修改，若显式开启 strictArtifactScope 则严格遵循范围)
       const hasScopeConfigured = this.allowedExactPaths.size > 0 || this.allowedGlobPatterns.length > 0;
       if (hasScopeConfigured) {
         const isExactMatch = this.allowedExactPaths.has(normResolved);
@@ -248,14 +253,18 @@ export class BlastRadiusGuard {
         });
 
         if (!isExactMatch && !isGlobMatch) {
-          return {
-            block: true,
-            reason: `[ToolFlow 影响面拦截] 目标文件 "${relative}" 不在当前阶段的允许修改白名单内。已阻断以防乱改代码。如需修改请更新蓝图。`,
-            escalationCandidate: {
-              filePath: relative,
-              absolutePath: resolved
-            }
-          };
+          if (this.strictArtifactScope) {
+            return {
+              block: true,
+              reason: `[ToolFlow 影响面拦截] 目标文件 "${relative}" 不在当前阶段的允许修改白名单内。已阻断以防乱改代码。如需修改请更新蓝图。`,
+              escalationCandidate: {
+                filePath: relative,
+                absolutePath: resolved
+              }
+            };
+          }
+          // 默认宽松模式：动态将新创建/修改的文件纳入感知集合，保障探索顺畅与后续可追踪
+          this.allowedExactPaths.add(normResolved);
         }
       }
     }
