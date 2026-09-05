@@ -176,7 +176,7 @@ export class BlastRadiusGuard {
       const normRelative = this.normalizePath(relative);
       const normCwd = this.normalizePath(cwd);
       const baseName = path.basename(resolved);
-      const cleanBaseName = process.platform === "win32" ? baseName.replace(/[.\s]+$/, "").toLowerCase() : baseName;
+      const cleanBaseName = baseName.replace(/[.\s]+$/, "").toLowerCase();
 
       // 0. Windows DOS 保留设备名物理拦截 (CON, PRN, AUX, NUL, COM1-9, LPT1-9, CONIN$, CONOUT$)
       const rawSegments = targetPath.split(/[\\/]/).map(s => s.replace(/[.\s]+$/, ""));
