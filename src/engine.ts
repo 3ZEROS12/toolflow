@@ -1107,7 +1107,7 @@ export function synthesizeBlueprint(
   const taskLower = (task || "").toLowerCase();
   const isMicroTask = (
     !isPlanB &&
-    userDecisions.__microTask === true || (
+    (userDecisions.__microTask === "true" || userDecisions.__microTask === ("true" as any) || (
       taskLower.length < 25 &&
       (taskLower.includes("修复") ||
         taskLower.includes("fix") ||
@@ -1123,7 +1123,7 @@ export function synthesizeBlueprint(
       !taskLower.includes("构建") &&
       !taskLower.includes("单页") &&
       !taskLower.includes("应用")
-    )
+    ))
   );
 
   let rawStages: BlueprintStage[];

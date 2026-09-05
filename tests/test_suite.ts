@@ -1668,9 +1668,10 @@ Always verify diff before finalizing.
     // 2. 测试自适应轻重任务路由
     const { synthesizeBlueprint } = await import("../src/engine.js");
     const microBp = synthesizeBlueprint("修复 utils.ts 中的拼写错误", {
-      primaryCategory: "WEB_UI",
-      suggestedRole: "Dev",
-      recommendedCapabilities: { extensions: [], skills: [] },
+      domain: "WEB_UI",
+      difficulty: "Low",
+      recommendedExtensions: [],
+      recommendedSkills: [],
       requirementSlots: [],
       dynamicGoals: []
     }, {}, { availableToolNames: ["read", "edit", "write", "bash"] } as any);

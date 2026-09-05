@@ -22,7 +22,6 @@ import {
   loadPersistedSessionState,
   rollbackStage,
   resetState,
-  clearMemoryState,
   recordInitialActiveTools,
   restoreInitialActiveTools
 } from "./state.js";
