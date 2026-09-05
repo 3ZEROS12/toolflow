@@ -32,7 +32,7 @@
     "blast-radius-guard"
   ],
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": ">=1.0.0"
+    "@earendil-works/pi-coding-agent": ">=0.80.0"
   },
   "author": "Jason",
   "license": "MIT",

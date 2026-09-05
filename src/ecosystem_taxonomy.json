@@ -6,15 +6,18 @@
     "packageManager": "npm",
     "hasGit": true,
     "isClean": true,
-    "topLevelDirs": [],
+    "topLevelDirs": [
+      "docs",
+      "src",
+      "tests"
+    ],
     "coreDependencies": [
-      "@earendil-works/pi-coding-agent",
-      "@earendil-works/pi-tui",
-      "typescript"
+      "typescript",
+      "@earendil-works/pi-coding-agent"
     ],
     "gitBranch": "main"
   },
-  "updatedAt": 1788575151019,
+  "updatedAt": 1788576423743,
   "extensions": [
     {
       "id": "pi-tui-status-beautifier",

@@ -2,10 +2,16 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import os from "os";
+import { fileURLToPath } from "url";
 import { EcosystemTaxonomy, CapabilityItem, LayerType, ProjectFingerprint, ProjectType } from "./types.js";
 
 const PI_AGENT_BASE = process.env.PI_AGENT_DIR || path.join(os.homedir(), ".pi", "agent");
-const TAXONOMY_PATH = path.join(PI_AGENT_BASE, "extensions", "toolflow", "ecosystem_taxonomy.json");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LOCAL_TAXONOMY_PATH = path.resolve(__dirname, "ecosystem_taxonomy.json");
+const ROOT_TAXONOMY_PATH = path.resolve(__dirname, "..", "ecosystem_taxonomy.json");
+const TAXONOMY_PATH = fs.existsSync(LOCAL_TAXONOMY_PATH)
+  ? LOCAL_TAXONOMY_PATH
+  : (fs.existsSync(ROOT_TAXONOMY_PATH) ? ROOT_TAXONOMY_PATH : path.join(PI_AGENT_BASE, "extensions", "toolflow", "src", "ecosystem_taxonomy.json"));
 const SETTINGS_PATH = path.join(PI_AGENT_BASE, "settings.json");
 const NPM_MODULES_PATH = path.join(PI_AGENT_BASE, "npm", "node_modules");
 const PROMPTS_PATH = path.join(PI_AGENT_BASE, "prompts");
@@ -38,8 +44,9 @@ export function sniffProjectFingerprint(cwd: string = process.cwd()): ProjectFin
   try {
     if (fs.existsSync(cwd)) {
       const entries = fs.readdirSync(cwd, { withFileTypes: true });
+      const ignoredDirs = new Set(["node_modules", "target", "dist", ".git", ".pi", "build", "out"]);
       topLevelDirs = entries
-        .filter(e => e.isDirectory() && !e.name.startsWith(".") && e.name !== "node_modules" && e.name !== "target" && e.name !== "dist")
+        .filter(e => e.isDirectory() && !e.name.startsWith(".") && !ignoredDirs.has(e.name.toLowerCase()))
         .map(e => e.name);
     }
   } catch (_) {}
