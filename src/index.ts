@@ -25,13 +25,14 @@ import {
   clearMemoryState
 } from "./state.js";
 
-import { captureReviewDiffSnapshot, buildColdStartReviewContract } from "./review_isolation.js";
+import { captureReviewDiffSnapshot, buildColdStartReviewContract, ReviewIsolationGuard } from "./review_isolation.js";
 
 const CUSTOM_MSG_TYPE = "toolflow:blueprint";
 const blastGuard = new BlastRadiusGuard();
 const degradationMatrix = new GracefulDegradationMatrix();
 const memoryManager = new CodebaseMemoryManager();
 const dehydrator = new ContextDehydrator();
+const reviewGuard = new ReviewIsolationGuard();
 
 export default function (pi: ExtensionAPI) {
   // 启动时静默尝试恢复跨会话蓝图状态
@@ -43,6 +44,7 @@ export default function (pi: ExtensionAPI) {
       // 当开启全新会话时，不仅重置内存状态，还物理清理残余持久化文件，彻底消灭幽灵自愈唤醒
       if (event?.reason === "new" || event?.reason === "clear") {
         resetState(process.cwd());
+        reviewGuard.deactivate();
         blastGuard.clearAllowedScope();
         applyToolScoping(BASELINE_TOOLS, pi);
       }
@@ -166,12 +168,18 @@ export default function (pi: ExtensionAPI) {
     const llmArtifactPlan = await synthesizeBlueprintPlanWithLLM(rawTask, diagnosis, userDecisions, taxonomy, ctx);
 
     // 合成包含 DAG 拓扑排序的执行蓝图
+    const cwd = ctx.cwd || process.cwd();
     const blueprint = synthesizeBlueprint(rawTask, diagnosis, userDecisions, taxonomy, undefined, undefined, llmArtifactPlan);
-    startBlueprintExecution(blueprint);
+    startBlueprintExecution(blueprint, cwd);
 
     // 动态增强阶段高权重工具与基线工具 (经过 GracefulDegradationMatrix 统一裁剪)
     const firstStage = blueprint.stages[0];
     if (firstStage) {
+      if (firstStage.isReviewStage && firstStage.reviewIsolation?.enabled) {
+        reviewGuard.activate();
+      } else {
+        reviewGuard.deactivate();
+      }
       blastGuard.updateAllowedScope(firstStage);
       const pruned = degradationMatrix.resolvePrunedToolsForStage(firstStage.stageId, firstStage.allowedTools);
       applyToolScoping(pruned.allowedTools, pi);
@@ -207,6 +215,7 @@ export default function (pi: ExtensionAPI) {
     // 1. 处理回滚子命令: /toolflow rollback 或 -r
     if (rawArg === "rollback" || rawArg === "-r" || rawArg === "revert") {
       const res = rollbackStage(undefined, cwd);
+      reviewGuard.deactivate();
       applyToolScoping(BASELINE_TOOLS, pi);
       if (ctx?.ui?.notify) {
         ctx.ui.notify(res.message, res.success ? "info" : "warning");
@@ -217,6 +226,7 @@ export default function (pi: ExtensionAPI) {
     // 2. 处理重置子命令: /toolflow reset
     if (rawArg === "reset") {
       resetState(cwd);
+      reviewGuard.deactivate();
       blastGuard.clearAllowedScope();
       applyToolScoping(BASELINE_TOOLS, pi);
       if (ctx?.ui?.notify) {
@@ -417,11 +427,24 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  // 注册 tool_call 安全拦截钩子 (写权限与影响面防穿透)
+  // 注册 tool_call 安全拦截钩子 (写权限与影响面防穿透 + 审查隔离只读硬防线)
   if (typeof (pi as any).on === "function") {
     (pi as any).on("tool_call", async (event: any) => {
       const state = getSessionState();
       if (state.status === "in_progress" && state.currentBlueprint) {
+        // 1. 审查阶段只读物理硬防线：物理拦截 write, edit 等篡改代码工具
+        if (reviewGuard.isActive()) {
+          const tool = (event.toolName || "").toLowerCase();
+          if (!reviewGuard.isToolAllowedInReview(tool)) {
+            return {
+              block: true,
+              reason: `[ToolFlow 审查隔离防线] 当前处于只读审查与质量验收阶段，已物理阻断代码修改工具 "${tool}"。请保持客观视角执行测试或检查 diff。`,
+              terminate: false
+            };
+          }
+        }
+
+        // 2. 核心敏感文件爆炸半径安全拦截
         const check = blastGuard.verifyToolCall(event);
         if (check.block) {
           return {
@@ -529,11 +552,17 @@ export default function (pi: ExtensionAPI) {
           dehydrator.pruneOldRuns();
         } catch (_) {}
 
-        const hasNext = advanceStage();
+        const turnCwd = ctx.cwd || process.cwd();
+        const hasNext = advanceStage(turnCwd);
         const updatedState = getSessionState();
         if (hasNext && updatedState.currentBlueprint) {
           const nextStage = updatedState.currentBlueprint.stages[updatedState.currentStageIndex];
           if (nextStage) {
+            if (nextStage.isReviewStage && nextStage.reviewIsolation?.enabled) {
+              reviewGuard.activate();
+            } else {
+              reviewGuard.deactivate();
+            }
             blastGuard.updateAllowedScope(nextStage);
             const pruned = degradationMatrix.resolvePrunedToolsForStage(nextStage.stageId, nextStage.allowedTools);
             applyToolScoping(pruned.allowedTools, pi);

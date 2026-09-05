@@ -1,6 +1,6 @@
 {
   "name": "toolflow",
-  "version": "3.1.3",
+  "version": "3.1.4",
   "description": "Adaptive tool workflow & prompt workbench for Pi: dynamic task blueprint generation, native prompts visualization, stage-gated tool pruning, and rollback safety.",
   "type": "module",
   "main": "src/index.ts",
@@ -37,6 +37,9 @@
   "author": "Jason",
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^7.0.2"
+    "@types/node": "^20.17.0",
+    "@earendil-works/pi-coding-agent": ">=0.80.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
   }
 }

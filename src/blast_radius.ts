@@ -249,6 +249,26 @@ export class BlastRadiusGuard {
       }
     }
 
+    // 终端命令逃逸审计 (拦截通过 bash/powershell 直接写入、覆盖或删除绝密配置)
+    if (tool === "bash" || tool === "powershell" || tool === "exec") {
+      const command = (event.input?.command || event.input?.cmd || "").toString();
+      if (command) {
+        // 匹配输出重定向（> / >>）、删除指令（rm, del, Remove-Item）或写入流操作
+        const isDestructiveOrWrite = /(?:>|>>|\brm\b|\bdel\b|\bRemove-Item\b|\bset-content\b|\bout-file\b)/i.test(command);
+        if (isDestructiveOrWrite) {
+          for (const pattern of this.criticalConfigPatterns) {
+            if (pattern.test(command)) {
+              return {
+                block: true,
+                reason: `[ToolFlow 保护红线] 拦截终端命令：检测到试图通过终端脚本篡改或删除核心敏感文件（匹配受保护目标）！`
+              };
+            }
+          }
+        }
+      }
+      return { block: false };
+    }
+
     return { block: false };
   }
 }

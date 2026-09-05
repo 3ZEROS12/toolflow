@@ -8,6 +8,7 @@
     "strict": true,
     "skipLibCheck": true,
     "typeRoots": [
+      "./node_modules/@types",
       "C:/Users/Jason/AppData/Roaming/npm/node_modules/@earendil-works/pi-coding-agent/node_modules/@types"
     ],
     "types": ["node"]
