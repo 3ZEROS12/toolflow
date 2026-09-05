@@ -6,6 +6,7 @@ import { loadOrRefreshTaxonomy, reflectEnvironmentContext } from "./taxonomy.js"
 import { diagnoseTaskRequirements, synthesizeBlueprint, synthesizeBlueprintPlanWithLLM, generateStageActionPrompt } from "./engine.js";
 import { EcosystemRadar } from "./deep_ecosystem.js";
 import { renderCompactEcosystemOverview, renderBlueprintSummary, openArchitectNavigator, renderValueReceipt, renderExecutionPipelineCard } from "./ui.js";
+import { t, isZh } from "./i18n.js";
 import { ContextDehydrator } from "./dehydrator.js";
 import { BlastRadiusGuard } from "./blast_radius.js";
 import { GracefulDegradationMatrix } from "./degradation_matrix.js";
@@ -64,7 +65,7 @@ export default function (pi: ExtensionAPI) {
 
   async function runTaskDecisionPipeline(rawTask: string, taxonomy: any, ctx: ExtensionContext | ExtensionCommandContext) {
     if (ctx?.ui?.notify) {
-      ctx.ui.notify(`正在分析任务「${rawTask}」并规划最优执行路线...`, "info");
+      ctx.ui.notify(t.analyzingTask(rawTask), "info");
     }
 
     const memoryDirective = memoryManager.getPromptContextInjection();
@@ -80,7 +81,7 @@ export default function (pi: ExtensionAPI) {
         if (!res) {
           // 用户在第一步主动按 Esc 或 Q 取消了操作，安全退出，不产生幽灵推进
           if (ctx?.ui?.notify) {
-            ctx.ui.notify("已取消蓝图规划与执行。", "info");
+            ctx.ui.notify(t.cancelled, "info");
           }
           return;
         }
@@ -120,14 +121,14 @@ export default function (pi: ExtensionAPI) {
         }
       }
       if (userCancelled) {
-        if (ctx?.ui?.notify) ctx.ui.notify("已取消蓝图规划与执行。", "info");
+        if (ctx?.ui?.notify) ctx.ui.notify(t.cancelled, "info");
         return;
       }
       userDecisions = Object.keys(collected).length > 0 ? collected : null;
     }
 
     if (!userDecisions) {
-      if (ctx?.ui?.notify) ctx.ui.notify("未产生有效决策，已取消执行。", "info");
+      if (ctx?.ui?.notify) ctx.ui.notify(t.noDecision, "info");
       return;
     }
 
@@ -218,7 +219,7 @@ export default function (pi: ExtensionAPI) {
       blastGuard.clearAllowedScope();
       applyToolScoping(BASELINE_TOOLS, pi);
       if (ctx?.ui?.notify) {
-        ctx.ui.notify("[OK] 已重置当前项目的所有蓝图状态与持久化账本。", "info");
+        ctx.ui.notify(t.resetSuccess, "info");
       }
       return;
     }
@@ -228,7 +229,7 @@ export default function (pi: ExtensionAPI) {
       const activeState = getSessionState();
       if (!activeState.currentBlueprint) {
         if (ctx?.ui?.notify) {
-          ctx.ui.notify("当前没有激活的执行蓝图可供导出。请先运行 /toolflow <任务> 生成蓝图。", "warning");
+          ctx.ui.notify(t.exportNoBlueprint, "warning");
         }
         return;
       }
@@ -237,11 +238,11 @@ export default function (pi: ExtensionAPI) {
       try {
         fs.writeFileSync(exportPath, summaryMd, "utf-8");
         if (ctx?.ui?.notify) {
-          ctx.ui.notify(`[OK] 蓝图文档已成功导出至: ${exportPath}`, "info");
+          ctx.ui.notify(t.exportSuccess(exportPath), "info");
         }
       } catch (err: any) {
         if (ctx?.ui?.notify) {
-          ctx.ui.notify(`导出失败: ${err.message}`, "error");
+          ctx.ui.notify(t.exportFailed(err.message), "error");
         }
       }
       return;
@@ -252,7 +253,7 @@ export default function (pi: ExtensionAPI) {
       const activeState = getSessionState();
       if (!activeState.currentBlueprint) {
         if (ctx?.ui?.notify) {
-          ctx.ui.notify("当前没有激活的执行蓝图。请先运行 /toolflow <任务> 生成蓝图。", "warning");
+          ctx.ui.notify(t.statusNoBlueprint, "warning");
         }
         return;
       }
@@ -292,7 +293,7 @@ export default function (pi: ExtensionAPI) {
 
         if (choice?.startsWith("▶")) {
           if (ctx?.ui?.notify) {
-            ctx.ui.notify(`已恢复蓝图进度: 阶段 ${stageNum} (${currentStage?.title})`, "info");
+            ctx.ui.notify(t.resumedStage(stageNum, currentStage?.title || ""), "info");
           }
           return;
         } else if (choice?.startsWith("↺")) {
@@ -307,7 +308,7 @@ export default function (pi: ExtensionAPI) {
           blastGuard.clearAllowedScope();
           applyToolScoping(BASELINE_TOOLS, pi);
           if (ctx?.ui?.notify) {
-            ctx.ui.notify("已清理旧任务残留，准备开启全新蓝图...", "info");
+            ctx.ui.notify(t.cleaningOldTask, "info");
           }
         }
       }
@@ -327,7 +328,7 @@ export default function (pi: ExtensionAPI) {
         } else if (res && res.kind === "prompt_invoke" && res.command) {
           if (ctx.ui && "setEditorText" in ctx.ui && typeof (ctx.ui as any).setEditorText === "function") {
             (ctx.ui as any).setEditorText(res.command + " ");
-            ctx.ui.notify(`已将提示词模板 ${res.command} 就位到底部输入框`, "info");
+            ctx.ui.notify(t.prefilledPrompt(res.command), "info");
           } else if (typeof pi.sendMessage === "function") {
             pi.sendMessage({
               customType: CUSTOM_MSG_TYPE,
@@ -355,12 +356,14 @@ export default function (pi: ExtensionAPI) {
 
   // 注册 /toolflow 主命令
   const toolflowCmdHandler = {
-    description: "自适应工具编排与执行蓝图 (/toolflow <任务>, 支持 rollback/reset)",
+    description: isZh
+      ? "自适应工具编排与执行蓝图 (/toolflow <任务>, 支持 rollback/reset/export)"
+      : "Adaptive tool workflow & prompt workbench (/toolflow <task>, supports rollback/reset/export)",
     getArgumentCompletions: (prefix: string) => {
       const subcommands = [
-        { label: "rollback", value: "rollback", description: "一键无损回滚当前阶段代码" },
-        { label: "reset", value: "reset", description: "重置并清除当前任务流状态" },
-        { label: "export", value: "export", description: "导出当前物理执行蓝图至文档" }
+        { label: "rollback", value: "rollback", description: isZh ? "一键无损回滚当前阶段代码" : "Rollback code changes to stage snapshot" },
+        { label: "reset", value: "reset", description: isZh ? "重置并清除当前任务流状态" : "Reset and clear active workflow state" },
+        { label: "export", value: "export", description: isZh ? "导出当前物理执行蓝图至文档" : "Export active blueprint to Markdown document" }
       ];
       return subcommands.filter(cmd => cmd.value.startsWith(prefix.trim().toLowerCase()));
     },
@@ -390,7 +393,7 @@ export default function (pi: ExtensionAPI) {
       const state = getSessionState();
       if (!state.currentBlueprint) {
         if (ctx?.ui?.notify) {
-          ctx.ui.notify("当前尚未激活任何执行蓝图，可运行 /toolflow <任务> 启动。", "info");
+          ctx.ui.notify(t.statusNoBlueprint, "info");
         }
         return;
       }
@@ -508,7 +511,7 @@ export default function (pi: ExtensionAPI) {
       if (verificationResult.valid && verificationResult.record) {
         const { record } = verificationResult;
         if (ctx?.ui?.notify) {
-          ctx.ui.notify(`[阶段 ${state.currentStageIndex + 1} 交付物验证通过] ${currentStage.expectedArtifact} (SHA-256: ${record.sha256.slice(0, 12)}...)`, "info");
+          ctx.ui.notify(t.stageVerified(state.currentStageIndex + 1, currentStage.expectedArtifact, record.sha256.slice(0, 12)), "info");
         }
 
         // 严防历史遗留文件未变更而误判定
@@ -618,7 +621,7 @@ export default function (pi: ExtensionAPI) {
           }
 
           if (ctx?.ui?.notify) {
-            ctx.ui.notify(`🎉 蓝图「${state.currentBlueprint.task}」全阶段已顺利竣工！已生成 64 位 SHA 物理交付账本。`, "info");
+            ctx.ui.notify(t.allCompleted(state.currentBlueprint.task), "info");
           }
 
           // 核心方案 2：全阶段竣工时原地调用 ctx.compact() 脱水清理上下文
@@ -629,7 +632,7 @@ export default function (pi: ExtensionAPI) {
                 customInstructions: `Blueprint task "${state.currentBlueprint.task}" completed successfully across all stages with verified artifacts: ${verifiedFiles.join(", ")}. Retain this completion state and verified files ledger.`,
                 onComplete: () => {
                   if (ctx?.ui?.notify) {
-                    ctx.ui.notify("⚡ 上下文已自动极简脱水压缩，环境清爽无膨胀", "info");
+                    ctx.ui.notify(t.contextDehydrated, "info");
                   }
                 }
               });
@@ -642,7 +645,7 @@ export default function (pi: ExtensionAPI) {
         // 验收未通过：触发 3 次就地自愈或熔断提示
         if (verificationResult.isCircuitBroken) {
           if (ctx?.ui?.notify) {
-            ctx.ui.notify(`[熔断保护] 阶段 ${state.currentStageIndex + 1} 连续 3 次未找到产物已暂停自动推进，请直接编写 ${currentStage.expectedArtifact} 或执行 /toolflow rollback。`, "warning");
+            ctx.ui.notify(t.circuitBroken(state.currentStageIndex + 1, currentStage.expectedArtifact), "warning");
           }
         } else if (verificationResult.remediationGuidance && typeof pi.sendUserMessage === "function") {
           const retryPrefix = `[SELF-HEALING ${verificationResult.retryCount || 1}/3] `;

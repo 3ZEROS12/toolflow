@@ -1,77 +1,62 @@
-# ToolFlow (⌬)
+# ToolFlow ⌬
 
-> Pi 终端的自适应架构编排与提示词工作台。
+> Stage-based task runner and prompt template manager for Pi.
 
-无需预置死板模板，ToolFlow 结合你的实际工作区代码结构，在终端内为你推导合理的任务执行阶段、编排最合适的工具链，并提供原生的 Prompts 提示词可视化管理。
+[English](README.md) | [简体中文](README_zh.md)
 
----
-
-## 特性
-
-- **动态生成任务蓝图**：根据自然语言需求与项目实际代码，推导工程执行阶段与物理产物入口，非 Web 后端项目绝不误判 `index.html`。
-- **Prompts 提示词可视化台**：自动检索全工程与全局 `prompts/*.md` 模板，支持方向键浏览、按 `[p]` 一键预填、按 `[c]` 新建模板与 `[Ctrl+L]` 自动补全。
-- **按需开放工具链**：避免全量工具挤占上下文。探索阶段开放代码检索，编码阶段挂载工作流/子代理，收尾阶段挂载走查工具。
-- **物理交付验证与回滚**：以真实代码落盘与构建退出码为阶段完工标准；支持前期代码查阅，支持 `/toolflow rollback` 一键撤销变更。
-- **干净终端美学**：去除多余装饰与表情符号，纯粹依靠终端字符与苯环（`⌬`）标识，严格做宽度裁剪避免终端换行崩坏。
+ToolFlow is a lightweight Pi extension focused on two things:
+1. **Stage-based execution**: Breaks a task into clear implementation stages, verifies required files at each step, and supports instant git-based rollback if a stage fails.
+2. **Prompt template manager**: Browse, prefill, and create local prompt templates (`prompts/*.md`) inside an interactive terminal UI.
 
 ---
 
-## 快速安装
+## Installation
+
+Install directly via git:
 
 ```bash
-# 从 GitHub 直接安装
 pi install git:github.com/3ZEROS12/toolflow
-
-# 或者从 npm 安装（发布后）
-pi install npm:toolflow
 ```
 
 ---
 
-## 快速上手
+## What It Does
 
-### 1. 启动工作台
-在 Pi 交互界面中直接输入：
-```text
-/toolflow
-```
-- 屏幕上方展示当前工程的 **Prompts 提示词模板列表**（按时间倒序排列）；
-- 按 `[↑]` / `[↓]` 可上下选择模板，按 `[p]` 将选中模板预填入输入框；
-- 按 `[c]` 可直接新建自定义 `.md` 模板，按 `[Ctrl+L]` 可由大模型自动生成模板标题与指令。
+### 1. Stage-Based Execution
+- **Realistic file targets**: Accurately determines target files based on your project (e.g. `src/index.ts`, `main.py`, or CLI scripts) instead of defaulting to `index.html`.
+- **Deliverable checks**: Automatically verifies required artifacts before proceeding to the next stage.
+- **Instant rollback**: Run `/toolflow rollback` anytime to revert changes made during the current stage.
 
-### 2. 制定任务蓝图
-- 在首页直接按 `[Enter]` 输入你的开发任务（或直接运行 `/toolflow <你的任务>`）；
-- 进入方案决策界面，通过 `[←]` / `[→]` 左右切换或数字键 `[1]`~`[4]` 选择功能偏好与架构形态；
-- 确认后即刻生成清晰的分阶段执行蓝图，进入编码与校验循环。
+### 2. Prompt Template Manager
+Run `/toolflow` without arguments to open the prompt workbench:
+- **Browse templates**: Lists all local and global `prompts/*.md` templates, sorted by recent activity.
+- **Prefill to editor**: Press `[p]` to load a template directly into the input bar.
+- **Create new templates**: Press `[c]` to create a new `.md` prompt template inline.
 
 ---
 
-## 常用命令
+## Commands
 
-| 命令 | 说明 |
+| Command | Description |
 | :--- | :--- |
-| `/toolflow` | 启动工作台主视图（提示词浏览 + 任务输入入口） |
-| `/toolflow <任务>` | 直接带任务目标启动，进入架构推导决策舱 |
-| `/toolflow export` | 将当前执行蓝图导出为本地 `BLUEPRINT.md` |
-| `/toolflow rollback` | 代码写崩时一键恢复至当前阶段开始前的 Git 快照 |
-| `/toolflow reset` | 重置并清空当前任务状态与临时缓存 |
+| `/toolflow` | Open the prompt template browser and task input UI |
+| `/toolflow <task>` | Create and run a stage plan for the task |
+| `/toolflow rollback` | Revert code changes back to the pre-stage snapshot |
+| `/toolflow reset` | Clear active task state and temporary files |
+| `/toolflow export` | Export the current stage plan to `BLUEPRINT.md` |
 
 ---
 
-## 快捷键一览
+## Keybindings
 
-- `[Enter]` / `[i]`：进入任务输入模式
-- `[p]`：将高亮的 Prompt 模板填入当前任务
-- `[c]`：新建 Prompt 提示词模板
-- `[Ctrl+L]`：新建模板时快速生成指令
-- `[←]` / `[→]`：方案选项左右切换
-- `[1]` ~ `[4]`：数字键直接选定方案
-- `[a]`：一键采用全套推荐方案并启动
-- `[e]`：为当前决策维度追加自定义要求
-- `[Esc]`：退出当前面板
+- `[Enter]`: Input task and generate stage plan
+- `[p]`: Load highlighted prompt template into input
+- `[c]`: Create new prompt template
+- `[1-4]` / `[←/→]`: Select options in the configuration prompt
+- `[Esc]`: Cancel / Exit
 
 ---
 
-## 许可证
+## License
 
-MIT License.
+MIT © [Jason](https://github.com/3ZEROS12)
