@@ -58,10 +58,11 @@ export class PromptsManager {
     const projectDir = path.join(cwd, ".pi", "prompts");
     checkDir(projectDir, "project");
 
-    const globalDir = path.join(os.homedir(), ".pi", "agent", "prompts");
+    const piAgentBase = process.env.PI_AGENT_DIR || path.join(os.homedir(), ".pi", "agent");
+    const globalDir = path.join(piAgentBase, "prompts");
     checkDir(globalDir, "global");
 
-    const pkgDir = path.join(os.homedir(), ".pi", "agent", "npm", "node_modules");
+    const pkgDir = path.join(piAgentBase, "npm", "node_modules");
     if (fs.existsSync(pkgDir)) {
       try {
         const scanPkgs = (base: string, depth = 0) => {
@@ -87,9 +88,10 @@ export class PromptsManager {
 
   public static createPrompt(name: string, description: string, content: string, scope: "global" | "project" = "global", cwd: string = process.cwd()): PromptItemInfo {
     const cleanName = name.replace(/^\/+/, "").trim();
+    const piAgentBase = process.env.PI_AGENT_DIR || path.join(os.homedir(), ".pi", "agent");
     const targetDir = scope === "project"
       ? path.join(cwd, ".pi", "prompts")
-      : path.join(os.homedir(), ".pi", "agent", "prompts");
+      : path.join(piAgentBase, "prompts");
 
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });

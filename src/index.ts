@@ -361,9 +361,10 @@ export default function (pi: ExtensionAPI) {
       : "Adaptive tool workflow & prompt workbench (/toolflow <task>, supports rollback/reset/export)",
     getArgumentCompletions: (prefix: string) => {
       const subcommands = [
-        { label: "rollback", value: "rollback", description: isZh ? "一键无损回滚当前阶段代码" : "Rollback code changes to stage snapshot" },
-        { label: "reset", value: "reset", description: isZh ? "重置并清除当前任务流状态" : "Reset and clear active workflow state" },
-        { label: "export", value: "export", description: isZh ? "导出当前物理执行蓝图至文档" : "Export active blueprint to Markdown document" }
+        { label: "rollback", value: "rollback", description: isZh ? "撤销当前阶段修改并回退快照" : "Rollback code changes to stage snapshot" },
+        { label: "reset", value: "reset", description: isZh ? "清除当前任务状态与临时缓存" : "Reset and clear active workflow state" },
+        { label: "status", value: "status", description: isZh ? "查看当前阶段流水线看板" : "View current stage pipeline status" },
+        { label: "export", value: "export", description: isZh ? "导出阶段计划为 Markdown" : "Export active stage plan to Markdown" }
       ];
       return subcommands.filter(cmd => cmd.value.startsWith(prefix.trim().toLowerCase()));
     },
@@ -376,7 +377,7 @@ export default function (pi: ExtensionAPI) {
 
   // 注册 /toolflow-rollback 快捷命令
   const rollbackHandler = {
-    description: "一键无损秒回滚至当前阶段开工前的安全快照点",
+    description: isZh ? "撤销当前阶段修改并回退快照 (快捷方式)" : "Rollback changes and restore stage snapshot (shortcut)",
     handler: async (_args: string, ctx: ExtensionCommandContext) => {
       const res = rollbackStage();
       if (ctx?.ui?.notify) {
@@ -388,7 +389,7 @@ export default function (pi: ExtensionAPI) {
 
   // 注册 /sop 命令
   pi.registerCommand("sop", {
-    description: "查看当前共创流水线看板与执行状态 (/toolflow status 别名)",
+    description: isZh ? "查看当前阶段执行状态 (/toolflow status 别名)" : "View current stage execution status (/toolflow status alias)",
     handler: async (_args: string, ctx: ExtensionCommandContext) => {
       const state = getSessionState();
       if (!state.currentBlueprint) {

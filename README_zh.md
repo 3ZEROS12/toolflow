@@ -42,7 +42,9 @@ pi install git:github.com/3ZEROS12/toolflow
 | :--- | :--- |
 | `/toolflow` | 打开 Prompt 模板库与任务输入界面 |
 | `/toolflow <任务内容>` | 直接为指定任务创建并执行阶段计划 |
+| `/toolflow status` | 查看当前阶段执行状态 (别名: `/sop`) |
 | `/toolflow rollback` | 撤销当前阶段的修改，回退到阶段开始前的快照 |
+| `/toolflow-rollback` | `/toolflow rollback` 的独立快捷指令 |
 | `/toolflow reset` | 清除当前任务状态与临时缓存 |
 | `/toolflow export` | 将执行计划导出为 `BLUEPRINT.md` |
 

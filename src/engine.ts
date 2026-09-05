@@ -956,11 +956,10 @@ STRICT RULES:
       .join("\n");
 
     let clean = textBlocks.trim();
-    const jsonMatch = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) clean = jsonMatch[1].trim();
-    clean = clean.replace(/```json/g, "").replace(/```/g, "").trim();
+    const jsonBlockMatch = clean.match(/\{[\s\S]*\}/);
+    if (!jsonBlockMatch) return fallback;
 
-    const parsed = JSON.parse(clean);
+    const parsed = JSON.parse(jsonBlockMatch[0]);
     if (parsed && typeof parsed.primaryArtifact === "string") {
       return {
         primaryArtifact: parsed.primaryArtifact,

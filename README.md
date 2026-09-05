@@ -41,7 +41,9 @@ Run `/toolflow` without arguments to open the prompt workbench:
 | :--- | :--- |
 | `/toolflow` | Open the prompt template browser and task input UI |
 | `/toolflow <task>` | Create and run a stage plan for the task |
+| `/toolflow status` | View current stage pipeline status (alias: `/sop`) |
 | `/toolflow rollback` | Revert code changes back to the pre-stage snapshot |
+| `/toolflow-rollback` | Shortcut for `/toolflow rollback` |
 | `/toolflow reset` | Clear active task state and temporary files |
 | `/toolflow export` | Export the current stage plan to `BLUEPRINT.md` |
 
