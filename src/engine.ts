@@ -1105,26 +1105,13 @@ export function synthesizeBlueprint(
   // 任务轻重自适应探测 (Adaptive Task Complexity Router)
   // 识别是否属于日常极轻量单点改动/修补微任务，避免大炮打蚊子
   const taskLower = (task || "").toLowerCase();
-  const isMicroTask = (
-    !isPlanB &&
-    (userDecisions.__microTask === "true" || userDecisions.__microTask === ("true" as any) || (
-      taskLower.length < 25 &&
-      (taskLower.includes("修复") ||
-        taskLower.includes("fix") ||
-        taskLower.includes("改一下") ||
-        taskLower.includes("微调") ||
-        taskLower.includes("format") ||
-        taskLower.includes("加个注释")) &&
-      !taskLower.includes("系统") &&
-      !taskLower.includes("架构") &&
-      !taskLower.includes("重构") &&
-      !taskLower.includes("web") &&
-      !taskLower.includes("控制台") &&
-      !taskLower.includes("构建") &&
-      !taskLower.includes("单页") &&
-      !taskLower.includes("应用")
-    ))
-  );
+  const explicitMicro = userDecisions.__microTask === "true" || userDecisions.__microTask === ("true" as any);
+  const isLightweightIntent =
+    taskLower.length < 25 &&
+    /(修复|fix|改一下|微调|format|加个注释)/.test(taskLower) &&
+    !/(系统|架构|重构|web|控制台|构建|单页|应用)/.test(taskLower);
+
+  const isMicroTask = !isPlanB && (explicitMicro || isLightweightIntent);
 
   let rawStages: BlueprintStage[];
   if (isMicroTask) {

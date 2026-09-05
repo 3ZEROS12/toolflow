@@ -327,6 +327,7 @@ export class ReadCacheManager {
 
       if (isUnchanged && turnDistance >= 1 && turnDistance <= 15) {
         // 更新最后访问轮次
+        const lastTurn = cached.lastTurnIndex;
         cached.lastTurnIndex = currentTurn;
         const relativePath = path.relative(process.cwd(), filePath).replace(/\\/g, "/");
         const approxSavedTokens = Math.max(20, Math.round(contentLen / 4));
@@ -339,7 +340,7 @@ export class ReadCacheManager {
           notice: [
             headSnippet,
             "",
-            `[⚡ ToolFlow Read Cache: 文件 "${relativePath}" (${lines.length} 行, ~${approxSavedTokens} tokens) 前文第 ${cached.lastTurnIndex} 轮已读取且无变更，内容完全一致。已自动去重以节省 Token。如需重读特定片段请使用 read 工具的 offset/limit 选项。]`,
+            `[⚡ ToolFlow Read Cache: 文件 "${relativePath}" (${lines.length} 行, ~${approxSavedTokens} tokens) 前文第 ${lastTurn} 轮已读取且无变更，内容完全一致。已自动去重以节省 Token。如需重读特定片段请使用 read 工具的 offset/limit 选项。]`,
             "",
             tailSnippet
           ].join("\n")
