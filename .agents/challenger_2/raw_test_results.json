@@ -1,0 +1,136 @@
+{
+  "hypothesis_1": {
+    "verifyStageArtifacts_mutates_retryCount": {
+      "initial": 0,
+      "call1": 1,
+      "call2": 2,
+      "call3": 3,
+      "circuitBrokenOn3": true
+    },
+    "sop_handler_direct_mutation": {
+      "before": 3,
+      "after": 3,
+      "isSopMutatingDirectly": false
+    }
+  },
+  "hypothesis_2": {
+    "lru_eviction": {
+      "createdRuns": [
+        "run_00",
+        "run_01",
+        "run_02",
+        "run_03",
+        "run_04",
+        "run_05",
+        "run_06",
+        "run_07",
+        "run_08",
+        "run_09",
+        "run_10",
+        "run_11"
+      ],
+      "deletedRuns": [
+        "run_01",
+        "run_00"
+      ],
+      "remainingRuns": [
+        "run_02",
+        "run_03",
+        "run_04",
+        "run_05",
+        "run_06",
+        "run_07",
+        "run_08",
+        "run_09",
+        "run_10",
+        "run_11"
+      ],
+      "activeRunDeleted": true
+    },
+    "silent_write_failure": {
+      "returnedPath": "Z:\\non_existent_drive_12345\\.pi\\toolflow\\runs\\test_run\\stage_stage_01_raw.log",
+      "fileExists": false,
+      "errorSwallowed": true
+    }
+  },
+  "hypothesis_3": {
+    "English ASCII": {
+      "task": "Build REST API and verify database migration",
+      "headerWidth": 64,
+      "taskRowVisW": 62,
+      "stageRowVisW": 70,
+      "taskOverflow": -2,
+      "stageOverflow": 6
+    },
+    "Chinese CJK": {
+      "task": "开发智能客户服务支持中心前端页面",
+      "headerWidth": 64,
+      "taskRowVisW": 78,
+      "stageRowVisW": 70,
+      "taskOverflow": 14,
+      "stageOverflow": 6
+    },
+    "Mixed CJK+ASCII": {
+      "task": "开发 Web3 钱包管理系统 v2.0 核心模块",
+      "headerWidth": 64,
+      "taskRowVisW": 74,
+      "stageRowVisW": 70,
+      "taskOverflow": 10,
+      "stageOverflow": 6
+    },
+    "Emoji + CJK": {
+      "task": "🚀 打造全自动智能运维看板 🎯",
+      "headerWidth": 64,
+      "taskRowVisW": 73,
+      "stageRowVisW": 70,
+      "taskOverflow": 9,
+      "stageOverflow": 6
+    }
+  },
+  "hypothesis_4": {
+    "borderCalculations": [
+      {
+        "width": 60,
+        "innerWidth": 56,
+        "topVisW": 60,
+        "bodyVisW": 60,
+        "botVisW": 60,
+        "topOffset": 0,
+        "isTopOffsetByOne": false
+      },
+      {
+        "width": 80,
+        "innerWidth": 76,
+        "topVisW": 80,
+        "bodyVisW": 80,
+        "botVisW": 80,
+        "topOffset": 0,
+        "isTopOffsetByOne": false
+      },
+      {
+        "width": 100,
+        "innerWidth": 96,
+        "topVisW": 100,
+        "bodyVisW": 100,
+        "botVisW": 100,
+        "topOffset": 0,
+        "isTopOffsetByOne": false
+      },
+      {
+        "width": 120,
+        "innerWidth": 116,
+        "topVisW": 120,
+        "bodyVisW": 120,
+        "botVisW": 120,
+        "topOffset": 0,
+        "isTopOffsetByOne": false
+      }
+    ],
+    "planBSelectionTest": {
+      "planAfterPressing1": "A",
+      "planAfterPressing2": "A",
+      "planAfterOtherKeys": "A",
+      "isPlanBSwitchPossible": false
+    }
+  }
+}

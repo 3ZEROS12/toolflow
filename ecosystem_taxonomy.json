@@ -1,0 +1,3051 @@
+{
+  "installedFingerprint": "c01cf0971b015da8",
+  "projectFingerprint": {
+    "projectType": "unknown",
+    "packageManager": "unknown",
+    "hasGit": true,
+    "isClean": true,
+    "topLevelDirs": [],
+    "coreDependencies": [],
+    "gitBranch": "master"
+  },
+  "updatedAt": 1788573947413,
+  "extensions": [
+    {
+      "id": "pi-tui-status-beautifier",
+      "name": "pi-tui-status-beautifier",
+      "kind": "extension",
+      "layer": "L1_UTILITY",
+      "description": "动态识别组件 [pi-tui-status-beautifier]",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 pi-tui-status-beautifier",
+      "summary": "动态识别组件 [pi-tui-status-beautifier]",
+      "tags": [
+        "#extension",
+        "#pi-tui-status-beautifier"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "pi-computer-use",
+      "name": "pi-computer-use",
+      "kind": "extension",
+      "layer": "L1_UTILITY",
+      "description": "Cross-platform computer-use tools fo",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 pi-computer-use",
+      "summary": "Cross-platform computer-use tools fo",
+      "tags": [
+        "#extension",
+        "#pi-computer-use"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "ponytail",
+      "name": "ponytail",
+      "kind": "extension",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Lazy senior dev mode for AI agents. ",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 ponytail",
+      "summary": "Lazy senior dev mode for AI agents. ",
+      "tags": [
+        "#extension",
+        "#ponytail",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "rpiv-ask-user-question",
+      "name": "rpiv-ask-user-question",
+      "kind": "extension",
+      "layer": "L1_UTILITY",
+      "description": "Pi extension. A structured questionn",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 rpiv-ask-user-question",
+      "summary": "Pi extension. A structured questionn",
+      "tags": [
+        "#extension",
+        "#rpiv-ask-user-question"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "rpiv-todo",
+      "name": "rpiv-todo",
+      "kind": "extension",
+      "layer": "L1_UTILITY",
+      "description": "Pi extension. A todo list for the mo",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 rpiv-todo",
+      "summary": "Pi extension. A todo list for the mo",
+      "tags": [
+        "#extension",
+        "#rpiv-todo"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "pi-btw",
+      "name": "pi-btw",
+      "kind": "extension",
+      "layer": "L1_UTILITY",
+      "description": "Pi extension that adds a /btw side-q",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 pi-btw",
+      "summary": "Pi extension that adds a /btw side-q",
+      "tags": [
+        "#extension",
+        "#pi-btw"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "pi-goal",
+      "name": "pi-goal",
+      "kind": "extension",
+      "layer": "L1_UTILITY",
+      "description": "Pi extension for autonomous single-o",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 pi-goal",
+      "summary": "Pi extension for autonomous single-o",
+      "tags": [
+        "#extension",
+        "#pi-goal"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "input-history",
+      "name": "input-history",
+      "kind": "extension",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Cross-session input history navigati",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 input-history",
+      "summary": "Cross-session input history navigati",
+      "tags": [
+        "#extension",
+        "#input-history",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "pi-extension",
+      "name": "pi-extension",
+      "kind": "extension",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Plannotator Pi extension - interacti",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 pi-extension",
+      "summary": "Plannotator Pi extension - interacti",
+      "tags": [
+        "#extension",
+        "#pi-extension",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "pi-dynamic-workflows",
+      "name": "pi-dynamic-workflows",
+      "kind": "extension",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Claude-Code-style dynamic workflows ",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 pi-dynamic-workflows",
+      "summary": "Claude-Code-style dynamic workflows ",
+      "tags": [
+        "#extension",
+        "#pi-dynamic-workflows",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "billion-context-pi",
+      "name": "billion-context-pi",
+      "kind": "extension",
+      "layer": "L3_ORCHESTRATION",
+      "description": "One billion, not one million. Model-",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 billion-context-pi",
+      "summary": "One billion, not one million. Model-",
+      "tags": [
+        "#extension",
+        "#billion-context-pi",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "pi-background-tasks",
+      "name": "pi-background-tasks",
+      "kind": "extension",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Pi extension for durable background ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 pi-background-tasks",
+      "summary": "Pi extension for durable background ",
+      "tags": [
+        "#extension",
+        "#pi-background-tasks",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "pi-control-chrome",
+      "name": "pi-control-chrome",
+      "kind": "extension",
+      "layer": "L1_UTILITY",
+      "description": "Codex-aligned Chrome and Edge browse",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 pi-control-chrome",
+      "summary": "Codex-aligned Chrome and Edge browse",
+      "tags": [
+        "#extension",
+        "#pi-control-chrome"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "pi-mcp-adapter",
+      "name": "pi-mcp-adapter",
+      "kind": "extension",
+      "layer": "L3_ORCHESTRATION",
+      "description": "MCP (Model Context Protocol) adapter",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 pi-mcp-adapter",
+      "summary": "MCP (Model Context Protocol) adapter",
+      "tags": [
+        "#extension",
+        "#pi-mcp-adapter",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "pi-paste-image-to-model",
+      "name": "pi-paste-image-to-model",
+      "kind": "extension",
+      "layer": "L1_UTILITY",
+      "description": "Paste an image in Pi TUI; relay it w",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 pi-paste-image-to-model",
+      "summary": "Paste an image in Pi TUI; relay it w",
+      "tags": [
+        "#extension",
+        "#pi-paste-image-to-model"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "pi-rewind",
+      "name": "pi-rewind",
+      "kind": "extension",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Checkpoint/rewind extension for the ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 pi-rewind",
+      "summary": "Checkpoint/rewind extension for the ",
+      "tags": [
+        "#extension",
+        "#pi-rewind",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "pi-simplify",
+      "name": "pi-simplify",
+      "kind": "extension",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "A Pi extension that reviews recently",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 pi-simplify",
+      "summary": "A Pi extension that reviews recently",
+      "tags": [
+        "#extension",
+        "#pi-simplify",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "pi-subagents",
+      "name": "pi-subagents",
+      "kind": "extension",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Pi extension for single-agent delega",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 pi-subagents",
+      "summary": "Pi extension for single-agent delega",
+      "tags": [
+        "#extension",
+        "#pi-subagents",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "pi-web-access",
+      "name": "pi-web-access",
+      "kind": "extension",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Web search, URL fetching, GitHub rep",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 pi-web-access",
+      "summary": "Web search, URL fetching, GitHub rep",
+      "tags": [
+        "#extension",
+        "#pi-web-access",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    }
+  ],
+  "skills": [
+    {
+      "id": "ponytail",
+      "name": "ponytail",
+      "kind": "skill",
+      "layer": "L1_UTILITY",
+      "description": ">",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 ponytail",
+      "summary": ">",
+      "tags": [
+        "#skill",
+        "#ponytail"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "ponytail-audit",
+      "name": "ponytail-audit",
+      "kind": "skill",
+      "layer": "L4_REVIEW_GUARD",
+      "description": ">",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 ponytail-audit",
+      "summary": ">",
+      "tags": [
+        "#skill",
+        "#ponytail-audit",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "ponytail-debt",
+      "name": "ponytail-debt",
+      "kind": "skill",
+      "layer": "L1_UTILITY",
+      "description": ">",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 ponytail-debt",
+      "summary": ">",
+      "tags": [
+        "#skill",
+        "#ponytail-debt"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "ponytail-gain",
+      "name": "ponytail-gain",
+      "kind": "skill",
+      "layer": "L1_UTILITY",
+      "description": ">",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 ponytail-gain",
+      "summary": ">",
+      "tags": [
+        "#skill",
+        "#ponytail-gain"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "ponytail-help",
+      "name": "ponytail-help",
+      "kind": "skill",
+      "layer": "L1_UTILITY",
+      "description": ">",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 ponytail-help",
+      "summary": ">",
+      "tags": [
+        "#skill",
+        "#ponytail-help"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "ponytail-review",
+      "name": "ponytail-review",
+      "kind": "skill",
+      "layer": "L4_REVIEW_GUARD",
+      "description": ">",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 ponytail-review",
+      "summary": ">",
+      "tags": [
+        "#skill",
+        "#ponytail-review",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "plannotator",
+      "name": "plannotator",
+      "kind": "skill",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "\"Reference for using the Plannotator",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 plannotator",
+      "summary": "\"Reference for using the Plannotator",
+      "tags": [
+        "#skill",
+        "#plannotator",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "workflow-authoring",
+      "name": "workflow-authoring",
+      "kind": "skill",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Guidance for writing, editing, revie",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 workflow-authoring",
+      "summary": "Guidance for writing, editing, revie",
+      "tags": [
+        "#skill",
+        "#workflow-authoring",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "workflow-patterns",
+      "name": "workflow-patterns",
+      "kind": "skill",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Argument shapes for the 5 built-in w",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 workflow-patterns",
+      "summary": "Argument shapes for the 5 built-in w",
+      "tags": [
+        "#skill",
+        "#workflow-patterns",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "pi-control-chrome",
+      "name": "pi-control-chrome",
+      "kind": "skill",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Control the user's existing Chrome o",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 pi-control-chrome",
+      "summary": "Control the user's existing Chrome o",
+      "tags": [
+        "#skill",
+        "#pi-control-chrome",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "pi-control-chrome-release",
+      "name": "pi-control-chrome-release",
+      "kind": "skill",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Prepare, review, merge, publish, and",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 pi-control-chrome-release",
+      "summary": "Prepare, review, merge, publish, and",
+      "tags": [
+        "#skill",
+        "#pi-control-chrome-release",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "mcp-scripting",
+      "name": "mcp-scripting",
+      "kind": "skill",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Write mcpScript JavaScript for disco",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 mcp-scripting",
+      "summary": "Write mcpScript JavaScript for disco",
+      "tags": [
+        "#skill",
+        "#mcp-scripting",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "council-mode",
+      "name": "council-mode",
+      "kind": "skill",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Run a bounded supervisor-mediated ad",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 council-mode",
+      "summary": "Run a bounded supervisor-mediated ad",
+      "tags": [
+        "#skill",
+        "#council-mode",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "pi-subagents",
+      "name": "pi-subagents",
+      "kind": "skill",
+      "layer": "L3_ORCHESTRATION",
+      "description": "|",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 pi-subagents",
+      "summary": "|",
+      "tags": [
+        "#skill",
+        "#pi-subagents",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    }
+  ],
+  "prompts": [
+    {
+      "id": "/plugin-probe",
+      "name": "/plugin-probe",
+      "kind": "prompt",
+      "layer": "L1_UTILITY",
+      "description": "全局提示词 [/plugin-probe]",
+      "tokenImpact": "minimal",
+      "triggerWhen": "调用 /plugin-probe",
+      "summary": "触发 /plugin-probe 快捷动作",
+      "tags": [
+        "#prompt",
+        "#plugin-probe"
+      ],
+      "costLevel": "$0"
+    },
+    {
+      "id": "/council",
+      "name": "/council",
+      "kind": "prompt",
+      "layer": "L3_ORCHESTRATION",
+      "description": "扩展指令 [/council]",
+      "tokenImpact": "high",
+      "triggerWhen": "触发专用流水线 council",
+      "summary": "执行专职流水线 council",
+      "tags": [
+        "#pipeline",
+        "#council"
+      ],
+      "costLevel": "$3"
+    },
+    {
+      "id": "/gather-context-and-clarify",
+      "name": "/gather-context-and-clarify",
+      "kind": "prompt",
+      "layer": "L1_UTILITY",
+      "description": "扩展指令 [/gather-context-and-clarify]",
+      "tokenImpact": "low",
+      "triggerWhen": "触发专用流水线 gather-context-and-clarify",
+      "summary": "执行专职流水线 gather-context-and-clarify",
+      "tags": [
+        "#pipeline",
+        "#gather-context-and-clarify"
+      ],
+      "costLevel": "$1"
+    },
+    {
+      "id": "/parallel-cleanup",
+      "name": "/parallel-cleanup",
+      "kind": "prompt",
+      "layer": "L3_ORCHESTRATION",
+      "description": "扩展指令 [/parallel-cleanup]",
+      "tokenImpact": "high",
+      "triggerWhen": "触发专用流水线 parallel-cleanup",
+      "summary": "执行专职流水线 parallel-cleanup",
+      "tags": [
+        "#pipeline",
+        "#parallel-cleanup"
+      ],
+      "costLevel": "$3"
+    },
+    {
+      "id": "/parallel-research",
+      "name": "/parallel-research",
+      "kind": "prompt",
+      "layer": "L2_PERCEPTION",
+      "description": "扩展指令 [/parallel-research]",
+      "tokenImpact": "medium",
+      "triggerWhen": "触发专用流水线 parallel-research",
+      "summary": "执行专职流水线 parallel-research",
+      "tags": [
+        "#pipeline",
+        "#parallel-research"
+      ],
+      "costLevel": "$2"
+    },
+    {
+      "id": "/parallel-review",
+      "name": "/parallel-review",
+      "kind": "prompt",
+      "layer": "L3_ORCHESTRATION",
+      "description": "扩展指令 [/parallel-review]",
+      "tokenImpact": "high",
+      "triggerWhen": "触发专用流水线 parallel-review",
+      "summary": "执行专职流水线 parallel-review",
+      "tags": [
+        "#pipeline",
+        "#parallel-review"
+      ],
+      "costLevel": "$3"
+    },
+    {
+      "id": "/review-loop",
+      "name": "/review-loop",
+      "kind": "prompt",
+      "layer": "L3_ORCHESTRATION",
+      "description": "扩展指令 [/review-loop]",
+      "tokenImpact": "high",
+      "triggerWhen": "触发专用流水线 review-loop",
+      "summary": "执行专职流水线 review-loop",
+      "tags": [
+        "#pipeline",
+        "#review-loop"
+      ],
+      "costLevel": "$3"
+    }
+  ],
+  "mcps": [],
+  "tools": [
+    {
+      "id": "read",
+      "name": "read",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Read the contents of a file. Support",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 read",
+      "summary": "Read the contents of a file. Support",
+      "tags": [
+        "#tool",
+        "#read",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "bash",
+      "name": "bash",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Execute a bash command in the curren",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 bash",
+      "summary": "Execute a bash command in the curren",
+      "tags": [
+        "#tool",
+        "#bash"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "powershell",
+      "name": "powershell",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Execute a PowerShell command in the ",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 powershell",
+      "summary": "Execute a PowerShell command in the ",
+      "tags": [
+        "#tool",
+        "#powershell"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "edit",
+      "name": "edit",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Edit a single file using exact text ",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 edit",
+      "summary": "Edit a single file using exact text ",
+      "tags": [
+        "#tool",
+        "#edit",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "write",
+      "name": "write",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Write content to a file. Creates the",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 write",
+      "summary": "Write content to a file. Creates the",
+      "tags": [
+        "#tool",
+        "#write"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "grep",
+      "name": "grep",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Search file contents for a pattern. ",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 grep",
+      "summary": "Search file contents for a pattern. ",
+      "tags": [
+        "#tool",
+        "#grep",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "find",
+      "name": "find",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Search for files by glob pattern. Re",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 find",
+      "summary": "Search for files by glob pattern. Re",
+      "tags": [
+        "#tool",
+        "#find",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "ls",
+      "name": "ls",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "List directory contents. Returns ent",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 ls",
+      "summary": "List directory contents. Returns ent",
+      "tags": [
+        "#tool",
+        "#ls"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "web_search",
+      "name": "web_search",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Search the web using OpenAI, Brave, ",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 web_search",
+      "summary": "Search the web using OpenAI, Brave, ",
+      "tags": [
+        "#tool",
+        "#web_search",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "source_check",
+      "name": "source_check",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Check a claim against web sources an",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 source_check",
+      "summary": "Check a claim against web sources an",
+      "tags": [
+        "#tool",
+        "#source_check",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "fetch_content",
+      "name": "fetch_content",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Fetch URL(s) and extract readable co",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 fetch_content",
+      "summary": "Fetch URL(s) and extract readable co",
+      "tags": [
+        "#tool",
+        "#fetch_content",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "get_search_content",
+      "name": "get_search_content",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Retrieve bounded content slices or f",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 get_search_content",
+      "summary": "Retrieve bounded content slices or f",
+      "tags": [
+        "#tool",
+        "#get_search_content",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "mcpScript",
+      "name": "mcpScript",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Run trusted JavaScript that makes mu",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 mcpScript",
+      "summary": "Run trusted JavaScript that makes mu",
+      "tags": [
+        "#tool",
+        "#mcpScript",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "mcp",
+      "name": "mcp",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "MCP gateway — server status, tool se",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 mcp",
+      "summary": "MCP gateway — server status, tool se",
+      "tags": [
+        "#tool",
+        "#mcp",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "subagent",
+      "name": "subagent",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Delegate to configured subagents. Fo",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 subagent",
+      "summary": "Delegate to configured subagents. Fo",
+      "tags": [
+        "#tool",
+        "#subagent",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "bg_wait",
+      "name": "bg_wait",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Wait for background, provider, or de",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 bg_wait",
+      "summary": "Wait for background, provider, or de",
+      "tags": [
+        "#tool",
+        "#bg_wait",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "subagent_supervisor",
+      "name": "subagent_supervisor",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Native pi-subagents supervisor chann",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 subagent_supervisor",
+      "summary": "Native pi-subagents supervisor chann",
+      "tags": [
+        "#tool",
+        "#subagent_supervisor",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "plannotator_submit_plan",
+      "name": "plannotator_submit_plan",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Submit your Plannotator plan for use",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 plannotator_submit_plan",
+      "summary": "Submit your Plannotator plan for use",
+      "tags": [
+        "#tool",
+        "#plannotator_submit_plan",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "goal_complete",
+      "name": "goal_complete",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Mark an active /goal complete only w",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 goal_complete",
+      "summary": "Mark an active /goal complete only w",
+      "tags": [
+        "#tool",
+        "#goal_complete",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "goal_blocked",
+      "name": "goal_blocked",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Stop an active /goal only when the l",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 goal_blocked",
+      "summary": "Stop an active /goal only when the l",
+      "tags": [
+        "#tool",
+        "#goal_blocked",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "goal_wait",
+      "name": "goal_wait",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Keep an active /goal quiet only when",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 goal_wait",
+      "summary": "Keep an active /goal quiet only when",
+      "tags": [
+        "#tool",
+        "#goal_wait",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "workflow",
+      "name": "workflow",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Run a JavaScript workflow that deleg",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 workflow",
+      "summary": "Run a JavaScript workflow that deleg",
+      "tags": [
+        "#tool",
+        "#workflow",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "workflow_control",
+      "name": "workflow_control",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "List and inspect workflow runs, or p",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 workflow_control",
+      "summary": "List and inspect workflow runs, or p",
+      "tags": [
+        "#tool",
+        "#workflow_control",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "ask_user_question",
+      "name": "ask_user_question",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Ask the user one or more structured ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 ask_user_question",
+      "summary": "Ask the user one or more structured ",
+      "tags": [
+        "#tool",
+        "#ask_user_question",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "fusion_reason",
+      "name": "fusion_reason",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Start a five-model Fusion reason wor",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 fusion_reason",
+      "summary": "Start a five-model Fusion reason wor",
+      "tags": [
+        "#tool",
+        "#fusion_reason",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "fusion_investigate",
+      "name": "fusion_investigate",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Start a five-model Fusion investigat",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 fusion_investigate",
+      "summary": "Start a five-model Fusion investigat",
+      "tags": [
+        "#tool",
+        "#fusion_investigate",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "fusion_research",
+      "name": "fusion_research",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Start a five-model Fusion research w",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 fusion_research",
+      "summary": "Start a five-model Fusion research w",
+      "tags": [
+        "#tool",
+        "#fusion_research",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "fusion_validate",
+      "name": "fusion_validate",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Start an advisory, read-only Fusion ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 fusion_validate",
+      "summary": "Start an advisory, read-only Fusion ",
+      "tags": [
+        "#tool",
+        "#fusion_validate",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "bg_delegate",
+      "name": "bg_delegate",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Launch one background Pi agent seede",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 bg_delegate",
+      "summary": "Launch one background Pi agent seede",
+      "tags": [
+        "#tool",
+        "#bg_delegate",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "bg_result",
+      "name": "bg_result",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Retrieve a hash-verified result from",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 bg_result",
+      "summary": "Retrieve a hash-verified result from",
+      "tags": [
+        "#tool",
+        "#bg_result",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "bg_run",
+      "name": "bg_run",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Start a named long-running shell com",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 bg_run",
+      "summary": "Start a named long-running shell com",
+      "tags": [
+        "#tool",
+        "#bg_run",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "bg_run_pi_attested",
+      "name": "bg_run_pi_attested",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Opt-in evidence-oriented direct Pi s",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 bg_run_pi_attested",
+      "summary": "Opt-in evidence-oriented direct Pi s",
+      "tags": [
+        "#tool",
+        "#bg_run_pi_attested",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "bg_status",
+      "name": "bg_status",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Inspect one background task or list ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 bg_status",
+      "summary": "Inspect one background task or list ",
+      "tags": [
+        "#tool",
+        "#bg_status",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "bg_logs",
+      "name": "bg_logs",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Read bounded output from a backgroun",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 bg_logs",
+      "summary": "Read bounded output from a backgroun",
+      "tags": [
+        "#tool",
+        "#bg_logs",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "bg_kill",
+      "name": "bg_kill",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Stop a running background task by ID",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 bg_kill",
+      "summary": "Stop a running background task by ID",
+      "tags": [
+        "#tool",
+        "#bg_kill",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "compress",
+      "name": "compress",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Replace older conversation ranges wi",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 compress",
+      "summary": "Replace older conversation ranges wi",
+      "tags": [
+        "#tool",
+        "#compress",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "decompress",
+      "name": "decompress",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Restore a previously compressed bloc",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 decompress",
+      "summary": "Restore a previously compressed bloc",
+      "tags": [
+        "#tool",
+        "#decompress",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "search_context",
+      "name": "search_context",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Search compressed blocks AND histori",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 search_context",
+      "summary": "Search compressed blocks AND histori",
+      "tags": [
+        "#tool",
+        "#search_context",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "acp_status",
+      "name": "acp_status",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Context status: overview, compressed",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 acp_status",
+      "summary": "Context status: overview, compressed",
+      "tags": [
+        "#tool",
+        "#acp_status",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "acp_delegate",
+      "name": "acp_delegate",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Hand a self-contained task to a fres",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 acp_delegate",
+      "summary": "Hand a self-contained task to a fres",
+      "tags": [
+        "#tool",
+        "#acp_delegate",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "acp_delegate_wait",
+      "name": "acp_delegate_wait",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Block until an acp_delegate async ru",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 acp_delegate_wait",
+      "summary": "Block until an acp_delegate async ru",
+      "tags": [
+        "#tool",
+        "#acp_delegate_wait",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "acp_delegate_cancel",
+      "name": "acp_delegate_cancel",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Cancel a background delegate (acp_de",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 acp_delegate_cancel",
+      "summary": "Cancel a background delegate (acp_de",
+      "tags": [
+        "#tool",
+        "#acp_delegate_cancel",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_list_apps",
+      "name": "computer_use_list_apps",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "List Windows apps — both currently r",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_list_apps",
+      "summary": "List Windows apps — both currently r",
+      "tags": [
+        "#tool",
+        "#computer_use_list_apps",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "computer_use_list_windows",
+      "name": "computer_use_list_windows",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "List every top-level window currentl",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 computer_use_list_windows",
+      "summary": "List every top-level window currentl",
+      "tags": [
+        "#tool",
+        "#computer_use_list_windows"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "computer_use_get_window_state",
+      "name": "computer_use_get_window_state",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Walk a running app's UIA tree and re",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_get_window_state",
+      "summary": "Walk a running app's UIA tree and re",
+      "tags": [
+        "#tool",
+        "#computer_use_get_window_state",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_launch_app",
+      "name": "computer_use_launch_app",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Launch a Windows app hidden — the dr",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_launch_app",
+      "summary": "Launch a Windows app hidden — the dr",
+      "tags": [
+        "#tool",
+        "#computer_use_launch_app",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_kill_app",
+      "name": "computer_use_kill_app",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Force-terminate a process by pid. Us",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 computer_use_kill_app",
+      "summary": "Force-terminate a process by pid. Us",
+      "tags": [
+        "#tool",
+        "#computer_use_kill_app"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "computer_use_bring_to_front",
+      "name": "computer_use_bring_to_front",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Activate `pid`'s window (or `window_",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 computer_use_bring_to_front",
+      "summary": "Activate `pid`'s window (or `window_",
+      "tags": [
+        "#tool",
+        "#computer_use_bring_to_front",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "computer_use_debug_window_info",
+      "name": "computer_use_debug_window_info",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Diagnostic: dump everything cua-driv",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 computer_use_debug_window_info",
+      "summary": "Diagnostic: dump everything cua-driv",
+      "tags": [
+        "#tool",
+        "#computer_use_debug_window_info"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "computer_use_click",
+      "name": "computer_use_click",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Left-click against a target pid. **P",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_click",
+      "summary": "Left-click against a target pid. **P",
+      "tags": [
+        "#tool",
+        "#computer_use_click",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_double_click",
+      "name": "computer_use_double_click",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Double-click against a target pid. T",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_double_click",
+      "summary": "Double-click against a target pid. T",
+      "tags": [
+        "#tool",
+        "#computer_use_double_click",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_right_click",
+      "name": "computer_use_right_click",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Right-click against a target pid. Tw",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_right_click",
+      "summary": "Right-click against a target pid. Tw",
+      "tags": [
+        "#tool",
+        "#computer_use_right_click",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_drag",
+      "name": "computer_use_drag",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Press-drag-release gesture from (fro",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 computer_use_drag",
+      "summary": "Press-drag-release gesture from (fro",
+      "tags": [
+        "#tool",
+        "#computer_use_drag",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "computer_use_type_text",
+      "name": "computer_use_type_text",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Insert text into the target pid via ",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 computer_use_type_text",
+      "summary": "Insert text into the target pid via ",
+      "tags": [
+        "#tool",
+        "#computer_use_type_text"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "computer_use_press_key",
+      "name": "computer_use_press_key",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Press and release a single key, deli",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 computer_use_press_key",
+      "summary": "Press and release a single key, deli",
+      "tags": [
+        "#tool",
+        "#computer_use_press_key",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "computer_use_hotkey",
+      "name": "computer_use_hotkey",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Press a combination of keys simultan",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_hotkey",
+      "summary": "Press a combination of keys simultan",
+      "tags": [
+        "#tool",
+        "#computer_use_hotkey",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_set_value",
+      "name": "computer_use_set_value",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Set a value on a UIA element via the",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_set_value",
+      "summary": "Set a value on a UIA element via the",
+      "tags": [
+        "#tool",
+        "#computer_use_set_value",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "computer_use_scroll",
+      "name": "computer_use_scroll",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Scroll the target pid's focused regi",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 computer_use_scroll",
+      "summary": "Scroll the target pid's focused regi",
+      "tags": [
+        "#tool",
+        "#computer_use_scroll"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "computer_use_get_screen_size",
+      "name": "computer_use_get_screen_size",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Return the size of the main display ",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 computer_use_get_screen_size",
+      "summary": "Return the size of the main display ",
+      "tags": [
+        "#tool",
+        "#computer_use_get_screen_size"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "computer_use_get_desktop_state",
+      "name": "computer_use_get_desktop_state",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Capture a full-display vision screen",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 computer_use_get_desktop_state",
+      "summary": "Capture a full-display vision screen",
+      "tags": [
+        "#tool",
+        "#computer_use_get_desktop_state",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "computer_use_get_cursor_position",
+      "name": "computer_use_get_cursor_position",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Return the current mouse cursor posi",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 computer_use_get_cursor_position",
+      "summary": "Return the current mouse cursor posi",
+      "tags": [
+        "#tool",
+        "#computer_use_get_cursor_position"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "computer_use_move_cursor",
+      "name": "computer_use_move_cursor",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Move the agent cursor overlay to (x,",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 computer_use_move_cursor",
+      "summary": "Move the agent cursor overlay to (x,",
+      "tags": [
+        "#tool",
+        "#computer_use_move_cursor",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "computer_use_set_agent_cursor_enabled",
+      "name": "computer_use_set_agent_cursor_enabled",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Toggle the visual agent-cursor overl",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 computer_use_set_agent_cursor_enabled",
+      "summary": "Toggle the visual agent-cursor overl",
+      "tags": [
+        "#tool",
+        "#computer_use_set_agent_cursor_enabled",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "computer_use_set_agent_cursor_motion",
+      "name": "computer_use_set_agent_cursor_motion",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Configure the visual appearance and ",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 computer_use_set_agent_cursor_motion",
+      "summary": "Configure the visual appearance and ",
+      "tags": [
+        "#tool",
+        "#computer_use_set_agent_cursor_motion",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "computer_use_get_agent_cursor_state",
+      "name": "computer_use_get_agent_cursor_state",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Report the current agent-cursor conf",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 computer_use_get_agent_cursor_state",
+      "summary": "Report the current agent-cursor conf",
+      "tags": [
+        "#tool",
+        "#computer_use_get_agent_cursor_state",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "computer_use_set_agent_cursor_style",
+      "name": "computer_use_set_agent_cursor_style",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Update the visual style of the agent",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 computer_use_set_agent_cursor_style",
+      "summary": "Update the visual style of the agent",
+      "tags": [
+        "#tool",
+        "#computer_use_set_agent_cursor_style",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "computer_use_check_permissions",
+      "name": "computer_use_check_permissions",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Check required permissions for cua-d",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_check_permissions",
+      "summary": "Check required permissions for cua-d",
+      "tags": [
+        "#tool",
+        "#computer_use_check_permissions",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_health_report",
+      "name": "computer_use_health_report",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Single-call end-to-end driver diagno",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_health_report",
+      "summary": "Single-call end-to-end driver diagno",
+      "tags": [
+        "#tool",
+        "#computer_use_health_report",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_get_config",
+      "name": "computer_use_get_config",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Report the current persistent driver",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_get_config",
+      "summary": "Report the current persistent driver",
+      "tags": [
+        "#tool",
+        "#computer_use_get_config",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "computer_use_set_config",
+      "name": "computer_use_set_config",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Write a setting into the persistent ",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 computer_use_set_config",
+      "summary": "Write a setting into the persistent ",
+      "tags": [
+        "#tool",
+        "#computer_use_set_config"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "computer_use_get_accessibility_tree",
+      "name": "computer_use_get_accessibility_tree",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Return a lightweight snapshot of the",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 computer_use_get_accessibility_tree",
+      "summary": "Return a lightweight snapshot of the",
+      "tags": [
+        "#tool",
+        "#computer_use_get_accessibility_tree",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "computer_use_zoom",
+      "name": "computer_use_zoom",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Zoom into a rectangular region of a ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_zoom",
+      "summary": "Zoom into a rectangular region of a ",
+      "tags": [
+        "#tool",
+        "#computer_use_zoom",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_page",
+      "name": "computer_use_page",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Legacy browser compatibility tool. P",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 computer_use_page",
+      "summary": "Legacy browser compatibility tool. P",
+      "tags": [
+        "#tool",
+        "#computer_use_page",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "computer_use_get_browser_state",
+      "name": "computer_use_get_browser_state",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Read-only browser inspection. Mode 1",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_get_browser_state",
+      "summary": "Read-only browser inspection. Mode 1",
+      "tags": [
+        "#tool",
+        "#computer_use_get_browser_state",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_browser_prepare",
+      "name": "computer_use_browser_prepare",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Explicitly prepare an owned DevTools",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_browser_prepare",
+      "summary": "Explicitly prepare an owned DevTools",
+      "tags": [
+        "#tool",
+        "#computer_use_browser_prepare",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_browser_navigate",
+      "name": "computer_use_browser_navigate",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Navigate one tab of an exactly-bound",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_browser_navigate",
+      "summary": "Navigate one tab of an exactly-bound",
+      "tags": [
+        "#tool",
+        "#computer_use_browser_navigate",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_browser_click",
+      "name": "computer_use_browser_click",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Click a page element (by ref) or vie",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 computer_use_browser_click",
+      "summary": "Click a page element (by ref) or vie",
+      "tags": [
+        "#tool",
+        "#computer_use_browser_click"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "computer_use_browser_type",
+      "name": "computer_use_browser_type",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Type text into an exactly-bound tab ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_browser_type",
+      "summary": "Type text into an exactly-bound tab ",
+      "tags": [
+        "#tool",
+        "#computer_use_browser_type",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_browser_dialog",
+      "name": "computer_use_browser_dialog",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Inspect or resolve a page-owned Java",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_browser_dialog",
+      "summary": "Inspect or resolve a page-owned Java",
+      "tags": [
+        "#tool",
+        "#computer_use_browser_dialog",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_browser_set_input_files",
+      "name": "computer_use_browser_set_input_files",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Assign one or more explicit absolute",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 computer_use_browser_set_input_files",
+      "summary": "Assign one or more explicit absolute",
+      "tags": [
+        "#tool",
+        "#computer_use_browser_set_input_files"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "computer_use_browser_download",
+      "name": "computer_use_browser_download",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Trigger one download through an exac",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_browser_download",
+      "summary": "Trigger one download through an exac",
+      "tags": [
+        "#tool",
+        "#computer_use_browser_download",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "computer_use_browser_pointer",
+      "name": "computer_use_browser_pointer",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Perform hover, right-click, double-c",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 computer_use_browser_pointer",
+      "summary": "Perform hover, right-click, double-c",
+      "tags": [
+        "#tool",
+        "#computer_use_browser_pointer"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "computer_use_start_recording",
+      "name": "computer_use_start_recording",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Start trajectory recording. Every su",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 computer_use_start_recording",
+      "summary": "Start trajectory recording. Every su",
+      "tags": [
+        "#tool",
+        "#computer_use_start_recording",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "computer_use_stop_recording",
+      "name": "computer_use_stop_recording",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Stop trajectory recording. Disables ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_stop_recording",
+      "summary": "Stop trajectory recording. Disables ",
+      "tags": [
+        "#tool",
+        "#computer_use_stop_recording",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "computer_use_get_recording_state",
+      "name": "computer_use_get_recording_state",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Report the current trajectory record",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_get_recording_state",
+      "summary": "Report the current trajectory record",
+      "tags": [
+        "#tool",
+        "#computer_use_get_recording_state",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "computer_use_replay_trajectory",
+      "name": "computer_use_replay_trajectory",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Replay a recorded trajectory by re-i",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_replay_trajectory",
+      "summary": "Replay a recorded trajectory by re-i",
+      "tags": [
+        "#tool",
+        "#computer_use_replay_trajectory",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "computer_use_install_ffmpeg",
+      "name": "computer_use_install_ffmpeg",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Install the ffmpeg binary used by st",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_install_ffmpeg",
+      "summary": "Install the ffmpeg binary used by st",
+      "tags": [
+        "#tool",
+        "#computer_use_install_ffmpeg",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "computer_use_start_session",
+      "name": "computer_use_start_session",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Declare a session — a named, color-c",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 computer_use_start_session",
+      "summary": "Declare a session — a named, color-c",
+      "tags": [
+        "#tool",
+        "#computer_use_start_session",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "computer_use_escalate_session",
+      "name": "computer_use_escalate_session",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Unlock the desktop phase of an auto ",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 computer_use_escalate_session",
+      "summary": "Unlock the desktop phase of an auto ",
+      "tags": [
+        "#tool",
+        "#computer_use_escalate_session",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "computer_use_get_session_state",
+      "name": "computer_use_get_session_state",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Read the live session's capture poli",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_get_session_state",
+      "summary": "Read the live session's capture poli",
+      "tags": [
+        "#tool",
+        "#computer_use_get_session_state",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "computer_use_end_session",
+      "name": "computer_use_end_session",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "End a session declared with `start_s",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 computer_use_end_session",
+      "summary": "End a session declared with `start_s",
+      "tags": [
+        "#tool",
+        "#computer_use_end_session",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "computer_use_check_for_update",
+      "name": "computer_use_check_for_update",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Check whether a newer cua-driver-rs ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 computer_use_check_for_update",
+      "summary": "Check whether a newer cua-driver-rs ",
+      "tags": [
+        "#tool",
+        "#computer_use_check_for_update",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "browser_doctor",
+      "name": "browser_doctor",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Diagnose the local Bridge, extension",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_doctor",
+      "summary": "Diagnose the local Bridge, extension",
+      "tags": [
+        "#tool",
+        "#browser_doctor",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "browser_status",
+      "name": "browser_status",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Return the connected Chrome/Edge bro",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_status",
+      "summary": "Return the connected Chrome/Edge bro",
+      "tags": [
+        "#tool",
+        "#browser_status"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "browser_tabs",
+      "name": "browser_tabs",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "List Chrome/Edge windows, tabs, tab ",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_tabs",
+      "summary": "List Chrome/Edge windows, tabs, tab ",
+      "tags": [
+        "#tool",
+        "#browser_tabs"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "browser_selected",
+      "name": "browser_selected",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Return the currently selected Chrome",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_selected",
+      "summary": "Return the currently selected Chrome",
+      "tags": [
+        "#tool",
+        "#browser_selected"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "browser_claim_tab",
+      "name": "browser_claim_tab",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Claim an existing user tab using its",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_claim_tab",
+      "summary": "Claim an existing user tab using its",
+      "tags": [
+        "#tool",
+        "#browser_claim_tab",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "browser_select_tab",
+      "name": "browser_select_tab",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Select an existing browser tab by id",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_select_tab",
+      "summary": "Select an existing browser tab by id",
+      "tags": [
+        "#tool",
+        "#browser_select_tab"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "browser_new_tab",
+      "name": "browser_new_tab",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Create an Agent-owned tab and place ",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 browser_new_tab",
+      "summary": "Create an Agent-owned tab and place ",
+      "tags": [
+        "#tool",
+        "#browser_new_tab",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "browser_snapshot",
+      "name": "browser_snapshot",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Read the active page title and one b",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 browser_snapshot",
+      "summary": "Read the active page title and one b",
+      "tags": [
+        "#tool",
+        "#browser_snapshot",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "browser_extract",
+      "name": "browser_extract",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Extract the current page as bounded ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_extract",
+      "summary": "Extract the current page as bounded ",
+      "tags": [
+        "#tool",
+        "#browser_extract",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "browser_accessibility_snapshot",
+      "name": "browser_accessibility_snapshot",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Return the bounded Chromium accessib",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 browser_accessibility_snapshot",
+      "summary": "Return the bounded Chromium accessib",
+      "tags": [
+        "#tool",
+        "#browser_accessibility_snapshot",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "browser_locator",
+      "name": "browser_locator",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Playwright-style locator operations ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_locator",
+      "summary": "Playwright-style locator operations ",
+      "tags": [
+        "#tool",
+        "#browser_locator",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "browser_navigate",
+      "name": "browser_navigate",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Navigate a selected or specified bro",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_navigate",
+      "summary": "Navigate a selected or specified bro",
+      "tags": [
+        "#tool",
+        "#browser_navigate",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "browser_wait",
+      "name": "browser_wait",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Wait for a selected browser tab to l",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_wait",
+      "summary": "Wait for a selected browser tab to l",
+      "tags": [
+        "#tool",
+        "#browser_wait",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "browser_click",
+      "name": "browser_click",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Click one visible element by semanti",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 browser_click",
+      "summary": "Click one visible element by semanti",
+      "tags": [
+        "#tool",
+        "#browser_click",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "browser_double_click",
+      "name": "browser_double_click",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Double-click one visible element by ",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 browser_double_click",
+      "summary": "Double-click one visible element by ",
+      "tags": [
+        "#tool",
+        "#browser_double_click",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "browser_fill",
+      "name": "browser_fill",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Fill one input, textarea or contente",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 browser_fill",
+      "summary": "Fill one input, textarea or contente",
+      "tags": [
+        "#tool",
+        "#browser_fill",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "browser_type",
+      "name": "browser_type",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Type or append text into one focused",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 browser_type",
+      "summary": "Type or append text into one focused",
+      "tags": [
+        "#tool",
+        "#browser_type",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "browser_press_key",
+      "name": "browser_press_key",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Dispatch a keyboard key to one eleme",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 browser_press_key",
+      "summary": "Dispatch a keyboard key to one eleme",
+      "tags": [
+        "#tool",
+        "#browser_press_key",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "browser_scroll",
+      "name": "browser_scroll",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Scroll the selected page by a viewpo",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_scroll",
+      "summary": "Scroll the selected page by a viewpo",
+      "tags": [
+        "#tool",
+        "#browser_scroll"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "browser_dom_cua",
+      "name": "browser_dom_cua",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Use visible DOM node ids from a matc",
+      "tokenImpact": "minimal",
+      "triggerWhen": "根据任务需求动态调度 browser_dom_cua",
+      "summary": "Use visible DOM node ids from a matc",
+      "tags": [
+        "#tool",
+        "#browser_dom_cua",
+        "#safety"
+      ],
+      "costLevel": "$0",
+      "bindingReason": "工作区快照管理、影响面锁定与安全回滚"
+    },
+    {
+      "id": "browser_cua",
+      "name": "browser_cua",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Use native CDP mouse and keyboard in",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_cua",
+      "summary": "Use native CDP mouse and keyboard in",
+      "tags": [
+        "#tool",
+        "#browser_cua"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "browser_screenshot",
+      "name": "browser_screenshot",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Capture the selected browser tab and",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_screenshot",
+      "summary": "Capture the selected browser tab and",
+      "tags": [
+        "#tool",
+        "#browser_screenshot"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "browser_console",
+      "name": "browser_console",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Enable and read Runtime console and ",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_console",
+      "summary": "Enable and read Runtime console and ",
+      "tags": [
+        "#tool",
+        "#browser_console",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "browser_network",
+      "name": "browser_network",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Enable and read Network request/resp",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_network",
+      "summary": "Enable and read Network request/resp",
+      "tags": [
+        "#tool",
+        "#browser_network",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "browser_dialog",
+      "name": "browser_dialog",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Inspect and accept or dismiss alert,",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_dialog",
+      "summary": "Inspect and accept or dismiss alert,",
+      "tags": [
+        "#tool",
+        "#browser_dialog",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "browser_upload",
+      "name": "browser_upload",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Set local files on a page file input",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_upload",
+      "summary": "Set local files on a page file input",
+      "tags": [
+        "#tool",
+        "#browser_upload"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "browser_clipboard",
+      "name": "browser_clipboard",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Read or write plain text through the",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_clipboard",
+      "summary": "Read or write plain text through the",
+      "tags": [
+        "#tool",
+        "#browser_clipboard",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "browser_download",
+      "name": "browser_download",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Start, wait for, list, cancel or era",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_download",
+      "summary": "Start, wait for, list, cancel or era",
+      "tags": [
+        "#tool",
+        "#browser_download"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "browser_evaluate",
+      "name": "browser_evaluate",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Evaluate JavaScript in the selected ",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_evaluate",
+      "summary": "Evaluate JavaScript in the selected ",
+      "tags": [
+        "#tool",
+        "#browser_evaluate"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "browser_cdp",
+      "name": "browser_cdp",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Send a native Chrome DevTools Protoc",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_cdp",
+      "summary": "Send a native Chrome DevTools Protoc",
+      "tags": [
+        "#tool",
+        "#browser_cdp"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "browser_back",
+      "name": "browser_back",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Navigate the selected browser tab ba",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_back",
+      "summary": "Navigate the selected browser tab ba",
+      "tags": [
+        "#tool",
+        "#browser_back",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "browser_forward",
+      "name": "browser_forward",
+      "kind": "tool",
+      "layer": "L4_REVIEW_GUARD",
+      "description": "Navigate the selected browser tab fo",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_forward",
+      "summary": "Navigate the selected browser tab fo",
+      "tags": [
+        "#tool",
+        "#browser_forward",
+        "#quality-guard"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
+    },
+    {
+      "id": "browser_reload",
+      "name": "browser_reload",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Reload the selected browser tab. The",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 browser_reload",
+      "summary": "Reload the selected browser tab. The",
+      "tags": [
+        "#tool",
+        "#browser_reload",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "browser_close_tab",
+      "name": "browser_close_tab",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Close a specified browser tab. Agent",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 browser_close_tab",
+      "summary": "Close a specified browser tab. Agent",
+      "tags": [
+        "#tool",
+        "#browser_close_tab",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "browser_release",
+      "name": "browser_release",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Release a claimed/Agent tab from the",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 browser_release",
+      "summary": "Release a claimed/Agent tab from the",
+      "tags": [
+        "#tool",
+        "#browser_release",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "browser_mark_handoff",
+      "name": "browser_mark_handoff",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Mark an Agent-owned tab to survive t",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 browser_mark_handoff",
+      "summary": "Mark an Agent-owned tab to survive t",
+      "tags": [
+        "#tool",
+        "#browser_mark_handoff",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "browser_mark_deliverable",
+      "name": "browser_mark_deliverable",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Mark an Agent-owned tab to survive t",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 browser_mark_deliverable",
+      "summary": "Mark an Agent-owned tab to survive t",
+      "tags": [
+        "#tool",
+        "#browser_mark_deliverable",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "browser_cleanup",
+      "name": "browser_cleanup",
+      "kind": "tool",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Only after the user explicitly asks ",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 browser_cleanup",
+      "summary": "Only after the user explicitly asks ",
+      "tags": [
+        "#tool",
+        "#browser_cleanup",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
+    },
+    {
+      "id": "browser_context_reset",
+      "name": "browser_context_reset",
+      "kind": "tool",
+      "layer": "L1_UTILITY",
+      "description": "Only after the user explicitly asks ",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 browser_context_reset",
+      "summary": "Only after the user explicitly asks ",
+      "tags": [
+        "#tool",
+        "#browser_context_reset"
+      ],
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
+    },
+    {
+      "id": "image_describe",
+      "name": "image_describe",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Send an image file to the configured",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 image_describe",
+      "summary": "Send an image file to the configured",
+      "tags": [
+        "#tool",
+        "#image_describe",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    },
+    {
+      "id": "todo",
+      "name": "todo",
+      "kind": "tool",
+      "layer": "L2_PERCEPTION",
+      "description": "Manage a task list for tracking mult",
+      "tokenImpact": "medium",
+      "triggerWhen": "根据任务需求动态调度 todo",
+      "summary": "Manage a task list for tracking mult",
+      "tags": [
+        "#tool",
+        "#todo",
+        "#perception"
+      ],
+      "costLevel": "$2",
+      "bindingReason": "精准信息检索与外部数据源接入"
+    }
+  ],
+  "availableToolNames": [
+    "acp_delegate",
+    "acp_delegate_cancel",
+    "acp_delegate_wait",
+    "acp_status",
+    "ask_user_question",
+    "bash",
+    "bg_delegate",
+    "bg_kill",
+    "bg_logs",
+    "bg_result",
+    "bg_run",
+    "bg_run_pi_attested",
+    "bg_status",
+    "bg_wait",
+    "browser_accessibility_snapshot",
+    "browser_back",
+    "browser_cdp",
+    "browser_claim_tab",
+    "browser_cleanup",
+    "browser_click",
+    "browser_clipboard",
+    "browser_close_tab",
+    "browser_console",
+    "browser_context_reset",
+    "browser_cua",
+    "browser_dialog",
+    "browser_doctor",
+    "browser_dom_cua",
+    "browser_double_click",
+    "browser_download",
+    "browser_evaluate",
+    "browser_extract",
+    "browser_fill",
+    "browser_forward",
+    "browser_locator",
+    "browser_mark_deliverable",
+    "browser_mark_handoff",
+    "browser_navigate",
+    "browser_network",
+    "browser_new_tab",
+    "browser_press_key",
+    "browser_release",
+    "browser_reload",
+    "browser_screenshot",
+    "browser_scroll",
+    "browser_select_tab",
+    "browser_selected",
+    "browser_snapshot",
+    "browser_status",
+    "browser_tabs",
+    "browser_type",
+    "browser_upload",
+    "browser_wait",
+    "compress",
+    "computer_use_bring_to_front",
+    "computer_use_browser_click",
+    "computer_use_browser_dialog",
+    "computer_use_browser_download",
+    "computer_use_browser_navigate",
+    "computer_use_browser_pointer",
+    "computer_use_browser_prepare",
+    "computer_use_browser_set_input_files",
+    "computer_use_browser_type",
+    "computer_use_check_for_update",
+    "computer_use_check_permissions",
+    "computer_use_click",
+    "computer_use_debug_window_info",
+    "computer_use_double_click",
+    "computer_use_drag",
+    "computer_use_end_session",
+    "computer_use_escalate_session",
+    "computer_use_get_accessibility_tree",
+    "computer_use_get_agent_cursor_state",
+    "computer_use_get_browser_state",
+    "computer_use_get_config",
+    "computer_use_get_cursor_position",
+    "computer_use_get_desktop_state",
+    "computer_use_get_recording_state",
+    "computer_use_get_screen_size",
+    "computer_use_get_session_state",
+    "computer_use_get_window_state",
+    "computer_use_health_report",
+    "computer_use_hotkey",
+    "computer_use_install_ffmpeg",
+    "computer_use_kill_app",
+    "computer_use_launch_app",
+    "computer_use_list_apps",
+    "computer_use_list_windows",
+    "computer_use_move_cursor",
+    "computer_use_page",
+    "computer_use_press_key",
+    "computer_use_replay_trajectory",
+    "computer_use_right_click",
+    "computer_use_scroll",
+    "computer_use_set_agent_cursor_enabled",
+    "computer_use_set_agent_cursor_motion",
+    "computer_use_set_agent_cursor_style",
+    "computer_use_set_config",
+    "computer_use_set_value",
+    "computer_use_start_recording",
+    "computer_use_start_session",
+    "computer_use_stop_recording",
+    "computer_use_type_text",
+    "computer_use_zoom",
+    "decompress",
+    "edit",
+    "fetch_content",
+    "find",
+    "fusion_investigate",
+    "fusion_reason",
+    "fusion_research",
+    "fusion_validate",
+    "get_search_content",
+    "goal_blocked",
+    "goal_complete",
+    "goal_wait",
+    "grep",
+    "image_describe",
+    "ls",
+    "mcp",
+    "mcpScript",
+    "plannotator_submit_plan",
+    "powershell",
+    "read",
+    "search_context",
+    "source_check",
+    "subagent",
+    "subagent_supervisor",
+    "todo",
+    "web_search",
+    "workflow",
+    "workflow_control",
+    "write"
+  ],
+  "summaryByLayer": {
+    "L1_UTILITY": 60,
+    "L2_PERCEPTION": 19,
+    "L3_ORCHESTRATION": 36,
+    "L4_REVIEW_GUARD": 58
+  }
+}

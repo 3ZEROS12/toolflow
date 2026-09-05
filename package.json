@@ -1,0 +1,42 @@
+{
+  "name": "toolflow",
+  "version": "3.1.1",
+  "description": "Adaptive tool & extension workflow orchestrator for Pi: 0-Token ecosystem introspection, Kahn DAG wave scheduling, 3-attempt self-healing physical gates, topology-aware dehydration, instant Git rollbacks, cold-start review isolation, deep MCP & Skill contracts, zero-specialization LLM-driven architecture reasoning, ecosystem catalog radar, bundled package installation, and automated session compaction.",
+  "type": "module",
+  "main": "index.ts",
+  "pi": {
+    "extensions": [
+      "index.ts"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/3ZEROS12/toolflow.git"
+  },
+  "homepage": "https://github.com/3ZEROS12/toolflow#readme",
+  "bugs": {
+    "url": "https://github.com/3ZEROS12/toolflow/issues"
+  },
+  "scripts": {
+    "test": "npx tsx test_suite.ts"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "workflow",
+    "blueprint",
+    "toolflow",
+    "tool-pruning",
+    "interactive-sop",
+    "dehydration",
+    "blast-radius-guard"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=1.0.0"
+  },
+  "author": "Jason",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
