@@ -119,7 +119,7 @@ export default function (pi: ExtensionAPI) {
     // 优先调用沉浸式弹窗 (ctx.ui.custom)
     if (ctx?.ui && "custom" in ctx.ui && typeof (ctx.ui as any).custom === "function") {
       try {
-        const res = await openArchitectNavigator(ctx.ui, taxonomy, rawTask, slots, diagnosis);
+        const res = await openArchitectNavigator(ctx.ui, taxonomy, rawTask, slots, diagnosis, ctx);
         if (!res) {
           // 用户在第一步主动按 Esc 或 Q 取消了操作，安全退出，不产生幽灵推进
           if (ctx?.ui?.notify) {
@@ -384,7 +384,7 @@ export default function (pi: ExtensionAPI) {
     // 默认仅输入 /toolflow：弹出全屏弹窗能力概览与战术槽位发射台
     if (!rawArg) {
       if (ctx?.ui && "custom" in ctx.ui && typeof (ctx.ui as any).custom === "function") {
-        const res = await openArchitectNavigator(ctx.ui, taxonomy);
+        const res = await openArchitectNavigator(ctx.ui, taxonomy, "", undefined, undefined, ctx);
         if (res && res.kind === "task_input" && res.task) {
           await runTaskDecisionPipeline(res.task, taxonomy, ctx);
           return;

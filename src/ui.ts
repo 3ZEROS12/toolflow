@@ -263,7 +263,8 @@ export function openArchitectNavigator(
   taxonomy: EcosystemTaxonomy,
   initialTask: string = "",
   slots?: DecisionSlot[],
-  diagnosis?: TaskDiagnosis
+  diagnosis?: TaskDiagnosis,
+  ctx?: any
 ): Promise<ArchitectNavigatorResult> {
   return ui.custom(
     (tui: any, theme: any, _keybindings: any, done: (result: ArchitectNavigatorResult) => void) => {
@@ -728,7 +729,7 @@ export function openArchitectNavigator(
               rerender();
             } else if (data === "" || data === "" || (data.charCodeAt(0) === 12)) {
               // 按 Ctrl+L：调用用户大模型自动总结提取标签与说明
-              PromptsManager.autoSummarizeTagWithLLM(newPromptContent, (ui as any).ctx).then(res => {
+              PromptsManager.autoSummarizeTagWithLLM(newPromptContent, ctx || (ui as any)?.ctx).then(res => {
                 newPromptName = res.name;
                 newPromptDesc = res.description;
                 state = "add_prompt_desc";
