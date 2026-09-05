@@ -66,7 +66,7 @@ export function renderExecutionPipelineCard(params: {
   verifiedArtifactCount: number;
 }): string {
   const lines: string[] = [
-    `### ⌬ ToolFlow 执行流水线看板: \`${params.blueprintId}\``,
+    `### ⚡ ToolFlow 执行流水线看板: \`${params.blueprintId}\``,
     `> 核心目标: **${params.task}** (当前进度: ${params.currentStageIndex + 1}/${params.stages.length})`,
     ""
   ];
@@ -240,7 +240,7 @@ export function renderBlueprintSummary(bp: Blueprint): string {
     );
   }
 
-  lines.push(`\n### ⌬ 架构选型与 Token 节约依据`);
+  lines.push(`\n### ⚡ 架构选型与 Token 节约依据`);
   lines.push(bp.tokenEfficiencySummary);
 
   return lines.join("\n");

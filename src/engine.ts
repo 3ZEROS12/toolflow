@@ -1028,22 +1028,32 @@ export function synthesizeBlueprint(
   const realTools = new Set(taxonomy.availableToolNames || []);
   const hasTool = (name: string) => realTools.has(name) || (taxonomy.tools || []).some(t => t.name === name);
 
+  // 1. Stage 1 设计与调研阶段：感知为主，根据任务类型自适应挂载工具
   const stage1Tools = ["read", "bash", "powershell", "grep", "find"];
   if (l2PerceptionExts.length > 0 || hasTool("web_search") || hasTool("fetch_content") || hasTool("source_check")) {
     ["web_search", "fetch_content", "source_check"].forEach(t => { if (hasTool(t)) stage1Tools.push(t); });
   }
   if (hasTool("mcp")) stage1Tools.push("mcp");
+  if (hasTool("mcpScript")) stage1Tools.push("mcpScript");
   if (hasTool("workflow")) stage1Tools.push("workflow");
+  // 灵活开放：若属于敏捷模式或小型修补任务，阶段 1 允许编辑工具以降低摩擦
+  if (isAgile) {
+    stage1Tools.push("edit", "write");
+  }
 
+  // 2. Stage 2 实施编码阶段：全量核心实现工具链
   const stage2Tools = ["read", "edit", "write", "bash", "powershell", "grep", "find"];
   if (hasTool("workflow")) stage2Tools.push("workflow");
   if (hasTool("subagent")) stage2Tools.push("subagent");
   if (hasTool("mcp")) stage2Tools.push("mcp");
+  if (hasTool("mcpScript")) stage2Tools.push("mcpScript");
 
+  // 3. Stage 3 验收与走查阶段：以验证与门禁为主，根据环境动态适配
   const stage3Tools = ["read", "bash", "powershell", "grep", "find"];
   ["goal_complete", "goal_blocked", "goal_wait"].forEach(t => { if (hasTool(t)) stage3Tools.push(t); });
   if (hasTool("workflow")) stage3Tools.push("workflow");
   if (hasTool("mcp")) stage3Tools.push("mcp");
+  if (hasTool("mcpScript")) stage3Tools.push("mcpScript");
 
   // 交付物产物：若 LLM 推导给出了明确产物则 100% 采纳，否则由工程拓扑保底
   const defaultSrcPath = (llmArtifactPlan && llmArtifactPlan.primaryArtifact)
