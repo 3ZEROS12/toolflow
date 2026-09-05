@@ -418,8 +418,9 @@ export function loadOrRefreshTaxonomy(
   if (fs.existsSync(TAXONOMY_PATH)) {
     try {
       const cached = JSON.parse(fs.readFileSync(TAXONOMY_PATH, "utf-8")) as EcosystemTaxonomy;
+      // 在纯净 CI/无预装包或命中指纹时，直接复用随包分发的静态分类库
       if (
-        cached.installedFingerprint === currentFingerprint &&
+        (cached.installedFingerprint === currentFingerprint || (pkgNames.length === 0 && toolNames.length === 0)) &&
         cached.skills &&
         cached.prompts &&
         cached.mcps
