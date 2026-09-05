@@ -3,10 +3,10 @@
   "version": "3.1.1",
   "description": "Adaptive tool workflow & prompt workbench for Pi: dynamic task blueprint generation, native prompts visualization, stage-gated tool pruning, and rollback safety.",
   "type": "module",
-  "main": "index.ts",
+  "main": "src/index.ts",
   "pi": {
     "extensions": [
-      "index.ts"
+      "src/index.ts"
     ]
   },
   "repository": {
@@ -18,7 +18,7 @@
     "url": "https://github.com/3ZEROS12/toolflow/issues"
   },
   "scripts": {
-    "test": "npx tsx test_suite.ts"
+    "test": "npx tsx tests/test_suite.ts"
   },
   "keywords": [
     "pi-package",

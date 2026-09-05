@@ -1,13 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { sniffProjectFingerprint, discoverEcosystemTaxonomy } from "./taxonomy.js";
-import { ContextDehydrator } from "./dehydrator.js";
-import { BlastRadiusGuard } from "./blast_radius.js";
+import { sniffProjectFingerprint, discoverEcosystemTaxonomy } from "../src/taxonomy.js";
+import { ContextDehydrator } from "../src/dehydrator.js";
+import { BlastRadiusGuard } from "../src/blast_radius.js";
 import { 
   diagnoseTaskRequirements, 
   synthesizeBlueprint
-} from "./engine.js";
+} from "../src/engine.js";
 
 async function runRealWorldSandboxE2E() {
   const sandboxRoot = fs.mkdtempSync(path.join(os.tmpdir(), "toolflow_e2e_real_sandbox_"));

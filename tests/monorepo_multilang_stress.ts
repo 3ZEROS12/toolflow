@@ -2,17 +2,17 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import assert from "assert";
-import { sniffProjectFingerprint, discoverEcosystemTaxonomy } from "./taxonomy.js";
-import { ContextDehydrator } from "./dehydrator.js";
-import { BlastRadiusGuard } from "./blast_radius.js";
-import { MultiAgentWorkerOrchestrator } from "./worker_orchestrator.js";
-import { CodebaseMemoryManager } from "./memory.js";
+import { sniffProjectFingerprint, discoverEcosystemTaxonomy } from "../src/taxonomy.js";
+import { ContextDehydrator } from "../src/dehydrator.js";
+import { BlastRadiusGuard } from "../src/blast_radius.js";
+import { MultiAgentWorkerOrchestrator } from "../src/worker_orchestrator.js";
+import { CodebaseMemoryManager } from "../src/memory.js";
 import { 
   diagnoseTaskRequirements, 
   synthesizeBlueprint,
   planDAGWaves 
-} from "./engine.js";
-import { BlueprintStage } from "./types.js";
+} from "../src/engine.js";
+import { BlueprintStage } from "../src/types.js";
 
 async function runMonorepoMultiLangStressTesting() {
   console.log("================================================================================");

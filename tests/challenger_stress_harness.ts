@@ -10,10 +10,10 @@ import {
   startBlueprintExecution,
   advanceStage,
   atomicWriteFileSync
-} from "./state.js";
-import { ContextDehydrator } from "./dehydrator.js";
-import { padToVisibleWidth, renderValueReceipt, renderUnicodeDAG } from "./ui.js";
-import type { Blueprint, BlueprintStage } from "./types.js";
+} from "../src/state.js";
+import { ContextDehydrator } from "../src/dehydrator.js";
+import { padToVisibleWidth, renderValueReceipt, renderUnicodeDAG } from "../src/ui.js";
+import type { Blueprint, BlueprintStage } from "../src/types.js";
 
 let passedAsserts = 0;
 let failedAsserts = 0;

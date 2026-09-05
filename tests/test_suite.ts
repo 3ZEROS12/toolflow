@@ -1,16 +1,16 @@
 import assert from "assert";
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { loadOrRefreshTaxonomy, sniffProjectFingerprint, cleanName, generateCapabilityCompactDigest, discoverEcosystemTaxonomy } from "./taxonomy.js";
-import { renderCompactEcosystemOverview, renderBlueprintSummary, renderUnicodeDAG, renderValueReceipt, padToVisibleWidth } from "./ui.js";
+import { loadOrRefreshTaxonomy, sniffProjectFingerprint, cleanName, generateCapabilityCompactDigest, discoverEcosystemTaxonomy } from "../src/taxonomy.js";
+import { renderCompactEcosystemOverview, renderBlueprintSummary, renderUnicodeDAG, renderValueReceipt, padToVisibleWidth } from "../src/ui.js";
 import {
   diagnoseTaskRequirements,
   synthesizeBlueprint,
   generateABTradeOffMatrix,
   inferArtifactProfile,
   planDAGWaves
-} from "./engine.js";
-import { TaskDiagnosis, BlueprintStage } from "./types.js";
-import * as stateModule from "./state.js";
+} from "../src/engine.js";
+import { TaskDiagnosis, BlueprintStage } from "../src/types.js";
+import * as stateModule from "../src/state.js";
 import {
   getSessionState,
   startBlueprintExecution,
@@ -26,25 +26,25 @@ import {
   loadPersistedSessionState,
   createStageSnapshot,
   rollbackStage
-} from "./state.js";
-import { CodebaseMemoryManager } from "./memory.js";
-import { MultiAgentWorkerOrchestrator } from "./worker_orchestrator.js";
-import { GracefulDegradationMatrix } from "./degradation_matrix.js";
-import { BlastRadiusGuard } from "./blast_radius.js";
-import { ContextDehydrator } from "./dehydrator.js";
+} from "../src/state.js";
+import { CodebaseMemoryManager } from "../src/memory.js";
+import { MultiAgentWorkerOrchestrator } from "../src/worker_orchestrator.js";
+import { GracefulDegradationMatrix } from "../src/degradation_matrix.js";
+import { BlastRadiusGuard } from "../src/blast_radius.js";
+import { ContextDehydrator } from "../src/dehydrator.js";
 import {
   captureReviewDiffSnapshot,
   buildColdStartReviewContract,
   ReviewIsolationGuard
-} from "./review_isolation.js";
-import { generateStageActionPrompt } from "./engine.js";
-import { renderExecutionPipelineCard } from "./ui.js";
+} from "../src/review_isolation.js";
+import { generateStageActionPrompt } from "../src/engine.js";
+import { renderExecutionPipelineCard } from "../src/ui.js";
 import {
   SkillDistiller,
   McpMethodRegistry,
   bindDeepEcosystemToStage
-} from "./deep_ecosystem.js";
-import { ProjectFingerprint, EcosystemTaxonomy } from "./types.js";
+} from "../src/deep_ecosystem.js";
+import { ProjectFingerprint, EcosystemTaxonomy } from "../src/types.js";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -515,9 +515,9 @@ async function runFullRegressionVerification() {
   // 模块 12: 进阶三大方向深度强化验证 (脱水日志 + 影响面文件锁 + 自适应降级矩阵)
   // ---------------------------------------------------------------------------
   console.log("\n[TEST-12] 进阶三大优化验证: 上下文脱水、影响面文件锁与自适应平替矩阵...");
-  const { ContextDehydrator } = await import("./dehydrator.js");
-  const { BlastRadiusGuard } = await import("./blast_radius.js");
-  const { GracefulDegradationMatrix } = await import("./degradation_matrix.js");
+  const { ContextDehydrator } = await import("../src/dehydrator.js");
+  const { BlastRadiusGuard } = await import("../src/blast_radius.js");
+  const { GracefulDegradationMatrix } = await import("../src/degradation_matrix.js");
 
   const advWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), "wf-adv-test-"));
   try {
@@ -1491,7 +1491,7 @@ Always verify diff before finalizing.
 
   // TEST-21: 深度生态目录通用化与 Windows pi install -l 跨平台健壮性验证
   console.log("[TEST-21] 验证深度生态目录无业务私货 & pi install -l 跨平台加固...");
-  const { CURATED_ECOSYSTEM_CATALOG, EcosystemRadar } = await import("./deep_ecosystem.js");
+  const { CURATED_ECOSYSTEM_CATALOG, EcosystemRadar } = await import("../src/deep_ecosystem.js");
 
   // 21.1 检查 CURATED_ECOSYSTEM_CATALOG 不含有任何业务私货
   const privateKeywords = ["wechat", "微信", "私货", "业务私货", "特定业务", "钉钉", "dingtalk", "feishu", "飞书"];
