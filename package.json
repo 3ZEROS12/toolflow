@@ -39,6 +39,7 @@
   "devDependencies": {
     "@types/node": "^20.17.0",
     "@earendil-works/pi-coding-agent": ">=0.80.0",
+    "@earendil-works/pi-tui": ">=0.80.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }
