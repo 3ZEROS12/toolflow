@@ -202,10 +202,11 @@ export default function (pi: ExtensionAPI) {
 
   async function handleBlueprintFlow(args: string, ctx: ExtensionCommandContext) {
     const rawArg = args ? args.trim() : "";
+    const cwd = ctx.cwd || process.cwd();
 
     // 1. 处理回滚子命令: /toolflow rollback 或 -r
     if (rawArg === "rollback" || rawArg === "-r" || rawArg === "revert") {
-      const res = rollbackStage();
+      const res = rollbackStage(undefined, cwd);
       applyToolScoping(BASELINE_TOOLS, pi);
       if (ctx?.ui?.notify) {
         ctx.ui.notify(res.message, res.success ? "info" : "warning");
@@ -215,7 +216,7 @@ export default function (pi: ExtensionAPI) {
 
     // 2. 处理重置子命令: /toolflow reset
     if (rawArg === "reset") {
-      resetState(process.cwd());
+      resetState(cwd);
       blastGuard.clearAllowedScope();
       applyToolScoping(BASELINE_TOOLS, pi);
       if (ctx?.ui?.notify) {
@@ -234,7 +235,7 @@ export default function (pi: ExtensionAPI) {
         return;
       }
       const summaryMd = renderBlueprintSummary(activeState.currentBlueprint);
-      const exportPath = path.join(process.cwd(), "BLUEPRINT.md");
+      const exportPath = path.join(cwd, "BLUEPRINT.md");
       try {
         fs.writeFileSync(exportPath, summaryMd, "utf-8");
         if (ctx?.ui?.notify) {
@@ -316,7 +317,7 @@ export default function (pi: ExtensionAPI) {
 
     // 动态提取宿主环境中所有实际注册的工具 (来自 pi.getAllTools())
     const registeredToolMetas = typeof pi.getAllTools === "function" ? pi.getAllTools() : [];
-    const taxonomy = await loadOrRefreshTaxonomy(process.cwd(), registeredToolMetas);
+    const taxonomy = await loadOrRefreshTaxonomy(cwd, registeredToolMetas);
 
     // 默认仅输入 /toolflow：弹出全屏弹窗能力概览与战术槽位发射台
     if (!rawArg) {

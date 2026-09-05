@@ -14,6 +14,7 @@ import {
 } from "./types.js";
 import { sniffProjectFingerprint, cleanName } from "./taxonomy.js";
 import { bindDeepEcosystemToStage, EcosystemRadar } from "./deep_ecosystem.js";
+import { extractValidJsonObject } from "./json_extractor.js";
 import crypto from "crypto";
 import path from "path";
 import fs from "fs";
@@ -826,13 +827,8 @@ Return ONLY valid raw JSON matching this structure (no markdown fences, or wrapp
         .join("\n");
 
       if (textBlocks) {
-        // 健壮提取 JSON 内容（兼容 markdown 代码块及纯文本输出）
-        let jsonStr = textBlocks.trim();
-        const jsonBlockMatch = jsonStr.match(/\{[\s\S]*\}/);
-        if (!jsonBlockMatch) throw new Error("No JSON found");
-        jsonStr = jsonBlockMatch[0];
-
-        const parsed = JSON.parse(jsonStr);
+        // 健壮提取 JSON 内容（优先 Markdown 围栏代码块，回退平衡大括号，避开贪婪匹配跨块崩溃）
+        const parsed = extractValidJsonObject(textBlocks);
         if (parsed.requirementSlots && Array.isArray(parsed.requirementSlots) && parsed.requirementSlots.length >= 3) {
           const isWeb = /网页|网站|单页|web|ui|前端|页面|组件|vue|react|html|css|界面|dashboard|app/i.test(task);
           const fallbackSparks = isWeb
@@ -948,11 +944,7 @@ STRICT RULES:
       .map((c: any) => c.text)
       .join("\n");
 
-    let clean = textBlocks.trim();
-    const jsonBlockMatch = clean.match(/\{[\s\S]*\}/);
-    if (!jsonBlockMatch) return fallback;
-
-    const parsed = JSON.parse(jsonBlockMatch[0]);
+    const parsed = extractValidJsonObject(textBlocks);
     if (parsed && typeof parsed.primaryArtifact === "string") {
       return {
         primaryArtifact: parsed.primaryArtifact,

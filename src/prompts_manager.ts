@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { extractValidJsonObject } from "./json_extractor.js";
 
 export interface PromptItemInfo {
   command: string;
@@ -147,10 +148,8 @@ ${content.slice(0, 1500)}
       });
 
       const raw = resp.content?.[0]?.type === "text" ? resp.content[0].text : "";
-      // 稳健提取 JSON 块，剥离 Markdown 围栏并保留合法反斜杠转义
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No JSON found");
-      const parsed = JSON.parse(jsonMatch[0]);
+      // 稳健提取 JSON 块，剥离 Markdown 围栏并支持平衡括号防崩溃
+      const parsed = extractValidJsonObject(raw);
 
       return {
         name: (parsed.name || fallbackName).replace(/[^a-zA-Z0-9_-]/g, "").toLowerCase(),

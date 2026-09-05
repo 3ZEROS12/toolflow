@@ -191,10 +191,8 @@ export function getSessionState(): Readonly<SessionPlanState> {
  */
 export function getGitChangedFiles(cwd: string = process.cwd()): { isGit: boolean; changedFiles: string[]; untrackedFiles: string[] } {
   try {
-    const isGitRepo = fs.existsSync(path.join(cwd, ".git"));
-    if (!isGitRepo) {
-      return { isGit: false, changedFiles: [], untrackedFiles: [] };
-    }
+    // 使用 rev-parse 探测是否在 git 工作树内，完美支持子目录与 git worktree
+    execSync("git rev-parse --is-inside-work-tree", { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"], timeout: 2000 });
     const statusOutput = execSync("git status --porcelain", { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"], timeout: 3000 });
     const changedFiles: string[] = [];
     const untrackedFiles: string[] = [];

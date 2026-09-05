@@ -500,9 +500,9 @@ export class EcosystemRadar {
     for (const pkg of packages) {
       try {
         logs.push(`[ToolFlow] 正在为本地项目安装: ${pkg.source} ...`);
-        // 安全参数校验：避免异常字符注入
+        // 安全参数校验：避免异常字符注入，并添加 --approve 标志规避无 TTY 交互死锁挂起
         const safeSource = pkg.source.replace(/["'`$\\]/g, "");
-        const cmd = `${cliPrefix} install -l ${safeSource}`;
+        const cmd = `${cliPrefix} install -l ${safeSource} --approve`;
         const { stdout, stderr } = await execAsync(cmd, { cwd, timeout: 60000 });
         installed.push(pkg.name);
         logs.push(`[ToolFlow] ${pkg.name} 安装成功:\n${stdout}`);

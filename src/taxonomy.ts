@@ -5,6 +5,8 @@ import os from "os";
 import { fileURLToPath } from "url";
 import { EcosystemTaxonomy, CapabilityItem, LayerType, ProjectFingerprint, ProjectType } from "./types.js";
 
+import { extractValidJsonObject } from "./json_extractor.js";
+
 const PI_AGENT_BASE = process.env.PI_AGENT_DIR || path.join(os.homedir(), ".pi", "agent");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOCAL_TAXONOMY_PATH = path.resolve(__dirname, "ecosystem_taxonomy.json");
@@ -257,7 +259,7 @@ function inferCapabilityFromMetadata(id: string, name: string, desc: string, kin
   const tags: string[] = [`#${kind}`, `#${cleanName(id)}`];
 
   let bindingReason = "基础通用能力";
-  if (/(review|audit|plannotator|gate|guard|verify|assert|check|lint|test|inspect|validate|assertion)/.test(text)) {
+  if (/(review|audit|plannotator|gate|guard|verify|assert|check|lint|test|inspect|validate|assertion|simplify)/.test(text)) {
     layer = "L4_REVIEW_GUARD";
     tokenImpact = "medium";
     costLevel = "$1";
@@ -269,18 +271,18 @@ function inferCapabilityFromMetadata(id: string, name: string, desc: string, kin
     costLevel = "$3";
     tags.push("#orchestration");
     bindingReason = "多任务并发分发与子流程编排调度";
-  } else if (/(rewind|undo|git|checkpoint|snapshot|history|clean|format|diff|lock|rollback)/.test(text)) {
+  } else if (/(rewind|undo|git|checkpoint|snapshot|history|clean|format|diff|lock|rollback|sandbox|permission)/.test(text)) {
     layer = "L1_UTILITY";
     tokenImpact = "minimal";
     costLevel = "$0";
     tags.push("#safety");
     bindingReason = "工作区快照管理、影响面锁定与安全回滚";
-  } else if (/(search|fetch|web|crawl|scrape|http|net|url|mcp|database|sql|api|doc|query|retrieve|read)/.test(text)) {
+  } else if (/(search|fetch|web|crawl|scrape|http|net|url|mcp|database|sql|api|doc|query|retrieve|read|browser|chrome|playwright|puppeteer|cdp|computer-use|gui)/.test(text)) {
     layer = "L2_PERCEPTION";
     tokenImpact = "medium";
     costLevel = "$2";
     tags.push("#perception");
-    bindingReason = "精准信息检索与外部数据源接入";
+    bindingReason = "精准信息检索、浏览器控制与外部数据源接入";
   }
 
   const cleanDesc = desc ? desc.slice(0, 36).replace(/\r?\n/g, " ") : `动态识别组件 [${cleanName(name)}]`;
@@ -501,43 +503,40 @@ export async function deepAnalyzeTaxonomyWithLLM(
 
   try {
     const rawRes = await pi.executePrompt(prompt);
-    const jsonMatch = rawRes.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (Array.isArray(parsed.items)) {
-        const itemMap = new Map(parsed.items.map((it: any) => [it.id, it]));
-        const updateList = (list: CapabilityItem[]) =>
-          list.map((item) => {
-            const hit: any = itemMap.get(item.id);
-            if (hit) {
-              return {
-                ...item,
-                layer: (hit.layer as LayerType) || item.layer,
-                summary: hit.summary || item.summary,
-                tags: Array.isArray(hit.tags) ? hit.tags : item.tags
-              };
-            }
-            return item;
-          });
-
-        taxonomy.extensions = updateList(taxonomy.extensions);
-        taxonomy.skills = updateList(taxonomy.skills);
-        taxonomy.prompts = updateList(taxonomy.prompts);
-
-        const summary: Record<LayerType, number> = {
-          L1_UTILITY: 0,
-          L2_PERCEPTION: 0,
-          L3_ORCHESTRATION: 0,
-          L4_REVIEW_GUARD: 0
-        };
-        [...taxonomy.extensions, ...taxonomy.skills, ...taxonomy.prompts].forEach((i) => {
-          if (i.layer && summary[i.layer] !== undefined) summary[i.layer]++;
+    const parsed = extractValidJsonObject(rawRes);
+    if (parsed && Array.isArray(parsed.items)) {
+      const itemMap = new Map(parsed.items.map((it: any) => [it.id, it]));
+      const updateList = (list: CapabilityItem[]) =>
+        list.map((item) => {
+          const hit: any = itemMap.get(item.id);
+          if (hit) {
+            return {
+              ...item,
+              layer: (hit.layer as LayerType) || item.layer,
+              summary: hit.summary || item.summary,
+              tags: Array.isArray(hit.tags) ? hit.tags : item.tags
+            };
+          }
+          return item;
         });
-        taxonomy.summaryByLayer = summary;
-        try {
-          fs.writeFileSync(TAXONOMY_PATH, JSON.stringify(taxonomy, null, 2), "utf-8");
-        } catch (_) {}
-      }
+
+      taxonomy.extensions = updateList(taxonomy.extensions);
+      taxonomy.skills = updateList(taxonomy.skills);
+      taxonomy.prompts = updateList(taxonomy.prompts);
+
+      const summary: Record<LayerType, number> = {
+        L1_UTILITY: 0,
+        L2_PERCEPTION: 0,
+        L3_ORCHESTRATION: 0,
+        L4_REVIEW_GUARD: 0
+      };
+      [...taxonomy.extensions, ...taxonomy.skills, ...taxonomy.prompts].forEach((i) => {
+        if (i.layer && summary[i.layer] !== undefined) summary[i.layer]++;
+      });
+      taxonomy.summaryByLayer = summary;
+      try {
+        fs.writeFileSync(TAXONOMY_PATH, JSON.stringify(taxonomy, null, 2), "utf-8");
+      } catch (_) {}
     }
   } catch (_) {}
 
