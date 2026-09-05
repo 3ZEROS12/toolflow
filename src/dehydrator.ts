@@ -198,4 +198,46 @@ export class ContextDehydrator {
       `[脱水日志归档] 详细调试日志已落盘至: \`${handoff.rawLogFilePath}\` (必要时可通过 read 按需索引)`
     ].join("\n");
   }
+
+  /**
+   * ⚡ 实时单次工具输出脱水 (Tool Result Dehydration)
+   * 当 bash, powershell, fetch_content 或重型 MCP 输出过长时，自动将完整原始输出落盘归档，
+   * 仅向下游返回摘要与指纹，彻底阻断数万 Token 垃圾日志污染会话上下文。
+   */
+  public dehydrateToolOutput(toolName: string, rawText: string): { dehydrated: boolean; text: string; archivePath?: string } {
+    if (!rawText || typeof rawText !== "string") return { dehydrated: false, text: rawText };
+    const lines = rawText.split(String.fromCharCode(10));
+    if (lines.length <= 60 && rawText.length < 4000) {
+      return { dehydrated: false, text: rawText };
+    }
+
+    const timestamp = Date.now();
+    const safeTool = toolName.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const filename = "tool_" + safeTool + "_" + timestamp + ".log";
+    const fullPath = path.join(this.runsDir, filename);
+
+    try {
+      fs.writeFileSync(fullPath, rawText, "utf-8");
+    } catch (_) {}
+
+    const head = lines.slice(0, 25).join(String.fromCharCode(10));
+    const tail = lines.slice(-25).join(String.fromCharCode(10));
+    const omittedCount = lines.length - 50;
+    const relPath = path.relative(process.cwd(), fullPath).split("\\").join("/");
+
+    const summaryText = [
+      head,
+      "",
+      "... [⚡ ToolFlow Token Optimizer: Dehydrated " + omittedCount + " lines (~" + Math.round(rawText.length / 4) + " tokens) to " + relPath + "] ...",
+      "",
+      tail
+    ].join(String.fromCharCode(10));
+
+    return {
+      dehydrated: true,
+      text: summaryText,
+      archivePath: fullPath
+    };
+  }
+
 }

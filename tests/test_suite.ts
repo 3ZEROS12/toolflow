@@ -515,7 +515,7 @@ async function runFullRegressionVerification() {
   // 模块 12: 进阶三大方向深度强化验证 (脱水日志 + 影响面文件锁 + 自适应降级矩阵)
   // ---------------------------------------------------------------------------
   console.log("\n[TEST-12] 进阶三大优化验证: 上下文脱水、影响面文件锁与自适应平替矩阵...");
-  const { ContextDehydrator } = await import("../src/dehydrator.js");
+  // using already imported ContextDehydrator
   const { BlastRadiusGuard } = await import("../src/blast_radius.js");
   const { GracefulDegradationMatrix } = await import("../src/degradation_matrix.js");
 
@@ -1600,6 +1600,15 @@ Always verify diff before finalizing.
   fs.rmSync(resetSandbox, { recursive: true, force: true });
   console.log("  [OK] 22.1 - 22.13 会话重置与清理物理持久化状态验证 100% 通过！\n");
 }
+
+  console.log("[TEST-23] 验证实时工具输出脱水 (Tool Result Dehydration)...");
+  // using already imported ContextDehydrator
+  const dehydratorInst = new ContextDehydrator(process.cwd());
+  const longLog = Array.from({ length: 80 }, (_, i) => "trace-log-item-" + i).join(String.fromCharCode(10));
+  const res = dehydratorInst.dehydrateToolOutput("bash", longLog);
+  assert(res.dehydrated === true, "80行长日志应当被判定脱水");
+  assert(res.text.includes("ToolFlow Token Optimizer: Dehydrated"), "输出内容应当包含脱水摘要标记");
+  console.log("  [OK] 23.1 - 23.2 实时工具输出自动落盘归档与中间截断 100% 验证通过！");
 
 runFullRegressionVerification().catch(err => {
   console.error("[FAILED] 回归测试失败:", err);

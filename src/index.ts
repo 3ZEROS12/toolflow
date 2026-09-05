@@ -468,6 +468,24 @@ export default function (pi: ExtensionAPI) {
     });
   }
 
+
+  // ⚡ 核心实时节省 Token 机制：tool_result 拦截管道 (Tool Output Dehydration Middleware)
+  // 当任何终端命令 (bash/powershell) 或外部重型工具输出海量报错/日志时，自动归档并截断，防止污染会话
+  if (typeof (pi as any).on === "function") {
+    (pi as any).on("tool_result", async (event: any) => {
+      if (!event || !event.content || !Array.isArray(event.content)) return;
+      const toolName = event.toolName || "tool";
+      for (const block of event.content) {
+        if (block && block.type === "text" && typeof block.text === "string") {
+          const res = dehydrator.dehydrateToolOutput(toolName, block.text);
+          if (res.dehydrated) {
+            block.text = res.text;
+          }
+        }
+      }
+    });
+  }
+
   // 注册 before_agent_start 钩子 (下沉注入蒸馏的 Skill SOP 规则契约与物理防护)
   if (typeof (pi as any).on === "function") {
     (pi as any).on("before_agent_start", async (event: any) => {
