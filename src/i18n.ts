@@ -68,4 +68,12 @@ export const t = {
   contextDehydrated: isZh
     ? "⚡ 会话上下文已精简压缩"
     : "⚡ Session context compacted.",
+  toolOutputDehydrated: (tool: string, lines: number, tokens: number) =>
+    isZh
+      ? `⚡ [ToolFlow] 已归档 ${tool} 冗长输出 (${lines} 行)，节约 ~${tokens} Tokens`
+      : `⚡ [ToolFlow] Archived ${tool} verbose output (${lines} lines), saved ~${tokens} tokens`,
+  compactNotice: (tokensSaved?: number) =>
+    isZh
+      ? (tokensSaved ? `⚡ [ToolFlow] 阶段历史已脱水封存，已释放 ~${tokensSaved} Tokens` : "⚡ [ToolFlow] 阶段历史已脱水封存")
+      : (tokensSaved ? `⚡ [ToolFlow] Stage history compacted, ~${tokensSaved} tokens released` : "⚡ [ToolFlow] Stage history compacted"),
 };

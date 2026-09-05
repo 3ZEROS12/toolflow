@@ -1,3 +1,4 @@
+import { isZh } from "./i18n.js";
 import { truncateToWidth, visibleWidth, matchesKey, parseKey } from "@earendil-works/pi-tui";
 import { PromptsManager, PromptItemInfo } from "./prompts_manager.js";
 import { EcosystemTaxonomy, Blueprint, DecisionSlot, BlueprintStage, ArchitectNavigatorResult, TaskRequirementChoice, TaskDiagnosis } from "./types.js";
