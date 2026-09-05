@@ -1102,8 +1102,54 @@ export function synthesizeBlueprint(
     ? [...(profile.buildCommands || []), ...(profile.testCommands || [])]
     : undefined;
 
-  const rawStages: BlueprintStage[] = isAgile
-    ? [
+  // 任务轻重自适应探测 (Adaptive Task Complexity Router)
+  // 识别是否属于日常极轻量单点改动/修补微任务，避免大炮打蚊子
+  const taskLower = (task || "").toLowerCase();
+  const isMicroTask = (
+    !isPlanB &&
+    userDecisions.__microTask === true || (
+      taskLower.length < 25 &&
+      (taskLower.includes("修复") ||
+        taskLower.includes("fix") ||
+        taskLower.includes("改一下") ||
+        taskLower.includes("微调") ||
+        taskLower.includes("format") ||
+        taskLower.includes("加个注释")) &&
+      !taskLower.includes("系统") &&
+      !taskLower.includes("架构") &&
+      !taskLower.includes("重构") &&
+      !taskLower.includes("web") &&
+      !taskLower.includes("控制台") &&
+      !taskLower.includes("构建") &&
+      !taskLower.includes("单页") &&
+      !taskLower.includes("应用")
+    )
+  );
+
+  let rawStages: BlueprintStage[];
+  if (isMicroTask) {
+    rawStages = [
+      {
+        stageId: "stage_1_direct_execution",
+        title: "极速响应与验证 (单阶段极简通道)",
+        roleProfile: "quick_specialist",
+        coreObjective: `针对目标任务快速实施变更并执行必要验证，完成后直接交付。${customReqNotice}`,
+        boundCapabilities: {
+          extensions: [],
+          skills: []
+        },
+        expectedArtifact: defaultSrcPath,
+        expectedArtifacts: [defaultSrcPath],
+        targetPatterns: ["src/**", "lib/**", "tests/**", "*"],
+        artifactContract: `直接产出修改代码并确保无语法错误。`,
+        verificationCommands: stage2VerificationCommands,
+        allowedTools: ["read", "edit", "write", "bash", "powershell", "grep", "find"],
+        tokenCostNotice: "极简直接执行，0 前置冗余"
+      }
+    ];
+  } else {
+    rawStages = isAgile
+      ? [
         {
           stageId: "stage_1_design",
           title: "方案设计与契约 (设计阶段)",
@@ -1265,6 +1311,7 @@ export function synthesizeBlueprint(
           tokenCostNotice: "生成最终交付凭证，触发高保真多端通知"
         }
       ];
+  }
 
   // 执行 Kahn DAG 拓扑排序与分波解算
   const dagResult = planDAGWaves(rawStages);

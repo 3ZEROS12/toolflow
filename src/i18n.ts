@@ -72,6 +72,10 @@ export const t = {
     isZh
       ? `⚡ [ToolFlow] 已归档 ${tool} 冗长输出 (${lines} 行)，节约 ~${tokens} Tokens`
       : `⚡ [ToolFlow] Archived ${tool} verbose output (${lines} lines), saved ~${tokens} tokens`,
+  readCacheHitNotice: (file: string, tokens: number) =>
+    isZh
+      ? `⚡ [ToolFlow 读缓存] 文件 ${file} 内容未变动，命中缓存节约 ~${tokens} Tokens`
+      : `⚡ [ToolFlow Read Cache] ${file} unchanged, hit cache saved ~${tokens} tokens`,
   compactNotice: (tokensSaved?: number) => {
     if (tokensSaved) {
       return isZh

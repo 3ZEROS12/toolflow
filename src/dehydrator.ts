@@ -283,5 +283,94 @@ export class ContextDehydrator {
       archivePath: fullPath
     };
   }
-
 }
+
+/**
+ * ⚡ 文件读取去重与短期缓存管理器 (ReadCacheManager)
+ * 避免大模型在同一个长会话中针对未修改的文件反复通读、反复灌入成千上万 Token
+ */
+export class ReadCacheManager {
+  private cache: Map<string, { mtimeMs: number; hash: string; lastTurnIndex: number; linesCount: number }> = new Map();
+
+  /**
+   * 检查文件读取是否可以命中去重缓存
+   * @param filePath 读取的目标文件路径
+   * @param fileContent 文件原始内容
+   * @param currentTurn 当前会话轮次（或消息序号）
+   */
+  public checkOrUpdate(filePath: string, fileContent: string, currentTurn: number): { isDuplicate: boolean; notice?: string; savedLines?: number } {
+    if (!filePath || !fileContent || fileContent.length < 300) {
+      // 极短文件不拦截，不影响极速阅读体验
+      return { isDuplicate: false };
+    }
+
+    const normPath = path.resolve(filePath).replace(/\\/g, "/");
+    let currentMtime = 0;
+    try {
+      if (fs.existsSync(filePath)) {
+        currentMtime = fs.statSync(filePath).mtimeMs;
+      }
+    } catch (_) {}
+
+    // 计算快速内容简版 Hash (首尾 + 长度，避免超大文件全量 sha256 阻塞)
+    const contentLen = fileContent.length;
+    const sample = `${contentLen}:${fileContent.slice(0, 100)}:${fileContent.slice(-100)}`;
+    const hash = crypto.createHash("md5").update(sample).digest("hex");
+    const lines = fileContent.split("\n");
+
+    const cached = this.cache.get(normPath);
+    if (cached) {
+      // 必须严格判定：若有 mtime，mtime 变了就代表变了；且内容 hash 必须完全匹配
+      const mtimeMatches = currentMtime > 0 ? Math.abs(currentMtime - cached.mtimeMs) < 500 : true;
+      const isUnchanged = mtimeMatches && cached.hash === hash;
+      const turnDistance = currentTurn - cached.lastTurnIndex;
+
+      if (isUnchanged && turnDistance >= 1 && turnDistance <= 15) {
+        // 更新最后访问轮次
+        cached.lastTurnIndex = currentTurn;
+        const relativePath = path.relative(process.cwd(), filePath).replace(/\\/g, "/");
+        const approxSavedTokens = Math.max(20, Math.round(contentLen / 4));
+        const headSnippet = lines.slice(0, 5).join("\n");
+        const tailSnippet = lines.slice(-3).join("\n");
+
+        return {
+          isDuplicate: true,
+          savedLines: lines.length,
+          notice: [
+            headSnippet,
+            "",
+            `[⚡ ToolFlow Read Cache: 文件 "${relativePath}" (${lines.length} 行, ~${approxSavedTokens} tokens) 前文第 ${cached.lastTurnIndex} 轮已读取且无变更，内容完全一致。已自动去重以节省 Token。如需重读特定片段请使用 read 工具的 offset/limit 选项。]`,
+            "",
+            tailSnippet
+          ].join("\n")
+        };
+      }
+    }
+
+    // 记录最新指纹
+    this.cache.set(normPath, {
+      mtimeMs: currentMtime,
+      hash,
+      lastTurnIndex: currentTurn,
+      linesCount: lines.length
+    });
+
+    return { isDuplicate: false };
+  }
+
+  /**
+   * 清除特定路径缓存（当发现该文件被 write / edit 时调用，保证缓存不发霉）
+   */
+  public invalidate(filePath: string): void {
+    const normPath = path.resolve(filePath).replace(/\\/g, "/");
+    this.cache.delete(normPath);
+  }
+
+  /**
+   * 重置所有读缓存
+   */
+  public clear(): void {
+    this.cache.clear();
+  }
+}
+

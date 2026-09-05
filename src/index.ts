@@ -7,7 +7,7 @@ import { diagnoseTaskRequirements, synthesizeBlueprint, synthesizeBlueprintPlanW
 import { EcosystemRadar } from "./deep_ecosystem.js";
 import { renderCompactEcosystemOverview, renderBlueprintSummary, openArchitectNavigator, renderValueReceipt, renderExecutionPipelineCard } from "./ui.js";
 import { t } from "./i18n.js";
-import { ContextDehydrator } from "./dehydrator.js";
+import { ContextDehydrator, ReadCacheManager } from "./dehydrator.js";
 import { BlastRadiusGuard } from "./blast_radius.js";
 import { GracefulDegradationMatrix } from "./degradation_matrix.js";
 import { CodebaseMemoryManager } from "./memory.js";
@@ -34,6 +34,8 @@ const blastGuard = new BlastRadiusGuard();
 const degradationMatrix = new GracefulDegradationMatrix();
 const memoryManager = new CodebaseMemoryManager();
 const dehydrator = new ContextDehydrator();
+const readCache = new ReadCacheManager();
+let globalTurnCounter = 0;
 const reviewGuard = new ReviewIsolationGuard();
 
 export default function (pi: ExtensionAPI) {
@@ -502,8 +504,39 @@ export default function (pi: ExtensionAPI) {
   // 当任何终端命令 (bash/powershell) 或外部重型工具输出海量报错/日志时，自动归档并截断，防止污染会话
   if (typeof (pi as any).on === "function") {
     (pi as any).on("tool_result", async (event: any, ctx: any) => {
+      globalTurnCounter++;
       if (!event?.content || !Array.isArray(event.content)) return;
       const toolName = event.toolName || "tool";
+
+      // 1. 如果是写/改文件工具，立即作废对应文件的读缓存，保证后续读取能拿到最新内容
+      if (toolName === "write" || toolName === "edit") {
+        const filePath = event.input?.path;
+        if (filePath) {
+          readCache.invalidate(filePath);
+        }
+      }
+
+      // 2. 如果是 read 工具，检查是否命中重复读取缓存 (Read Deduplication Cache)
+      if (toolName === "read") {
+        const filePath = event.input?.path;
+        for (const block of event.content) {
+          if (block?.type === "text" && typeof block.text === "string") {
+            const cacheResult = readCache.checkOrUpdate(filePath, block.text, globalTurnCounter);
+            if (cacheResult.isDuplicate && cacheResult.notice) {
+              const originalLen = block.text.length;
+              block.text = cacheResult.notice;
+              const approxTokens = Math.max(10, Math.round((originalLen - block.text.length) / 4));
+              if (ctx?.ui?.notify) {
+                const baseName = path.basename(filePath || "file");
+                ctx.ui.notify(t.readCacheHitNotice(baseName, approxTokens), "info");
+              }
+              return;
+            }
+          }
+        }
+      }
+
+      // 3. 通用海量输出脱水管道
       for (const block of event.content) {
         if (block?.type === "text" && typeof block.text === "string") {
           const originalLen = block.text.length;
@@ -536,9 +569,25 @@ export default function (pi: ExtensionAPI) {
           if (!msg) continue;
 
           // 1. 修剪过旧的历史 tool 输出 (Tool Output)
+          // ⚡ Semantic Anchor Retention 保护机制：若包含架构契约/蓝图摘要/关键错误，绝不一刀切折叠
+          const isProtectedAnchor = (text: string): boolean => {
+            return (
+              text.includes("[ARCH_CONTRACT]") ||
+              text.includes("[BLUEPRINT_ESTABLISHED]") ||
+              text.includes("[FATAL_ERROR]") ||
+              text.includes("ToolFlow Blueprint") ||
+              text.includes("阶段目标:") ||
+              text.includes("核心契约")
+            );
+          };
+
           if (msg.role === "tool") {
             if (typeof msg.content === "string") {
-              if (msg.content.length > 800 && !msg.content.includes("ToolFlow Context Slimmer")) {
+              if (
+                msg.content.length > 800 &&
+                !msg.content.includes("ToolFlow Context Slimmer") &&
+                !isProtectedAnchor(msg.content)
+              ) {
                 const lines = msg.content.split("\n");
                 if (lines.length > 12) {
                   const head = lines.slice(0, 4).join("\n");
@@ -548,7 +597,14 @@ export default function (pi: ExtensionAPI) {
               }
             } else if (Array.isArray(msg.content)) {
               for (const part of msg.content) {
-                if (part && part.type === "text" && typeof part.text === "string" && part.text.length > 800 && !part.text.includes("ToolFlow Context Slimmer")) {
+                if (
+                  part &&
+                  part.type === "text" &&
+                  typeof part.text === "string" &&
+                  part.text.length > 800 &&
+                  !part.text.includes("ToolFlow Context Slimmer") &&
+                  !isProtectedAnchor(part.text)
+                ) {
                   const lines = part.text.split("\n");
                   if (lines.length > 12) {
                     const head = lines.slice(0, 4).join("\n");

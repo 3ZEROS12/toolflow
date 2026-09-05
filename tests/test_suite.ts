@@ -31,7 +31,7 @@ import { CodebaseMemoryManager } from "../src/memory.js";
 import { MultiAgentWorkerOrchestrator } from "../src/worker_orchestrator.js";
 import { GracefulDegradationMatrix } from "../src/degradation_matrix.js";
 import { BlastRadiusGuard } from "../src/blast_radius.js";
-import { ContextDehydrator } from "../src/dehydrator.js";
+import { ContextDehydrator, ReadCacheManager } from "../src/dehydrator.js";
 import {
   captureReviewDiffSnapshot,
   buildColdStartReviewContract,
@@ -1638,6 +1638,47 @@ Always verify diff before finalizing.
     restoreInitialActiveTools(mockPi);
     assert((activeList.length as number) === 6 && activeList.includes("mcp_docker"), "竣工还原后应完整恢复所有初始重型工具与Schema");
     console.log("  [OK] 24.1 - 24.3 工具生命周期完整闭环 (借出与全量无损归还) 100% 验证通过！");
+  }
+
+  console.log("\n[TEST-25] 验证文件重复读取缓存与轻重任务自适应路由 (Read Cache & Adaptive Router)...");
+  {
+    // 1. 测试 ReadCacheManager
+    const cacheMgr = new ReadCacheManager();
+    const tmpFile = path.join(os.tmpdir(), "toolflow_cache_test.txt");
+    const testContent = "line1\nline2\nline3\nline4\nline5\nline6\nline7\n" + "a".repeat(400);
+    fs.writeFileSync(tmpFile, testContent, "utf8");
+
+    // 第 1 次读取：未命中
+    const hit1 = cacheMgr.checkOrUpdate(tmpFile, testContent, 1);
+    assert.strictEqual(hit1.isDuplicate, false, "25.1 首次读取不应命中缓存");
+
+    // 第 2 次读取（文件未修改）：命中缓存
+    const hit2 = cacheMgr.checkOrUpdate(tmpFile, testContent, 2);
+    assert.strictEqual(hit2.isDuplicate, true, "25.2 相同文件内容未变应命中缓存");
+    assert(hit2.notice?.includes("ToolFlow Read Cache"), "25.3 应当给出规范的缓存替换提示");
+
+    // 修改文件后：缓存失效
+    const modifiedContent = testContent + "\nmodified-line-added";
+    fs.writeFileSync(tmpFile, modifiedContent, "utf8");
+    const hit3 = cacheMgr.checkOrUpdate(tmpFile, modifiedContent, 3);
+    assert.strictEqual(hit3.isDuplicate, false, "25.4 文件被修改后缓存应自动失效");
+
+    fs.rmSync(tmpFile, { force: true });
+
+    // 2. 测试自适应轻重任务路由
+    const { synthesizeBlueprint } = await import("../src/engine.js");
+    const microBp = synthesizeBlueprint("修复 utils.ts 中的拼写错误", {
+      primaryCategory: "WEB_UI",
+      suggestedRole: "Dev",
+      recommendedCapabilities: { extensions: [], skills: [] },
+      requirementSlots: [],
+      dynamicGoals: []
+    }, {}, { availableToolNames: ["read", "edit", "write", "bash"] } as any);
+
+    assert.strictEqual(microBp.stages.length, 1, "25.5 极轻量修补任务应自适应路由至单阶段通道");
+    assert.strictEqual(microBp.stages[0].stageId, "stage_1_direct_execution", "25.6 单阶段通道正确分流");
+
+    console.log("  [OK] 25.1 - 25.6 文件读缓存与轻重任务自适应路由 100% 验证通过！");
   }
 
 runFullRegressionVerification().catch(err => {
