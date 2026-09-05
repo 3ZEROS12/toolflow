@@ -44,11 +44,10 @@ pi install git:github.com/3ZEROS12/toolflow
 
 ## Core Capabilities
 
-### 1. Dynamic Tool Sandboxing (Stage-Gated Pruning)
-Instead of exposing your entire tool catalog at all times, ToolFlow physically mounts only the relevant tool tier for each phase:
-- **Research Phase**: Mounts perception & search tools (`read`, `grep`, `web_search`); unmounts mutation tools so the model cannot prematurely alter code.
-- **Implementation Phase**: Mounts scoped editing tools (`write`, `edit`), unmounting distracting external tools to preserve attention and token budget.
-- **Audit & Verification Phase**: The `ReviewIsolationGuard` actively blocks `write`, `edit`, and mutating commands, guaranteeing genuine read-only objective inspection.
+### 1. Dynamic Ecosystem Mounting (Persistent Core, Stage-Gated Advanced Tools)
+Instead of exposing your entire heavyweight tool catalog at all times, ToolFlow keeps the developer workflow smooth and focused:
+- **Persistent Core Tools**: Standard development tools (`read`, `edit`, `write`, `bash`, `grep`, `find`, `ls`) remain accessible at all times to prevent workflow lockups.
+- **Stage-Gated Advanced Capabilities**: Heavy external MCPs, browser controllers, dynamic workflows, and subagents are dynamically mounted only in relevant phases, keeping prompts focused and eliminating token bloat.
 
 ### 2. 4-Tier Token Governance (-95% Context Overhead)
 ToolFlow enforces four runtime barriers against context bloating:

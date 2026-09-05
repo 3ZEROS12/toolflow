@@ -256,7 +256,7 @@ export class BlastRadiusGuard {
           if (this.strictArtifactScope) {
             return {
               block: true,
-              reason: `[ToolFlow 影响面拦截] 目标文件 "${relative}" 不在当前阶段的允许修改白名单内。已阻断以防乱改代码。如需修改请更新蓝图。`,
+              reason: `[ToolFlow 写保护提示] 目标文件 "${relative}" 处于严格限定范围外。如需修改该文件，请调整范围配置或关闭 strictArtifactScope。`,
               escalationCandidate: {
                 filePath: relative,
                 absolutePath: resolved
