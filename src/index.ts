@@ -541,8 +541,8 @@ export default function (pi: ExtensionAPI) {
         const total = msgs.length;
         if (total <= 12) return;
 
-        // 仅保护最近 8 条消息不修剪，之前的旧消息若包含巨型工具返回，予以极速折叠
-        const protectIndex = Math.max(0, total - 8);
+        // ⚡ 增强滑动修剪：仅保护最近 6 条新鲜消息（约 2-3 轮），之前的旧历史工具输出与超长日志全量深度折叠
+        const protectIndex = Math.max(0, total - 6);
         for (let i = 0; i < protectIndex; i++) {
           const msg = msgs[i];
           if (msg && msg.role === "tool") {

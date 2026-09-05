@@ -232,6 +232,24 @@ export class ContextDehydrator {
       thresholdBytes = 2200;
       headCount = 12;
       tailCount = 12;
+    } else if (toolName === "fetch_content" || toolName === "web_search" || toolName === "get_search_content") {
+      // ⚡ 网络与爬虫工具：网页与搜索内容通常包含大量无用 HTML/脚本/长文，极易撑爆上下文
+      thresholdLines = 25;
+      thresholdBytes = 1500;
+      headCount = 10;
+      tailCount = 8;
+    } else if (toolName.startsWith("computer_use_") || toolName.startsWith("cua_")) {
+      // ⚡ 视觉/桌面自动化工具：UIA 树、Accessibility Tree 和状态诊断返回海量树状节点
+      thresholdLines = 30;
+      thresholdBytes = 2000;
+      headCount = 12;
+      tailCount = 8;
+    } else if (toolName === "mcp" || toolName === "mcpScript") {
+      // ⚡ 重型外部 MCP 工具输出：截断大型 JSON 或对象转储
+      thresholdLines = 30;
+      thresholdBytes = 2000;
+      headCount = 10;
+      tailCount = 10;
     }
 
     if (lines.length <= thresholdLines && rawText.length < thresholdBytes) {
