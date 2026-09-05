@@ -36,13 +36,20 @@ Instead of exposing your entire tool catalog at all times, ToolFlow physically m
 - **Implementation Phase**: Mounts scoped editing tools (`write`, `edit`), unmounting distracting external tools to preserve attention and token budget.
 - **Audit & Verification Phase**: The `ReviewIsolationGuard` actively blocks `write`, `edit`, and mutating commands, guaranteeing genuine read-only objective inspection.
 
-### 2. Context Dehydration (-95% Token Overhead)
-Large search outputs, file listings, and verbose compiler diagnostics are automatically archived to disk at stage boundaries. Downstream stages receive only structured topology summaries and verified artifact states, eliminating context baggage.
+### 2. 4-Tier Token Governance (-95% Context Overhead)
+ToolFlow enforces four runtime barriers against context bloating:
+- **Real-Time Tool Result Dehydration**: Whenever terminal outputs (`bash`/`powershell`) or fetch tools emit verbose logs (>40 lines or deep stacks), ToolFlow intercepts and archives them to disk in real-time (`.pi/toolflow/runs/...`). The context only retains concise physical head/tail summaries and the local file path.
+- **Heavy Tool JIT Allocation**: Powered by deep LLM intent reasoning, heavy MCP tools are loaded just-in-time for stages that strictly require them, completely masking their hefty JSON schemas during unrelated phases.
+- **Stage Boundary Compaction Contract**: Hooks into `session_before_compact` at stage transitions, stripping exploratory trials and reasoning chaff while handing off only verified on-disk artifact paths to downstream stages.
+- **Transparent Feedback**: Listens for `session_compact` events to surface minimal, reassuring token reduction notices in your status line—eliminating monotonically growing context anxiety.
 
-### 3. Physical Blast Radius Guard
+### 3. Strict Tool Lifecycle Snapshot & Restoration
+ToolFlow snapshots active tools at startup. Upon stage completion, abrupt error, or manual `/toolflow reset`, the environment is 100% restored to its original catalog, preventing orphaned states.
+
+### 4. Physical Blast Radius Guard
 A runtime safety interceptor monitoring both native write tools and terminal commands (`bash`, `powershell`). Destructive overwrites, file removals, or shell redirections targeting sensitive assets (`.env*`, `.git*`, core locks) are physically blocked at the engine level.
 
-### 4. Interactive Prompt Workbench
+### 5. Interactive Prompt Workbench
 Run `/toolflow` without arguments to access an in-terminal template manager:
 - **Instant Discovery**: Automatically discovers global and project-level `prompts/*.md`, sorted by recent use.
 - **Zero-Friction Insertion**: Press `[p]` to prefill highlighted templates directly into your prompt bar.
