@@ -8,8 +8,10 @@ export interface PromptItemInfo {
   name: string;
   description: string;
   scope: "global" | "project" | "package";
+  category: "user" | "system"; // 分组：用户自定义（global/project） vs 系统内置（package）
   filePath: string;
   updatedAt: number; // 文件修改时间戳，用于将最新添加/修改的排在顶端
+  lastUsedAt?: number; // 最近使用时间戳（MRU）
 }
 
 export class PromptsManager {
@@ -43,11 +45,14 @@ export class PromptsManager {
               updatedAt = fs.statSync(filePath).mtimeMs;
             } catch (_) {}
 
+            const category: "user" | "system" = scope === "package" ? "system" : "user";
+
             results.push({
               command,
               name,
               description: description || "自定义提示词模板 [" + command + "]",
               scope,
+              category,
               filePath,
               updatedAt
             });
@@ -82,9 +87,45 @@ export class PromptsManager {
       } catch (_) {}
     }
 
-    // 将最新添加/修改的排在顶端（按 updatedAt 降序排序）
+    // 读取最近使用时间戳（MRU）
+    const mruMap = this.loadMruMap();
+    for (const item of results) {
+      if (mruMap[item.command]) {
+        item.lastUsedAt = mruMap[item.command];
+      }
+    }
+
+    // 默认按照最后修改时间排序
     results.sort((a, b) => b.updatedAt - a.updatedAt);
     return results;
+  }
+
+  private static getMruFilePath(): string {
+    const piAgentBase = process.env.PI_AGENT_DIR || path.join(os.homedir(), ".pi", "agent");
+    return path.join(piAgentBase, "toolflow_prompts_mru.json");
+  }
+
+  private static loadMruMap(): Record<string, number> {
+    const file = this.getMruFilePath();
+    if (!fs.existsSync(file)) return {};
+    try {
+      return JSON.parse(fs.readFileSync(file, "utf8"));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /**
+   * 记录提示词被调用/选中，更新 MRU 时间戳
+   */
+  public static recordPromptUsage(command: string): void {
+    const mruMap = this.loadMruMap();
+    mruMap[command] = Date.now();
+    try {
+      const file = this.getMruFilePath();
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify(mruMap, null, 2), "utf8");
+    } catch (_) {}
   }
 
   /**
@@ -128,6 +169,7 @@ export class PromptsManager {
       name: cleanName,
       description: description.trim(),
       scope,
+      category: "user",
       filePath,
       updatedAt: Date.now()
     };

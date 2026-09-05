@@ -66,21 +66,28 @@ export function renderExecutionPipelineCard(params: {
   activeWorkers?: Array<{ name: string; tool: string; status: string }>;
   verifiedArtifactCount: number;
 }): string {
+  const completedCount = params.stages.filter((_, idx) => idx < params.currentStageIndex).length;
+  const totalCount = params.stages.length;
+
   const lines: string[] = [
-    `### ⚡ ToolFlow 执行流水线看板: \`${params.blueprintId}\``,
-    `> 核心目标: **${params.task}** (当前进度: ${params.currentStageIndex + 1}/${params.stages.length})`,
+    `● **执行拓扑流水线** (${completedCount}/${totalCount})  \`${params.blueprintId}\``,
+    `> 🎯 目标: **${params.task}**`,
     ""
   ];
 
   params.stages.forEach((stage, idx) => {
-    let mark = "○";
-    let statusText = "等待中";
+    const isLast = idx === params.stages.length - 1;
+    const branch = isLast ? "└─" : "├─";
+
+    let symbol = "○";
+    let statusDesc = "等待就绪";
+
     if (idx < params.currentStageIndex) {
-      mark = "✓";
-      statusText = "已验收完成";
+      symbol = "✓";
+      statusDesc = "已验收完成";
     } else if (idx === params.currentStageIndex) {
-      mark = "●";
-      statusText = "正在执行";
+      symbol = "◐";
+      statusDesc = "正在执行推进中...";
     }
 
     const highLevelTools: string[] = [];
@@ -89,21 +96,21 @@ export function renderExecutionPipelineCard(params: {
     if (stage.allowedTools?.includes("subagent")) highLevelTools.push("@subagent");
     const toolBadge = highLevelTools.length > 0 ? ` [${highLevelTools.join(", ")}]` : "";
 
-    lines.push(`${mark} **Wave ${idx + 1}**: ${stage.title}${toolBadge} - \`${statusText}\``);
-    lines.push(`   └ 产物契约: \`${stage.expectedArtifact}\` | 责任角色: \`${stage.roleProfile}\``);
+    lines.push(`${branch} ${symbol} **阶段 ${idx + 1}**: ${stage.title}${toolBadge} \`(${statusDesc})\``);
+    lines.push(`   └ 产物交付: \`${stage.expectedArtifact}\` | 责任专员: \`${stage.roleProfile}\``);
   });
 
   if (params.activeWorkers && params.activeWorkers.length > 0) {
     lines.push("");
-    lines.push(`**活跃高阶编排节点:**`);
+    lines.push(`**🚀 活跃高阶编排节点:**`);
     params.activeWorkers.forEach(w => {
-      lines.push(`- 🚀 \`${w.name}\` -> 调用工具: **${w.tool}** (${w.status})`);
+      lines.push(`- \`${w.name}\` -> 调度工具: **${w.tool}** (${w.status})`);
     });
   }
 
-  lines.push(`- **物理交付物验收状态**: ${params.verifiedArtifactCount} / ${params.stages.length} 已物理落地并校验`);
   lines.push("");
-  lines.push(`*提示: 输入 \`/toolflow rollback\` 可秒级撤销本阶段代码变更。*`);
+  lines.push(`- **物理交付物核验进度**: ${params.verifiedArtifactCount} / ${params.stages.length} 已物理落地并校验`);
+  lines.push(`*提示: 输入 \`/toolflow rollback\` 可秒级撤销当前阶段变更。*`);
 
   return lines.join("\n");
 }
@@ -261,6 +268,7 @@ export function openArchitectNavigator(
   return ui.custom(
     (tui: any, theme: any, _keybindings: any, done: (result: ArchitectNavigatorResult) => void) => {
       let promptsList: PromptItemInfo[] = PromptsManager.scanAllPrompts();
+      let promptTab: "recent" | "user" | "system" = "recent";
       let selectedPromptIdx = 0;
       let newPromptName = "";
       let newPromptDesc = "";
@@ -289,6 +297,16 @@ export function openArchitectNavigator(
       let selectedPlan: "A" | "B" = "B";
 
       const ecoToggles: Record<string, boolean> = {};
+
+      function getFilteredPrompts(): PromptItemInfo[] {
+        if (promptTab === "recent") {
+          return PromptsManager.getRecentPrompts(promptsList, 5);
+        } else if (promptTab === "user") {
+          return promptsList.filter(p => p.category === "user");
+        } else {
+          return promptsList.filter(p => p.category === "system");
+        }
+      }
 
       function getOptionEcoItems(opt: any): any[] {
         if (!opt?.recommendedEcosystem) return [];
@@ -342,28 +360,35 @@ export function openArchitectNavigator(
           if (state === "overview") {
             lines.push(titleColor("⌬ ToolFlow 任务编排"));
             lines.push(theme.fg("dim", "─".repeat(innerWidth)));
-            lines.push("  " + theme.bold("提示词速选 (按 [p] 填入，按 [+] 新建):"));
+
+            // 提示词分类与 MRU 切换 Tab
+            const currentFiltered = getFilteredPrompts();
+            const tabRecent = promptTab === "recent" ? theme.bold(theme.fg("accent", "● 最近使用 (Top 5)")) : theme.fg("dim", "○ 最近使用");
+            const tabUser = promptTab === "user" ? theme.bold(theme.fg("accent", "● 用户自定")) : theme.fg("dim", "○ 用户自定");
+            const tabSystem = promptTab === "system" ? theme.bold(theme.fg("accent", "● 系统内置")) : theme.fg("dim", "○ 系统内置");
+            lines.push(`  ${theme.bold("提示词分类:")} [Tab 切换]  ${tabRecent}   ${tabUser}   ${tabSystem}`);
             lines.push("");
 
-            if (!promptsList || promptsList.length === 0) {
-              lines.push(theme.fg("dim", "  (暂无提示词模板，按 [+] 可直接新建)"));
+            if (!currentFiltered || currentFiltered.length === 0) {
+              const emptyTip = promptTab === "recent" ? "  (暂无最近使用记录，按 [Tab] 查看全部或按 [+] 新建)" : "  (此分类下暂无提示词模板，按 [+] 可直接新建)";
+              lines.push(theme.fg("dim", emptyTip));
             } else {
               // 动态滑动窗口 (Sliding Window)，确保光标永远在视口内可见
               const windowSize = 5;
               let startIdx = 0;
-              if (promptsList.length > windowSize) {
+              if (currentFiltered.length > windowSize) {
                 if (selectedPromptIdx < windowSize) {
                   startIdx = 0;
-                } else if (selectedPromptIdx >= promptsList.length - 1) {
-                  startIdx = promptsList.length - windowSize;
+                } else if (selectedPromptIdx >= currentFiltered.length - 1) {
+                  startIdx = currentFiltered.length - windowSize;
                 } else {
                   startIdx = selectedPromptIdx - Math.floor(windowSize / 2);
-                  if (startIdx + windowSize > promptsList.length) {
-                    startIdx = promptsList.length - windowSize;
+                  if (startIdx + windowSize > currentFiltered.length) {
+                    startIdx = currentFiltered.length - windowSize;
                   }
                 }
               }
-              const visiblePrompts = promptsList.slice(startIdx, startIdx + windowSize);
+              const visiblePrompts = currentFiltered.slice(startIdx, startIdx + windowSize);
 
               if (startIdx > 0) {
                 lines.push(theme.fg("dim", `  ▲ 上方还有 ${startIdx} 个模板 (按 ↑ 查看)`));
@@ -373,23 +398,25 @@ export function openArchitectNavigator(
                 const actualIdx = startIdx + vIdx;
                 const isSel = actualIdx === selectedPromptIdx;
                 const cursor = isSel ? theme.fg("accent", "▶ ") : "  ";
-                const cmdPadded = p.command.length < 24 ? p.command + " ".repeat(24 - p.command.length) : p.command;
+                const cmdPadded = p.command.length < 22 ? p.command + " ".repeat(22 - p.command.length) : p.command;
                 const cmdStr = isSel ? theme.bold(theme.fg("accent", cmdPadded)) : theme.fg("dim", cmdPadded);
-                const scopeTag = p.scope === "project" ? theme.fg("warning", "[项目]") : p.scope === "package" ? theme.fg("dim", "[插件]") : theme.fg("success", "[全局]");
-                const maxDescLen = Math.max(10, innerWidth - 36);
+                const tag = p.category === "user" 
+                  ? (p.scope === "project" ? theme.fg("warning", "[项目自定]") : theme.fg("success", "[用户全局]"))
+                  : theme.fg("dim", "[系统内置]");
+                const maxDescLen = Math.max(10, innerWidth - 38);
                 const descStr = p.description ? (p.description.length > maxDescLen ? p.description.slice(0, maxDescLen - 3) + "..." : p.description) : "";
-                lines.push(cursor + cmdStr + " " + scopeTag + " " + theme.fg("dim", descStr));
+                lines.push(cursor + cmdStr + " " + tag + " " + theme.fg("dim", descStr));
               });
 
-              if (startIdx + windowSize < promptsList.length) {
-                lines.push(theme.fg("dim", `  ▼ 下方还有 ${promptsList.length - (startIdx + windowSize)} 个模板 (按 ↓ 查看)`));
+              if (startIdx + windowSize < currentFiltered.length) {
+                lines.push(theme.fg("dim", `  ▼ 下方还有 ${currentFiltered.length - (startIdx + windowSize)} 个模板 (按 ↓ 查看)`));
               }
 
               // 🌟 核心优化：实时高亮选中的提示词内容预览 (Preview Pane)
-              const selectedItem = promptsList[selectedPromptIdx];
+              const selectedItem = currentFiltered[selectedPromptIdx];
               if (selectedItem) {
                 lines.push("");
-                lines.push(theme.fg("dim", "  ┌─ 模板正文即时预览 (按 [p] 填入 / [d] 删除) " + "─".repeat(Math.max(2, innerWidth - 45))));
+                lines.push(theme.fg("dim", "  ┌─ 模板即时预览 (按 [p] 填入 / [d] 删除) " + "─".repeat(Math.max(2, innerWidth - 43))));
                 const previewLines = PromptsManager.getPromptPreviewLines(selectedItem, 3);
                 if (previewLines.length === 0) {
                   lines.push(theme.fg("dim", "  │ (空白模板或无正文内容)"));
@@ -634,34 +661,44 @@ export function openArchitectNavigator(
           const isDown = matchesKey(data, "down") || parsed === "down" || data === "\x1b[B" || data === "\x1bOB";
           const isEnter = matchesKey(data, "enter") || parsed === "enter" || data === "\r" || data === "\n";
           const isEscape = matchesKey(data, "escape") || parsed === "escape" || data === "\x1b" || data === "\u001b";
+          const isTab = matchesKey(data, "tab") || parsed === "tab" || data === "\t";
           const key = data.toLowerCase();
 
           if (state === "overview") {
-            if (isUp) {
+            const currentFiltered = getFilteredPrompts();
+            if (isTab) {
+              if (promptTab === "recent") promptTab = "user";
+              else if (promptTab === "user") promptTab = "system";
+              else promptTab = "recent";
+              selectedPromptIdx = 0;
+              rerender();
+            } else if (isUp) {
               if (selectedPromptIdx > 0) {
                 selectedPromptIdx--;
                 rerender();
               }
             } else if (isDown) {
-              if (selectedPromptIdx < promptsList.length - 1) {
+              if (selectedPromptIdx < currentFiltered.length - 1) {
                 selectedPromptIdx++;
                 rerender();
               }
             } else if (key === "d" || key === "delete") {
-              const sel = promptsList[selectedPromptIdx];
-              if (sel && sel.scope !== "package") {
+              const sel = currentFiltered[selectedPromptIdx];
+              if (sel && sel.category === "user") {
                 const deleted = PromptsManager.deletePrompt(sel);
                 if (deleted) {
                   promptsList = PromptsManager.scanAllPrompts();
-                  if (selectedPromptIdx >= promptsList.length) {
-                    selectedPromptIdx = Math.max(0, promptsList.length - 1);
+                  const updatedFiltered = getFilteredPrompts();
+                  if (selectedPromptIdx >= updatedFiltered.length) {
+                    selectedPromptIdx = Math.max(0, updatedFiltered.length - 1);
                   }
                   rerender();
                 }
               }
             } else if (key === "p") {
-              const sel = promptsList[selectedPromptIdx];
+              const sel = currentFiltered[selectedPromptIdx];
               if (sel) {
+                PromptsManager.recordPromptUsage(sel);
                 done({ kind: "prompt_invoke", command: sel.command, filePath: sel.filePath });
               }
             } else if (isEnter || key === "i" || key === " ") {
