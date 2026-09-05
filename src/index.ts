@@ -22,7 +22,9 @@ import {
   loadPersistedSessionState,
   rollbackStage,
   resetState,
-  clearMemoryState
+  clearMemoryState,
+  recordInitialActiveTools,
+  restoreInitialActiveTools
 } from "./state.js";
 
 import { captureReviewDiffSnapshot, buildColdStartReviewContract, ReviewIsolationGuard } from "./review_isolation.js";
@@ -50,6 +52,38 @@ export default function (pi: ExtensionAPI) {
       }
     });
   }
+  // 🎯 核心省 Token：紧凑化压制 (Compaction Suppression)
+  // 当 Pi 核心触发自动或手动 compact 时，注入 ToolFlow 结构化产物契约指令，物理阻止大模型把已写完的千行代码在 summary 中复述
+  if (typeof (pi as any).on === "function") {
+    (pi as any).on("session_before_compact", async (event: any) => {
+      const state = getSessionState();
+      if (!state.currentBlueprint) return;
+
+      const currentStage = state.currentBlueprint.stages[state.currentStageIndex];
+      const verifiedFiles = state.currentBlueprint.stages
+        .slice(0, state.currentStageIndex + 1)
+        .map(s => s.expectedArtifact)
+        .filter(Boolean);
+
+      const contractSuppressionPrompt = `[TOOLFLOW STRICT COMPACTION DIRECTIVE]
+` +
+        `Active Blueprint Task: "${state.currentBlueprint.task}" (Stage ${state.currentStageIndex + 1}/${state.currentBlueprint.stages.length}: ${currentStage?.title || "Execution"}).
+` +
+        `Verified Physical Artifacts on Disk: ${verifiedFiles.length > 0 ? verifiedFiles.join(", ") : "None"}.
+` +
+        `MANDATORY COMPRESSION RULE: Do NOT repeat or echo source code, file contents, terminal logs, or past exploratory chatter in the summary. ONLY preserve the current architecture topology, completed physical artifact paths, and active stage next-step objectives. Maximize dehydration ratio.`;
+
+      if (event && typeof event.customInstructions === "string" && event.customInstructions.length > 0) {
+        return {
+          customInstructions: [event.customInstructions, contractSuppressionPrompt].join(String.fromCharCode(10, 10))
+        };
+      }
+      return {
+        customInstructions: contractSuppressionPrompt
+      };
+    });
+  }
+
 
   // 注册轻量卡片渲染器
   if (typeof pi.registerMessageRenderer === "function") {
@@ -170,6 +204,7 @@ export default function (pi: ExtensionAPI) {
     // 合成包含 DAG 拓扑排序的执行蓝图
     const cwd = ctx.cwd || process.cwd();
     const blueprint = synthesizeBlueprint(rawTask, diagnosis, userDecisions, taxonomy, undefined, undefined, llmArtifactPlan);
+    recordInitialActiveTools(pi);
     startBlueprintExecution(blueprint, cwd);
 
     // 动态增强阶段高权重工具与基线工具 (经过 GracefulDegradationMatrix 统一裁剪)
@@ -236,10 +271,10 @@ export default function (pi: ExtensionAPI) {
 
     // 2. 处理重置子命令: /toolflow reset
     if (rawArg === "reset") {
+      restoreInitialActiveTools(pi);
       resetState(cwd);
       reviewGuard.deactivate();
       blastGuard.clearAllowedScope();
-      applyToolScoping(BASELINE_TOOLS, pi);
       if (ctx?.ui?.notify) {
         ctx.ui.notify(t.resetSuccess, "info");
       }
@@ -688,6 +723,9 @@ export default function (pi: ExtensionAPI) {
             });
           }
 
+          restoreInitialActiveTools(pi);
+          reviewGuard.deactivate();
+          blastGuard.clearAllowedScope();
           if (ctx?.ui?.notify) {
             ctx.ui.notify(t.allCompleted(state.currentBlueprint.task), "info");
           }

@@ -1610,6 +1610,31 @@ Always verify diff before finalizing.
   assert(res.text.includes("ToolFlow Token Optimizer: Dehydrated"), "输出内容应当包含脱水摘要标记");
   console.log("  [OK] 23.1 - 23.2 实时工具输出自动落盘归档与中间截断 100% 验证通过！");
 
+  console.log("[TEST-24] 验证初始工具快照与生命周期严格还原 (Tool Lifecycle Snapshot & Restore)...");
+  {
+    const { recordInitialActiveTools, restoreInitialActiveTools, applyToolScoping } = await import("../src/state.js");
+    let activeList: string[] = ["read", "write", "edit", "bash", "mcp_docker", "mcp_postgres"];
+    const mockPi = {
+      getActiveTools: () => [...activeList],
+      setActiveTools: (tools: string[]) => {
+        activeList = [...tools];
+      },
+      getAllTools: () => ["read", "write", "edit", "bash", "mcp_docker", "mcp_postgres"]
+    };
+
+    // 1. 录制初始快照
+    recordInitialActiveTools(mockPi);
+
+    // 2. 阶段运行中进行工具裁剪限制
+    applyToolScoping(["read", "bash"], mockPi);
+    assert((activeList.length as number) === 2 && !activeList.includes("mcp_docker"), "阶段中应成功裁剪重型工具");
+
+    // 3. 任务竣工或重置时还原工具
+    restoreInitialActiveTools(mockPi);
+    assert((activeList.length as number) === 6 && activeList.includes("mcp_docker"), "竣工还原后应完整恢复所有初始重型工具与Schema");
+    console.log("  [OK] 24.1 - 24.3 工具生命周期完整闭环 (借出与全量无损归还) 100% 验证通过！");
+  }
+
 runFullRegressionVerification().catch(err => {
   console.error("[FAILED] 回归测试失败:", err);
   process.exit(1);
