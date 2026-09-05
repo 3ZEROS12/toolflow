@@ -1,6 +1,6 @@
 {
   "name": "toolflow",
-  "version": "3.1.1",
+  "version": "3.1.3",
   "description": "Adaptive tool workflow & prompt workbench for Pi: dynamic task blueprint generation, native prompts visualization, stage-gated tool pruning, and rollback safety.",
   "type": "module",
   "main": "src/index.ts",

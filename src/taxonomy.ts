@@ -9,9 +9,10 @@ const PI_AGENT_BASE = process.env.PI_AGENT_DIR || path.join(os.homedir(), ".pi",
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOCAL_TAXONOMY_PATH = path.resolve(__dirname, "ecosystem_taxonomy.json");
 const ROOT_TAXONOMY_PATH = path.resolve(__dirname, "..", "ecosystem_taxonomy.json");
+// 动态相对寻址：优先包内当前目录与上一级，彻底消除任何写死路径的假设
 const TAXONOMY_PATH = fs.existsSync(LOCAL_TAXONOMY_PATH)
   ? LOCAL_TAXONOMY_PATH
-  : (fs.existsSync(ROOT_TAXONOMY_PATH) ? ROOT_TAXONOMY_PATH : path.join(PI_AGENT_BASE, "extensions", "toolflow", "src", "ecosystem_taxonomy.json"));
+  : (fs.existsSync(ROOT_TAXONOMY_PATH) ? ROOT_TAXONOMY_PATH : LOCAL_TAXONOMY_PATH);
 const SETTINGS_PATH = path.join(PI_AGENT_BASE, "settings.json");
 const NPM_MODULES_PATH = path.join(PI_AGENT_BASE, "npm", "node_modules");
 const PROMPTS_PATH = path.join(PI_AGENT_BASE, "prompts");

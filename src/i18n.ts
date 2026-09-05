@@ -42,9 +42,12 @@ export const t = {
   cmdMainDesc: isZh
     ? "任务阶段规划与 Prompt 模板工作台 (/toolflow <任务>, 支持 rollback/reset/export)"
     : "Task staging runner & prompt template workbench (/toolflow <task>)",
-  cmdRollbackArgDesc: isZh ? "撤销当前阶段修改并回退文件快照" : "Revert changes back to stage snapshot",
-  cmdResetArgDesc: isZh ? "重置并清除当前任务流状态" : "Reset and clear active task state",
-  cmdExportArgDesc: isZh ? "导出阶段计划文档为 Markdown" : "Export stage plan as Markdown",
+  cmdRollbackArgDesc: isZh ? "撤销当前阶段修改并回退快照" : "Rollback code changes to stage snapshot",
+  cmdResetArgDesc: isZh ? "清除当前任务状态与临时缓存" : "Reset and clear active workflow state",
+  cmdStatusArgDesc: isZh ? "查看当前阶段流水线看板" : "View current stage pipeline status",
+  cmdExportArgDesc: isZh ? "导出阶段计划为 Markdown" : "Export active stage plan to Markdown",
+  cmdRollbackShortcutDesc: isZh ? "撤销当前阶段修改并回退快照 (快捷方式)" : "Rollback changes and restore stage snapshot (shortcut)",
+  cmdSopDesc: isZh ? "查看当前阶段执行状态 (/toolflow status 别名)" : "View current stage execution status (/toolflow status alias)",
 
   // TUI Labels & Help
   workbenchTitle: isZh ? "PROMPT 模板库" : "PROMPT WORKBENCH",

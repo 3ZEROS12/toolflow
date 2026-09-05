@@ -1,23 +1,17 @@
 {
-  "installedFingerprint": "c40b443240057458",
+  "installedFingerprint": "8b4b88e342e9d7e0",
   "projectFingerprint": {
     "projectType": "node",
-    "mainFramework": "Pi-Extension",
+    "mainFramework": "Express",
     "packageManager": "npm",
-    "hasGit": true,
+    "hasGit": false,
     "isClean": true,
-    "topLevelDirs": [
-      "docs",
-      "src",
-      "tests"
-    ],
+    "topLevelDirs": [],
     "coreDependencies": [
-      "typescript",
-      "@earendil-works/pi-coding-agent"
-    ],
-    "gitBranch": "main"
+      "express"
+    ]
   },
-  "updatedAt": 1788578333669,
+  "updatedAt": 1788580412465,
   "extensions": [
     {
       "id": "pi-tui-status-beautifier",
@@ -679,120 +673,12 @@
     }
   ],
   "mcps": [],
-  "tools": [
-    {
-      "id": "read",
-      "name": "read",
-      "kind": "tool",
-      "layer": "L2_PERCEPTION",
-      "description": "Read file",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 read",
-      "summary": "Read file",
-      "tags": [
-        "#tool",
-        "#read",
-        "#perception"
-      ],
-      "costLevel": "$2",
-      "bindingReason": "精准信息检索与外部数据源接入"
-    },
-    {
-      "id": "write",
-      "name": "write",
-      "kind": "tool",
-      "layer": "L1_UTILITY",
-      "description": "Write file",
-      "tokenImpact": "low",
-      "triggerWhen": "根据任务需求动态调度 write",
-      "summary": "Write file",
-      "tags": [
-        "#tool",
-        "#write"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "基础通用能力"
-    },
-    {
-      "id": "bash",
-      "name": "bash",
-      "kind": "tool",
-      "layer": "L1_UTILITY",
-      "description": "Run bash",
-      "tokenImpact": "low",
-      "triggerWhen": "根据任务需求动态调度 bash",
-      "summary": "Run bash",
-      "tags": [
-        "#tool",
-        "#bash"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "基础通用能力"
-    },
-    {
-      "id": "mcp",
-      "name": "mcp",
-      "kind": "tool",
-      "layer": "L4_REVIEW_GUARD",
-      "description": "MCP Gateway",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 mcp",
-      "summary": "MCP Gateway",
-      "tags": [
-        "#tool",
-        "#mcp",
-        "#quality-guard"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
-    },
-    {
-      "id": "workflow",
-      "name": "workflow",
-      "kind": "tool",
-      "layer": "L3_ORCHESTRATION",
-      "description": "Dynamic workflows",
-      "tokenImpact": "high",
-      "triggerWhen": "根据任务需求动态调度 workflow",
-      "summary": "Dynamic workflows",
-      "tags": [
-        "#tool",
-        "#workflow",
-        "#orchestration"
-      ],
-      "costLevel": "$3",
-      "bindingReason": "多任务并发分发与子流程编排调度"
-    },
-    {
-      "id": "subagent",
-      "name": "subagent",
-      "kind": "tool",
-      "layer": "L3_ORCHESTRATION",
-      "description": "Subagent delegator",
-      "tokenImpact": "high",
-      "triggerWhen": "根据任务需求动态调度 subagent",
-      "summary": "Subagent delegator",
-      "tags": [
-        "#tool",
-        "#subagent",
-        "#orchestration"
-      ],
-      "costLevel": "$3",
-      "bindingReason": "多任务并发分发与子流程编排调度"
-    }
-  ],
-  "availableToolNames": [
-    "bash",
-    "mcp",
-    "read",
-    "subagent",
-    "workflow",
-    "write"
-  ],
+  "tools": [],
+  "availableToolNames": [],
   "summaryByLayer": {
-    "L1_UTILITY": 16,
-    "L2_PERCEPTION": 2,
-    "L3_ORCHESTRATION": 15,
-    "L4_REVIEW_GUARD": 13
+    "L1_UTILITY": 14,
+    "L2_PERCEPTION": 1,
+    "L3_ORCHESTRATION": 13,
+    "L4_REVIEW_GUARD": 12
   }
 }

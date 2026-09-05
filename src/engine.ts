@@ -828,16 +828,9 @@ Return ONLY valid raw JSON matching this structure (no markdown fences, or wrapp
       if (textBlocks) {
         // 健壮提取 JSON 内容（兼容 markdown 代码块及纯文本输出）
         let jsonStr = textBlocks.trim();
-        const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-        if (jsonMatch) {
-          jsonStr = jsonMatch[1].trim();
-        } else {
-          const firstBrace = jsonStr.indexOf("{");
-          const lastBrace = jsonStr.lastIndexOf("}");
-          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-            jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
-          }
-        }
+        const jsonBlockMatch = jsonStr.match(/\{[\s\S]*\}/);
+        if (!jsonBlockMatch) throw new Error("No JSON found");
+        jsonStr = jsonBlockMatch[0];
 
         const parsed = JSON.parse(jsonStr);
         if (parsed.requirementSlots && Array.isArray(parsed.requirementSlots) && parsed.requirementSlots.length >= 3) {

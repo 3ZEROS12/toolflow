@@ -6,7 +6,7 @@ import { loadOrRefreshTaxonomy, reflectEnvironmentContext } from "./taxonomy.js"
 import { diagnoseTaskRequirements, synthesizeBlueprint, synthesizeBlueprintPlanWithLLM, generateStageActionPrompt } from "./engine.js";
 import { EcosystemRadar } from "./deep_ecosystem.js";
 import { renderCompactEcosystemOverview, renderBlueprintSummary, openArchitectNavigator, renderValueReceipt, renderExecutionPipelineCard } from "./ui.js";
-import { t, isZh } from "./i18n.js";
+import { t } from "./i18n.js";
 import { ContextDehydrator } from "./dehydrator.js";
 import { BlastRadiusGuard } from "./blast_radius.js";
 import { GracefulDegradationMatrix } from "./degradation_matrix.js";
@@ -356,15 +356,13 @@ export default function (pi: ExtensionAPI) {
 
   // 注册 /toolflow 主命令
   const toolflowCmdHandler = {
-    description: isZh
-      ? "自适应工具编排与执行蓝图 (/toolflow <任务>, 支持 rollback/reset/export)"
-      : "Adaptive tool workflow & prompt workbench (/toolflow <task>, supports rollback/reset/export)",
+    description: t.cmdMainDesc,
     getArgumentCompletions: (prefix: string) => {
       const subcommands = [
-        { label: "rollback", value: "rollback", description: isZh ? "撤销当前阶段修改并回退快照" : "Rollback code changes to stage snapshot" },
-        { label: "reset", value: "reset", description: isZh ? "清除当前任务状态与临时缓存" : "Reset and clear active workflow state" },
-        { label: "status", value: "status", description: isZh ? "查看当前阶段流水线看板" : "View current stage pipeline status" },
-        { label: "export", value: "export", description: isZh ? "导出阶段计划为 Markdown" : "Export active stage plan to Markdown" }
+        { label: "rollback", value: "rollback", description: t.cmdRollbackArgDesc },
+        { label: "reset", value: "reset", description: t.cmdResetArgDesc },
+        { label: "status", value: "status", description: t.cmdStatusArgDesc },
+        { label: "export", value: "export", description: t.cmdExportArgDesc }
       ];
       return subcommands.filter(cmd => cmd.value.startsWith(prefix.trim().toLowerCase()));
     },
@@ -377,7 +375,7 @@ export default function (pi: ExtensionAPI) {
 
   // 注册 /toolflow-rollback 快捷命令
   const rollbackHandler = {
-    description: isZh ? "撤销当前阶段修改并回退快照 (快捷方式)" : "Rollback changes and restore stage snapshot (shortcut)",
+    description: t.cmdRollbackShortcutDesc,
     handler: async (_args: string, ctx: ExtensionCommandContext) => {
       const res = rollbackStage();
       if (ctx?.ui?.notify) {
@@ -389,7 +387,7 @@ export default function (pi: ExtensionAPI) {
 
   // 注册 /sop 命令
   pi.registerCommand("sop", {
-    description: isZh ? "查看当前阶段执行状态 (/toolflow status 别名)" : "View current stage execution status (/toolflow status alias)",
+    description: t.cmdSopDesc,
     handler: async (_args: string, ctx: ExtensionCommandContext) => {
       const state = getSessionState();
       if (!state.currentBlueprint) {
