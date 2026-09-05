@@ -728,6 +728,19 @@ export function computeStageTools(stageAllowedTools: string[] = []): string[] {
 export function applyToolScoping(allowedTools: string[], ctx: any): void {
   const merged = computeStageTools(allowedTools);
   if (typeof ctx?.setActiveTools === "function") {
+    if (typeof ctx?.getAllTools === "function") {
+      const registeredTools = ctx.getAllTools();
+      const registeredNames = new Set(
+        Array.isArray(registeredTools)
+          ? registeredTools.map((t: any) => typeof t === "string" ? t : t?.name)
+          : []
+      );
+      if (registeredNames.size > 0) {
+        const safeMerged = merged.filter(t => registeredNames.has(t));
+        ctx.setActiveTools(safeMerged.length > 0 ? safeMerged : Array.from(registeredNames));
+        return;
+      }
+    }
     ctx.setActiveTools(merged);
   }
 }
