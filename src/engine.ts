@@ -965,7 +965,8 @@ Output ONLY a single JSON object:
       return {
         primaryArtifact: parsed.primaryArtifact,
         targetLanguage: parsed.targetLanguage || fp.language,
-        isFrontend: Boolean(parsed.isFrontend)
+        isFrontend: Boolean(parsed.isFrontend),
+        stageHeavyTools: parsed.stageHeavyTools
       };
     }
   } catch (_) {}

@@ -65,17 +65,16 @@ export default function (pi: ExtensionAPI) {
         .map(s => s.expectedArtifact)
         .filter(Boolean);
 
-      const contractSuppressionPrompt = `[TOOLFLOW STRICT COMPACTION DIRECTIVE]
-` +
-        `Active Blueprint Task: "${state.currentBlueprint.task}" (Stage ${state.currentStageIndex + 1}/${state.currentBlueprint.stages.length}: ${currentStage?.title || "Execution"}).
-` +
-        `Verified Physical Artifacts on Disk: ${verifiedFiles.length > 0 ? verifiedFiles.join(", ") : "None"}.
-` +
-        `MANDATORY COMPRESSION RULE: Do NOT repeat or echo source code, file contents, terminal logs, or past exploratory chatter in the summary. ONLY preserve the current architecture topology, completed physical artifact paths, and active stage next-step objectives. Maximize dehydration ratio.`;
+      const contractSuppressionPrompt = [
+        `[TOOLFLOW STRICT COMPACTION DIRECTIVE]`,
+        `Active Blueprint Task: "${state.currentBlueprint.task}" (Stage ${state.currentStageIndex + 1}/${state.currentBlueprint.stages.length}: ${currentStage?.title || "Execution"}).`,
+        `Verified Physical Artifacts on Disk: ${verifiedFiles.length > 0 ? verifiedFiles.join(", ") : "None"}.`,
+        `MANDATORY COMPRESSION RULE: Do NOT repeat or echo source code, file contents, terminal logs, or past exploratory chatter in the summary. ONLY preserve the current architecture topology, completed physical artifact paths, and active stage next-step objectives. Maximize dehydration ratio.`
+      ].join("\n");
 
-      if (event && typeof event.customInstructions === "string" && event.customInstructions.length > 0) {
+      if (event?.customInstructions && typeof event.customInstructions === "string") {
         return {
-          customInstructions: [event.customInstructions, contractSuppressionPrompt].join(String.fromCharCode(10, 10))
+          customInstructions: `${event.customInstructions}\n\n${contractSuppressionPrompt}`
         };
       }
       return {
@@ -84,7 +83,7 @@ export default function (pi: ExtensionAPI) {
     });
 
     (pi as any).on("session_compact", async (event: any, ctx: any) => {
-      const savedTokens = (event && typeof event.tokensSaved === "number") ? event.tokensSaved : undefined;
+      const savedTokens = typeof event?.tokensSaved === "number" ? event.tokensSaved : undefined;
       if (ctx?.ui?.notify) {
         ctx.ui.notify(t.compactNotice(savedTokens), "info");
       }
@@ -515,12 +514,12 @@ export default function (pi: ExtensionAPI) {
   // 当任何终端命令 (bash/powershell) 或外部重型工具输出海量报错/日志时，自动归档并截断，防止污染会话
   if (typeof (pi as any).on === "function") {
     (pi as any).on("tool_result", async (event: any, ctx: any) => {
-      if (!event || !event.content || !Array.isArray(event.content)) return;
+      if (!event?.content || !Array.isArray(event.content)) return;
       const toolName = event.toolName || "tool";
       for (const block of event.content) {
-        if (block && block.type === "text" && typeof block.text === "string") {
+        if (block?.type === "text" && typeof block.text === "string") {
           const originalLen = block.text.length;
-          const originalLines = block.text.split(String.fromCharCode(10)).length;
+          const originalLines = block.text.split("\n").length;
           const res = dehydrator.dehydrateToolOutput(toolName, block.text);
           if (res.dehydrated) {
             block.text = res.text;

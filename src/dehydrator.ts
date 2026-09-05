@@ -211,27 +211,26 @@ export class ContextDehydrator {
       return { dehydrated: false, text: rawText };
     }
 
-    const timestamp = Date.now();
     const safeTool = toolName.replace(/[^a-zA-Z0-9_-]/g, "_");
-    const filename = "tool_" + safeTool + "_" + timestamp + ".log";
+    const filename = `tool_${safeTool}_${Date.now()}.log`;
     const fullPath = path.join(this.runsDir, filename);
 
     try {
       fs.writeFileSync(fullPath, rawText, "utf-8");
     } catch (_) {}
 
-    const head = lines.slice(0, 25).join(String.fromCharCode(10));
-    const tail = lines.slice(-25).join(String.fromCharCode(10));
+    const head = lines.slice(0, 25).join("\n");
+    const tail = lines.slice(-25).join("\n");
     const omittedCount = lines.length - 50;
-    const relPath = path.relative(process.cwd(), fullPath).split("\\").join("/");
+    const relPath = path.relative(process.cwd(), fullPath).replace(/\\/g, "/");
 
     const summaryText = [
       head,
       "",
-      "... [⚡ ToolFlow Token Optimizer: Dehydrated " + omittedCount + " lines (~" + Math.round(rawText.length / 4) + " tokens) to " + relPath + "] ...",
+      `... [⚡ ToolFlow Token Optimizer: Dehydrated ${omittedCount} lines (~${Math.round(rawText.length / 4)} tokens) to ${relPath}] ...`,
       "",
       tail
-    ].join(String.fromCharCode(10));
+    ].join("\n");
 
     return {
       dehydrated: true,
