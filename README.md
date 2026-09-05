@@ -1,20 +1,29 @@
 # ToolFlow ⌬
 
 > Dynamic Tool Sandbox & Context Dehydrator for Pi.  
-> Keep your LLM focused, slash context bloat by 95%, and enforce physical security barriers across complex toolchains.
+> Stage-gated tool scoping, log dehydration to disk, and physical write guards.
 
 [English](README.md) | [简体中文](README_zh.md)
 
-When you install multiple MCPs, plugins, and CLI tools in Pi, the agent faces three critical bottlenecks that prompt engineering cannot solve:
-1. **Tool Schema Bloat & Attention Dispersion**: Flooding the prompt with dozens of unused tool schemas wastes thousands of tokens per turn and causes the model to hallucinate or misuse tools.
-2. **Context Contamination**: Raw exploratory logs and search output from early turns pollute subsequent coding sessions.
-3. **Absence of Physical Guardrails**: Prompt rules cannot reliably prevent LLMs from accidentally modifying production `.env` files or tampering with code during what should be an objective "read-only audit".
+---
 
-**ToolFlow acts as an out-of-band execution governor for Pi.** It dynamically restricts the agent's tool surface to what is strictly needed at each phase, compresses cross-stage memory, and enforces hard runtime access controls.
+### In 30 Seconds
+
+**Q**: "I installed a dozen MCPs and plugins. Now the model picks the wrong tools, terminal commands dump hundreds of log lines, and my context window fills up fast."  
+**A**: "Don't carry the whole workshop at once. Search tools for research, edit tools for coding, read-only tools for review. If a tool isn't needed right now, its schema stays out of the prompt."
+
+**Q**: "What happens to verbose terminal output?"  
+**A**: "Outputs over 40 lines save to disk. The model gets a short summary and a file path, saving thousands of tokens."
+
+**Q**: "What happens when the task finishes?"  
+**A**: "All original tools are restored without leftover state."
+
+**Q**: "How do I run it?"  
+**A**: "Run `/toolflow build feature X`. It handles the stages from there."
 
 ---
 
-> **Target Audience & Best Fit**: ToolFlow is purpose-built for **medium-to-large multi-tool engineering projects** (environments with multiple MCPs, databases, browsers, and subagents). For simple 1-file scratchpad edits, standard interactive Pi is already sufficient; for autonomous pipelines and heavy toolchains, ToolFlow eliminates tool bloat and guarantees execution safety.
+> **Scope**: Built for medium-to-large projects with multiple MCPs/plugins. For simple single-file fixes, stock Pi is fine. For multi-step, multi-tool work, ToolFlow manages tools and context.
 
 ---
 
