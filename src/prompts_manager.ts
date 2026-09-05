@@ -87,6 +87,19 @@ export class PromptsManager {
     return results;
   }
 
+  /**
+   * 提取指定提示词文件的正文前 N 行用于即时预览（自动剥离 frontmatter 头部）
+   */
+  public static getPromptPreviewLines(item: PromptItemInfo, maxLines: number = 3): string[] {
+    const body = this.getPromptContent(item);
+    if (!body) return [];
+    return body
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+      .slice(0, maxLines);
+  }
+
   public static createPrompt(name: string, description: string, content: string, scope: "global" | "project" = "global", cwd: string = process.cwd()): PromptItemInfo {
     const cleanName = name.replace(/^\/+/, "").trim();
     const piAgentBase = process.env.PI_AGENT_DIR || path.join(os.homedir(), ".pi", "agent");
@@ -118,6 +131,36 @@ export class PromptsManager {
       filePath,
       updatedAt: Date.now()
     };
+  }
+
+  public static getPromptContent(item: PromptItemInfo): string {
+    if (!item.filePath || !fs.existsSync(item.filePath)) {
+      return "";
+    }
+    try {
+      const raw = fs.readFileSync(item.filePath, "utf8");
+      if (raw.startsWith("---")) {
+        const parts = raw.split("---");
+        if (parts.length >= 3) {
+          return parts.slice(2).join("---").trim();
+        }
+      }
+      return raw.trim();
+    } catch (_) {
+      return "";
+    }
+  }
+
+  public static deletePrompt(item: PromptItemInfo): boolean {
+    if (!item.filePath || !fs.existsSync(item.filePath)) {
+      return false;
+    }
+    try {
+      fs.unlinkSync(item.filePath);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   public static async autoSummarizeTagWithLLM(content: string, ctx?: any): Promise<{ name: string; description: string }> {

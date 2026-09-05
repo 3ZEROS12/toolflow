@@ -531,6 +531,46 @@ export default function (pi: ExtensionAPI) {
         }
       }
     });
+
+    // ⚡ 核心上下文非破坏性滑动修剪 (Context Sliding Window Optimizer)
+    // 监听 context 钩子，对过去 N 轮以外过旧的历史 tool_result 实施就地折叠脱水，彻底防止多轮长对话累积撑爆 Token
+    (pi as any).on("context", async (event: any) => {
+      try {
+        if (!event || !Array.isArray(event.messages)) return;
+        const msgs = event.messages;
+        const total = msgs.length;
+        if (total <= 12) return;
+
+        // 仅保护最近 8 条消息不修剪，之前的旧消息若包含巨型工具返回，予以极速折叠
+        const protectIndex = Math.max(0, total - 8);
+        for (let i = 0; i < protectIndex; i++) {
+          const msg = msgs[i];
+          if (msg && msg.role === "tool") {
+            if (typeof msg.content === "string") {
+              if (msg.content.length > 800 && !msg.content.includes("ToolFlow Context Slimmer")) {
+                const lines = msg.content.split("\n");
+                if (lines.length > 12) {
+                  const head = lines.slice(0, 4).join("\n");
+                  const tail = lines.slice(-2).join("\n");
+                  msg.content = `${head}\n... [⚡ ToolFlow Context Slimmer: Pruned ${lines.length - 6} lines of historical tool output] ...\n${tail}`;
+                }
+              }
+            } else if (Array.isArray(msg.content)) {
+              for (const part of msg.content) {
+                if (part && part.type === "text" && typeof part.text === "string" && part.text.length > 800 && !part.text.includes("ToolFlow Context Slimmer")) {
+                  const lines = part.text.split("\n");
+                  if (lines.length > 12) {
+                    const head = lines.slice(0, 4).join("\n");
+                    const tail = lines.slice(-2).join("\n");
+                    part.text = `${head}\n... [⚡ ToolFlow Context Slimmer: Pruned ${lines.length - 6} lines of historical tool output] ...\n${tail}`;
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    });
   }
 
   // 注册 before_agent_start 钩子 (下沉注入蒸馏的 Skill SOP 规则契约与物理防护)

@@ -348,16 +348,58 @@ export function openArchitectNavigator(
             if (!promptsList || promptsList.length === 0) {
               lines.push(theme.fg("dim", "  (暂无提示词模板，按 [+] 可直接新建)"));
             } else {
-              promptsList.slice(0, 6).forEach((p, idx) => {
-                const isSel = idx === selectedPromptIdx;
+              // 动态滑动窗口 (Sliding Window)，确保光标永远在视口内可见
+              const windowSize = 5;
+              let startIdx = 0;
+              if (promptsList.length > windowSize) {
+                if (selectedPromptIdx < windowSize) {
+                  startIdx = 0;
+                } else if (selectedPromptIdx >= promptsList.length - 1) {
+                  startIdx = promptsList.length - windowSize;
+                } else {
+                  startIdx = selectedPromptIdx - Math.floor(windowSize / 2);
+                  if (startIdx + windowSize > promptsList.length) {
+                    startIdx = promptsList.length - windowSize;
+                  }
+                }
+              }
+              const visiblePrompts = promptsList.slice(startIdx, startIdx + windowSize);
+
+              if (startIdx > 0) {
+                lines.push(theme.fg("dim", `  ▲ 上方还有 ${startIdx} 个模板 (按 ↑ 查看)`));
+              }
+
+              visiblePrompts.forEach((p, vIdx) => {
+                const actualIdx = startIdx + vIdx;
+                const isSel = actualIdx === selectedPromptIdx;
                 const cursor = isSel ? theme.fg("accent", "▶ ") : "  ";
-                const cmdStr = isSel ? theme.bold(theme.fg("accent", p.command.padEnd(26))) : theme.fg("dim", p.command.padEnd(26));
+                const cmdPadded = p.command.length < 24 ? p.command + " ".repeat(24 - p.command.length) : p.command;
+                const cmdStr = isSel ? theme.bold(theme.fg("accent", cmdPadded)) : theme.fg("dim", cmdPadded);
                 const scopeTag = p.scope === "project" ? theme.fg("warning", "[项目]") : p.scope === "package" ? theme.fg("dim", "[插件]") : theme.fg("success", "[全局]");
-                const descStr = p.description ? (p.description.length > (innerWidth - 38) ? p.description.slice(0, innerWidth - 41) + "..." : p.description) : "";
+                const maxDescLen = Math.max(10, innerWidth - 36);
+                const descStr = p.description ? (p.description.length > maxDescLen ? p.description.slice(0, maxDescLen - 3) + "..." : p.description) : "";
                 lines.push(cursor + cmdStr + " " + scopeTag + " " + theme.fg("dim", descStr));
               });
-              if (promptsList.length > 6) {
-                lines.push(theme.fg("dim", `  ... 还有 ${promptsList.length - 6} 个未展开`));
+
+              if (startIdx + windowSize < promptsList.length) {
+                lines.push(theme.fg("dim", `  ▼ 下方还有 ${promptsList.length - (startIdx + windowSize)} 个模板 (按 ↓ 查看)`));
+              }
+
+              // 🌟 核心优化：实时高亮选中的提示词内容预览 (Preview Pane)
+              const selectedItem = promptsList[selectedPromptIdx];
+              if (selectedItem) {
+                lines.push("");
+                lines.push(theme.fg("dim", "  ┌─ 模板正文即时预览 (按 [p] 填入 / [d] 删除) " + "─".repeat(Math.max(2, innerWidth - 45))));
+                const previewLines = PromptsManager.getPromptPreviewLines(selectedItem, 3);
+                if (previewLines.length === 0) {
+                  lines.push(theme.fg("dim", "  │ (空白模板或无正文内容)"));
+                } else {
+                  previewLines.forEach((pl: string) => {
+                    const cleanPl = pl.length > (innerWidth - 6) ? pl.slice(0, innerWidth - 9) + "..." : pl;
+                    lines.push(theme.fg("muted", `  │ ${cleanPl}`));
+                  });
+                }
+                lines.push(theme.fg("dim", "  └" + "─".repeat(Math.max(2, innerWidth - 5))));
               }
             }
 
@@ -367,6 +409,7 @@ export function openArchitectNavigator(
               "  " + theme.fg("accent", "[Enter]/[i]") + " 输入任务开工   " +
               theme.fg("accent", "[p]") + " 填入选中模板   " +
               theme.fg("accent", "[+]") + " 新建模板   " +
+              theme.fg("warning", "[d]") + " 删除模板   " +
               theme.fg("dim", "• [Esc] 退出")
             );
           } else if (state === "add_prompt_content") {
@@ -603,6 +646,18 @@ export function openArchitectNavigator(
               if (selectedPromptIdx < promptsList.length - 1) {
                 selectedPromptIdx++;
                 rerender();
+              }
+            } else if (key === "d" || key === "delete") {
+              const sel = promptsList[selectedPromptIdx];
+              if (sel && sel.scope !== "package") {
+                const deleted = PromptsManager.deletePrompt(sel);
+                if (deleted) {
+                  promptsList = PromptsManager.scanAllPrompts();
+                  if (selectedPromptIdx >= promptsList.length) {
+                    selectedPromptIdx = Math.max(0, promptsList.length - 1);
+                  }
+                  rerender();
+                }
               }
             } else if (key === "p") {
               const sel = promptsList[selectedPromptIdx];

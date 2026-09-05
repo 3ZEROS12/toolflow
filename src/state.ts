@@ -716,7 +716,18 @@ export function verifyStageArtifacts(
   }
 }
 
-export const BASELINE_TOOLS = ["read", "grep", "find", "bash", "powershell"];
+export const BASELINE_TOOLS = [
+  "read",
+  "write",
+  "edit",
+  "grep",
+  "find",
+  "ls",
+  "bash",
+  "powershell",
+  "todo",
+  "ask_user_question"
+];
 
 // 记录任务流启动前的原始激活工具快照，用于任务结束或重置时无损还原
 let originalActiveToolsSnapshot: string[] | undefined;

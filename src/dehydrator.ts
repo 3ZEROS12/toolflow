@@ -207,7 +207,34 @@ export class ContextDehydrator {
   public dehydrateToolOutput(toolName: string, rawText: string): { dehydrated: boolean; text: string; archivePath?: string } {
     if (!rawText || typeof rawText !== "string") return { dehydrated: false, text: rawText };
     const lines = rawText.split(String.fromCharCode(10));
-    if (lines.length <= 60 && rawText.length < 4000) {
+    
+    // ⚡ 针对不同类型的工具设置针对性的智能阈值与截断窗口
+    let thresholdLines = 40;
+    let thresholdBytes = 2500;
+    let headCount = 15;
+    let tailCount = 10;
+
+    if (toolName === "grep" || toolName === "find") {
+      // 搜索工具：结果超 15 行或 1000 字符就脱水，保留前 8 条和后 4 条匹配
+      thresholdLines = 15;
+      thresholdBytes = 1000;
+      headCount = 8;
+      tailCount = 4;
+    } else if (toolName === "read") {
+      // 读取工具：超 30 行或 2000 字符脱水，保留前 15 行和后 10 行
+      thresholdLines = 30;
+      thresholdBytes = 2000;
+      headCount = 15;
+      tailCount = 10;
+    } else if (toolName === "bash" || toolName === "powershell") {
+      // 终端工具：超 35 行或 2200 字符脱水，保留前 12 行和后 12 行错误/尾部
+      thresholdLines = 35;
+      thresholdBytes = 2200;
+      headCount = 12;
+      tailCount = 12;
+    }
+
+    if (lines.length <= thresholdLines && rawText.length < thresholdBytes) {
       return { dehydrated: false, text: rawText };
     }
 
@@ -219,9 +246,9 @@ export class ContextDehydrator {
       fs.writeFileSync(fullPath, rawText, "utf-8");
     } catch (_) {}
 
-    const head = lines.slice(0, 25).join("\n");
-    const tail = lines.slice(-25).join("\n");
-    const omittedCount = lines.length - 50;
+    const head = lines.slice(0, headCount).join("\n");
+    const tail = lines.slice(-tailCount).join("\n");
+    const omittedCount = lines.length - (headCount + tailCount);
     const relPath = path.relative(process.cwd(), fullPath).replace(/\\/g, "/");
 
     const summaryText = [
