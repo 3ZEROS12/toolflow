@@ -1,7 +1,7 @@
 {
   "name": "toolflow",
   "version": "3.1.4",
-  "description": "Adaptive tool workflow & prompt workbench for Pi: dynamic task blueprint generation, native prompts visualization, stage-gated tool pruning, and rollback safety.",
+  "description": "Dynamic tool sandboxing & context dehydrator for Pi: stage-gated tool pruning, 95% token dehydration, physical blast radius guard, and native prompt workbench.",
   "type": "module",
   "main": "src/index.ts",
   "pi": {
