@@ -66,7 +66,7 @@ export function renderExecutionPipelineCard(params: {
   verifiedArtifactCount: number;
 }): string {
   const lines: string[] = [
-    `### ⚡ ToolFlow 执行流水线看板: \`${params.blueprintId}\``,
+    `### ⌬ ToolFlow 执行流水线看板: \`${params.blueprintId}\``,
     `> 核心目标: **${params.task}** (当前进度: ${params.currentStageIndex + 1}/${params.stages.length})`,
     ""
   ];
@@ -209,7 +209,7 @@ export function renderBlueprintSummary(bp: Blueprint): string {
   const lines: string[] = [];
   lines.push(`## [执行蓝图] ${bp.task}`);
   lines.push(`**蓝图编号**: \`${bp.blueprintId}\``);
-  lines.push(`\n### 🗺️ DAG 执行步骤与物理产物清单`);
+  lines.push(`\n### ⌬ DAG 执行步骤与物理产物清单`);
   lines.push("");
 
   const dagLines = renderUnicodeDAG(bp.stages, {
@@ -222,7 +222,7 @@ export function renderBlueprintSummary(bp: Blueprint): string {
   lines.push(...dagLines);
   lines.push("```");
 
-  lines.push("\n### 📋 阶段详细规范");
+  lines.push("\n### ⌬ 阶段详细规范");
   lines.push("| 阶段 | 负责角色 | 动态装配进阶工具 | 期望交付物 | 允许基础工具 |");
   lines.push("| :--- | :--- | :--- | :--- | :--- |");
 
@@ -240,7 +240,7 @@ export function renderBlueprintSummary(bp: Blueprint): string {
     );
   }
 
-  lines.push(`\n### ⚡ 架构选型与 Token 节约依据`);
+  lines.push(`\n### ⌬ 架构选型与 Token 节约依据`);
   lines.push(bp.tokenEfficiencySummary);
 
   return lines.join("\n");

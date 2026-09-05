@@ -14,12 +14,13 @@
     "coreDependencies": [
       "@types/node",
       "@earendil-works/pi-coding-agent",
+      "@earendil-works/pi-tui",
       "tsx",
       "typescript"
     ],
     "gitBranch": "main"
   },
-  "updatedAt": 1788582482028,
+  "updatedAt": 1788583405109,
   "extensions": [
     {
       "id": "pi-tui-status-beautifier",

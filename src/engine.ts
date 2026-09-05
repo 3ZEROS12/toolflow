@@ -1028,7 +1028,7 @@ export function synthesizeBlueprint(
   const realTools = new Set(taxonomy.availableToolNames || []);
   const hasTool = (name: string) => realTools.has(name) || (taxonomy.tools || []).some(t => t.name === name);
 
-  const stage1Tools = ["read", "write", "bash", "powershell", "grep", "find"];
+  const stage1Tools = ["read", "bash", "powershell", "grep", "find"];
   if (l2PerceptionExts.length > 0 || hasTool("web_search") || hasTool("fetch_content") || hasTool("source_check")) {
     ["web_search", "fetch_content", "source_check"].forEach(t => { if (hasTool(t)) stage1Tools.push(t); });
   }
@@ -1040,7 +1040,7 @@ export function synthesizeBlueprint(
   if (hasTool("subagent")) stage2Tools.push("subagent");
   if (hasTool("mcp")) stage2Tools.push("mcp");
 
-  const stage3Tools = ["read", "write", "bash", "powershell", "grep", "find"];
+  const stage3Tools = ["read", "bash", "powershell", "grep", "find"];
   ["goal_complete", "goal_blocked", "goal_wait"].forEach(t => { if (hasTool(t)) stage3Tools.push(t); });
   if (hasTool("workflow")) stage3Tools.push("workflow");
   if (hasTool("mcp")) stage3Tools.push("mcp");
