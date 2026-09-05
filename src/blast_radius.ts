@@ -204,7 +204,7 @@ export class BlastRadiusGuard {
       }
 
       // 1. 跨盘符越界与外部驱动器穿越拦截
-      const isInsideCwd = normResolved === normCwd || normResolved.startsWith(normCwd + "/");
+      const isInsideCwd = this.isPathWithinWorkspace(targetPath, cwd);
       if (!isInsideCwd || pathSegments.some(seg => seg === "..") || (path.isAbsolute(relative) && relative !== resolved)) {
         return {
           block: true,
