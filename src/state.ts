@@ -329,7 +329,7 @@ export function createStageSnapshot(stageIndex: number, cwd: string = process.cw
 /**
  * 一键秒级回滚至阶段开始前的纯净状态 (One-Click Stage Rollback)
  */
-export function rollbackStage(stageIndex: number = state.currentStageIndex, cwd: string = process.cwd()): { success: boolean; message: string } {
+export function rollbackStage(stageIndex: number = state.currentStageIndex, cwd: string = process.cwd()): { success: boolean; message: string; mentalResetPrompt?: string } {
   if (!state.currentBlueprint) {
     return { success: false, message: "当前尚未激活任何蓝图，无法执行回滚。" };
   }
@@ -483,6 +483,13 @@ export function findMatchingArtifactFiles(stage: BlueprintStage, cwd: string = p
  * 严苛物理门禁与 3 次就地自愈验证器
  * 核心铁律：主交付物必须真实存在且非空 (>0 字节)，杜绝 Git 任意变动假阳性放行
  */
+export function verifyArtifactHeuristics(relPath: string, content: string): { valid: boolean; reason?: string } {
+  if (!content || content.trim().length === 0) {
+    return { valid: false, reason: "文件内容为空或仅包含空白字符" };
+  }
+  return { valid: true };
+}
+
 export function verifyStageArtifacts(
   stage: BlueprintStage,
   cwd: string = process.cwd(),
@@ -602,6 +609,28 @@ export function verifyStageArtifacts(
         changedFiles: [...gitInfo.changedFiles, ...gitInfo.untrackedFiles],
         verificationCommands: commands,
         remediationGuidance: `⚠️ 交付物 \`${artifactPath}\` 文件大小为 0 字节，契约未被满足。\n- 请填写真实有效内容后再试。`
+      };
+    }
+
+    const rawFileContent = fs.readFileSync(fullPath, "utf-8");
+    const heuristicCheck = verifyArtifactHeuristics(artifactPath, rawFileContent);
+    if (!heuristicCheck.valid) {
+      if (!isReadOnlyQuery) {
+        state.retryCount = (state.retryCount || 0) + 1;
+        if (state.retryCount >= 3) {
+          state.status = "healing_failed_circuit_break";
+        }
+        saveSessionStateToFile(cwd);
+      }
+      const currentRetries = state.retryCount || 0;
+      return {
+        valid: false,
+        artifactPath,
+        retryCount: currentRetries,
+        isCircuitBroken: currentRetries >= 3,
+        changedFiles: [...gitInfo.changedFiles, ...gitInfo.untrackedFiles],
+        verificationCommands: commands,
+        remediationGuidance: `⚠️ 交付物 \`${artifactPath}\` 内容不合规: ${heuristicCheck.reason}。\n- 请填写真实有效内容后再试。`
       };
     }
 

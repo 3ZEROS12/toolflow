@@ -271,8 +271,9 @@ export default function (pi: ExtensionAPI) {
       `核心目标: ${firstStage.coreObjective}\n` +
       `执行建议: ${actionGuidance} (随时自由读写/运行测试；如需回滚可执行 /toolflow rollback)`;
 
-    // 🎯 核心省 Token 机制：生成蓝图并开工后，原地触发上下文脱水压缩
-    // 清除前置推导、方案探讨的数千 Token 历史，让模型在最纯净的会话中执行阶段 1
+    // 🎯 核心省 Token 机制：会话过短时 ctx.compact 会抛出 "Nothing to compact" 报错打扰用户
+    // 因此开工初期无需强制 compact，依靠后续阶段递进与脱水即可
+    /*
     if (ctx && typeof (ctx as any).compact === "function") {
       try {
         (ctx as any).compact({
@@ -281,6 +282,7 @@ export default function (pi: ExtensionAPI) {
         });
       } catch (_) {}
     }
+    */
 
     if (typeof pi.sendUserMessage === "function") {
       pi.sendUserMessage(guidancePrompt, { deliverAs: "followUp" });
@@ -784,8 +786,7 @@ export default function (pi: ExtensionAPI) {
       if (!currentStage) return;
 
       // 智能双重路径容错：优先查找 expectedArtifact 相对路径与项目根目录直出路径
-      // 阶段 1 (架构设计) 保护机制：若模型本轮正合法调用 read/grep/find/ls 等探索工具，视为正常前期调研，不扣除自愈计数
-      // 从 TurnEndEvent 的 toolResults 或 message.content 中提取调用的工具名称
+      // 提取本轮调用的工具名称，排查是否处于普通探索或无产物会话中
       const executedToolNames: string[] = [];
       if (Array.isArray(_event?.toolResults)) {
         for (const tr of _event.toolResults) {
@@ -803,21 +804,17 @@ export default function (pi: ExtensionAPI) {
         }
       }
 
-      const EXPLORING_TOOLS = ['read', 'grep', 'find', 'ls', 'bash', 'powershell', 'web_search', 'fetch_content'];
-      const MUTATION_TOOLS = ['write', 'edit'];
-      const isExploring = state.currentStageIndex === 0 &&
-        executedToolNames.length > 0 &&
-        executedToolNames.some(name => EXPLORING_TOOLS.includes(name)) &&
-        !executedToolNames.some(name => MUTATION_TOOLS.includes(name));
+      // 如果本轮模型根本没有调用写工具（比如还在思考、或者正在使用只读工具/bash调研），
+      // 则绝对不能直接给用户报错或扣减自愈计数，避免由于模型回答了一句话就误触熔断
+      const isExploring = executedToolNames.length > 0 &&
+        !executedToolNames.some(name => ['write', 'edit'].includes(name));
 
-      const verificationResult = verifyStageArtifacts(currentStage, process.cwd(), false, isExploring);
+      const turnCwd = ctx.cwd || process.cwd();
+      const verificationResult = verifyStageArtifacts(currentStage, turnCwd, false, isExploring);
 
-      // 如果当前验证未通过，且本轮尚在调用工具正常写代码或探索，不扣除自愈次数，静默放行
-      if (!verificationResult.valid) {
-        // 如果本轮产生了工具调用（说明正在干活），先不急着判定失败
-        if (executedToolNames.length > 0 && !executedToolNames.some(n => ['write', 'edit'].includes(n))) {
-          return;
-        }
+      // 如果当前产物未生成，但模型本轮仅仅是回答了用户问题或在用非写入工具探索，静默放行，不骚扰用户
+      if (!verificationResult.valid && executedToolNames.length > 0 && !executedToolNames.some(n => ['write', 'edit'].includes(n))) {
+        return;
       }
 
       if (verificationResult.valid && verificationResult.record) {
