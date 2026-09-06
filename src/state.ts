@@ -487,6 +487,10 @@ export function verifyArtifactHeuristics(relPath: string, content: string): { va
   if (!content || content.trim().length === 0) {
     return { valid: false, reason: "文件内容为空或仅包含空白字符" };
   }
+  // 质量防线：防止生成仅有几行注释或玩具级 TODO 占位符的粗劣产物 (排除纯测试代码片段)
+  if (content.trim().length < 20 && (relPath.endsWith('.js') || relPath.endsWith('.ts') || relPath.endsWith('.html'))) {
+    return { valid: false, reason: `产物 ${relPath} 过于简陋 (不足20字符)，严禁以空壳占位符作为阶段交付物` };
+  }
   return { valid: true };
 }
 

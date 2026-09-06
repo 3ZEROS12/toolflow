@@ -460,14 +460,14 @@ export function generateUniversalMetaSlots(
   if (isWeb) {
     slots.push({
       slotId: "visual_style_preference",
-      title: "2. 视觉基调与交互质感 (交互与样式)",
+      title: "2. 视觉设计系统与呈现质感 (UI/视觉)",
       category: "design",
-      question: "请选择偏好的视觉风格与呈现质感：",
+      question: "请选择偏好的视觉设计系统与呈现质感：",
       options: [
         {
           id: "opt_style_modern",
-          label: "[现代轻奢/活力] 清爽现代、微质感动效 (推荐)",
-          description: "采用当代高质感配色、流畅微动效与响应式布局，视觉体验出众",
+          label: "[高质感现代设计] 专业调色盘/精细矢量图标/平滑微动效 (推荐)",
+          description: "专业级现代 UI：精选调色盘、精细矢量 SVG 图标资产、8px 网格与优雅微动效",
           isRecommended: true,
           recommendedEcosystem: {
             extensions: ["pi-web-access", "@plannotator/pi-extension"],
@@ -475,23 +475,23 @@ export function generateUniversalMetaSlots(
           }
         },
         {
-          id: "opt_style_minimal",
-          label: "[极简清爽] 纯净排版、突出内容核心",
-          description: "无冗余装饰，以克制留白与优雅字体排版呈现内容",
-          isRecommended: false,
-          recommendedEcosystem: {
-            extensions: ["@plannotator/pi-extension"],
-            reason: "快速走查基础排版"
-          }
-        },
-        {
           id: "opt_style_dark",
-          label: "[深邃极客/暗黑] 高对比度暗色主题",
-          description: "科技感暗色基调，搭配高对比度点缀色，沉浸感强烈",
+          label: "[深邃极客/暗黑] 霓虹点缀/高对比度/精致光影质感",
+          description: "科技暗黑基调、精致阴影/发光渐变与高对比度重点强调，视觉冲击强烈",
           isRecommended: false,
           recommendedEcosystem: {
             extensions: ["@plannotator/pi-extension"],
             reason: "走查暗黑主题对比度与细节"
+          }
+        },
+        {
+          id: "opt_style_minimal",
+          label: "[典雅极简/大厂排版] 留白呼吸感/精美字体层次/克制衬色",
+          description: "拒绝粗陋简陋，基于瑞士平面设计法则，以高级克制排版与严谨间距呈现",
+          isRecommended: false,
+          recommendedEcosystem: {
+            extensions: ["@plannotator/pi-extension"],
+            reason: "快速走查基础排版"
           }
         }
       ]
@@ -1486,15 +1486,16 @@ export function generateStageActionPrompt(
 
   // 编码/实现阶段
   if (stage.stageId.includes("implementation") || stage.title.includes("编码") || stage.title.includes("制作")) {
+    const qualityWarning = "【交付质量硬指标】严防粗制滥造：设计与视觉重灾区必须严谨打造！UI/图案绝不可用单调色块/方块敷衍，必须配备专业调色盘、精细矢量 SVG 图案/图标、一致网格间距与过渡动效；逻辑严密模块化，绝不输出玩具级半成品。";
     if (hasWorkflow || hasSubagent) {
-      return `实现核心功能逻辑，可按需调用 workflow/subagent 进行并行分发或直接编写落地。${skillAdvice}${mcpTemplateAdvice}`;
+      return `实现核心功能逻辑，可按需调用 workflow/subagent 进行并行分发或直接编写落地。${qualityWarning}${skillAdvice}${mcpTemplateAdvice}`;
     }
-    return `编写实现代码并交付落盘 (${stage.expectedArtifact})。${skillAdvice}${mcpTemplateAdvice}`;
+    return `编写实现代码并交付落盘 (${stage.expectedArtifact})。${qualityWarning}${skillAdvice}${mcpTemplateAdvice}`;
   }
 
   // 走查/调优阶段
   if (stage.stageId.includes("preview") || stage.title.includes("走查")) {
-    return `启动本地预览/界面走查，验证实际交互效果并查漏补缺。${skillAdvice}${mcpTemplateAdvice}`;
+    return `启动本地预览/走查，切实验证实际交互效果、视觉设计与图案质感（重点走查设计是否粗糙、图案是否简陋、间距动效是否自然），查漏补缺，拒绝形式主义。${skillAdvice}${mcpTemplateAdvice}`;
   }
 
   // 单测/验收/门禁阶段

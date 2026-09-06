@@ -62,7 +62,14 @@ ToolFlow snapshots active tools at startup. Upon stage completion, abrupt error,
 ### 4. Physical Blast Radius Guard
 A runtime safety interceptor monitoring both native write tools and terminal commands (`bash`, `powershell`). Destructive overwrites, file removals, or shell redirections targeting sensitive assets (`.env*`, `.git*`, core locks) are physically blocked at the engine level.
 
-### 5. Interactive Prompt Workbench
+### 5. Production Craftsmanship & Aesthetics Guard
+Prevents the LLM from outputting "toy-grade, functionally running but visually hideous" deliverables:
+- **Hard Guardrails on UI & Visuals**: Explicitly bans bare unstyled elements, crude monochrome placeholder rectangles, and naive sketch lines. Mandates professional color palettes (primary, secondary, accent, layered dark/light backgrounds), 8px grid spacing, and typographic hierarchy.
+- **Polished Vector Assets**: Requires clean vector SVG artwork or standard icon systems (e.g. Lucide/Tailwind-style icons) instead of simplistic squares or primitives acting as mock UI assets.
+- **Smooth Micro-Interactions**: Enforces transition states, hover/focus elevation, subtle shadows, and interactive feedback across all interactive components.
+- **Decoupled Architecture & Real Unit Tests**: Pure business/game logic remains strictly decoupled from rendering, backed by executable unit tests for reliable, production-ready deliverables.
+
+### 6. Interactive Prompt Workbench
 Run `/toolflow` without arguments to access an in-terminal template manager:
 - **Instant Discovery**: Automatically discovers global and project-level `prompts/*.md`, sorted by recent use.
 - **Zero-Friction Insertion**: Press `[p]` to prefill highlighted templates directly into your prompt bar.

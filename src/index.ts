@@ -729,12 +729,22 @@ export default function (pi: ExtensionAPI) {
   // 注册 before_agent_start 钩子 (下沉注入蒸馏的 Skill SOP 规则契约与物理防护)
   if (typeof (pi as any).on === "function") {
     (pi as any).on("before_agent_start", async (event: any) => {
-      // 注入 ToolFlow 核心准则：现成工具优先与最高权重调用
+      // 注入 ToolFlow 核心准则：现成工具优先与最高权重调用，以及高品质专业交付标准
       const toolflowGuideline = `\n<toolflow_execution_policy>
-  [CORE RULE: MANDATORY REUSE OF INSTALLED TOOLS / SKILLS / MCP]
-  Always prefer installed skills, extensions, and CLI tools over writing code from scratch.
-  Before writing ad-hoc scripts or manual implementations, actively inspect available tools and invoke them.
-  Writing raw ad-hoc code when specialized tools exist is strictly penalized.
+  [CORE PRINCIPLE 1: MANDATORY REUSE OF INSTALLED TOOLS / SKILLS / MCP]
+  - Always prefer installed skills, extensions, and CLI tools over writing code from scratch.
+  - Before writing ad-hoc scripts or manual implementations, actively inspect available tools and invoke them.
+
+  [CORE PRINCIPLE 2: PRODUCTION CRAFTSMANSHIP & DESIGN STANDARDS]
+  - 严禁粗制滥造与简陋玩具实现 (Eliminate crude toy/amateur designs across all deliverables).
+  - 视觉与设计重灾区防线 (Visual, UI, & Asset Standards):
+    * 拒绝粗糙简陋与白板简笔画：严禁使用最粗劣的原生默认样式或单调矩形/色块敷衍了事。
+    * 专业设计系统与配色：必须使用经过推敲的现代专业调色盘（主色、衬色、强调色、明暗背景层次）、清晰的排版层级、一致的间距网格 (8px grid) 与圆角阴影体系。
+    * 高质感资产与矢量图案：必须使用精细矢量 SVG 图案、高质量矢量图标（如 Lucide/Tailwind 风格）、高保真几何绘制或精美插画，绝对禁止粗糙小方块或几条简笔线当作图案资产。
+    * 动效与交互反馈：所有可交互元素必须具备平滑的过渡动效 (Hover/Active/Focus transitions)、微质感阴影、状态反馈与呼吸感。
+  - 架构与逻辑标准 (Architecture & Logic Standards):
+    * 核心逻辑模块化、强类型/数据驱动解耦（如纯业务/数学逻辑与 UI/DOM 渲染层分离），100% 具备可测试性。
+    * 配套真实自动化单元测试断言，覆盖核心功能、边界分支与真实运行闭环。
 </toolflow_execution_policy>\n`;
 
       const currentState = getSessionState();
