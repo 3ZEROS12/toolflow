@@ -17,6 +17,20 @@ export interface DehydratedStageHandoff {
   };
 }
 
+export interface ReadToolInput {
+  path: string;
+  offset?: number;
+  limit?: number;
+}
+
+export interface CacheCheckResult {
+  isDuplicate: boolean;
+  notice?: string;
+  savedLines?: number;
+  savedTokens?: number;
+  bypassReason?: "targeted_window" | "recent_edit_failure" | "small_file" | "command_dirty" | "not_cached";
+}
+
 const MAX_LOG_SIZE_BYTES = 10 * 1024 * 1024; // 10MB 单阶段日志截断上限
 const MAX_TOTAL_DISK_BYTES = 200 * 1024 * 1024; // 200MB 运行归档总配额
 
@@ -200,13 +214,87 @@ export class ContextDehydrator {
   }
 
   /**
+   * ⚡ 终端 ANSI 控制字符清洗与进度条折叠辅助函数
+   */
+  private sanitizeTerminalOutput(rawText: string): string {
+    if (!rawText) return "";
+    // 1. 去除 ANSI 转义控制字符 (色彩代码、光标跳跃等 \x1b[...m)
+    let text = rawText.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "").replace(/\x1b\([a-zA-Z]/g, "");
+
+    // 2. 压缩 \r 产生的刷屏进度条（例如 npm install / wget / docker 下载进度）
+    // 仅保留由 \r 覆盖的最后一行
+    if (text.includes("\r")) {
+      const parts = text.split("\n").map(line => {
+        if (!line.includes("\r")) return line;
+        const sub = line.split("\r").filter(s => s.trim().length > 0);
+        return sub.length > 0 ? sub[sub.length - 1] : "";
+      });
+      text = parts.join("\n");
+    }
+
+    return text;
+  }
+
+  /**
+   * 检查文本是否处于交互式等待中（等待用户输入，此时绝对不可脱水截断）
+   */
+  private isInteractiveWait(text: string): boolean {
+    if (!text) return false;
+    const trimmedTail = text.slice(-300).trim();
+    const interactivePatterns = [
+      /\[y\/n\]/i,
+      /\(y\/n\)/i,
+      /\[yes\/no\]/i,
+      /are you sure/i,
+      /press any key/i,
+      /password:/i,
+      /enter pass phrase/i,
+      /\? /
+    ];
+    return interactivePatterns.some(p => p.test(trimmedTail));
+  }
+
+  /**
+   * 提取输出中的关键报错行（保证哪怕脱水中段，编译/运行核心错误也不会被吞噬）
+   */
+  private extractKeyErrorLines(lines: string[]): string[] {
+    const errorLines: string[] = [];
+    const errorPattern = /(error[:\s]|fatal[:\s]|failed[:\s]|exception[:\s]|panic[:\s]|traceback)/i;
+    for (let i = 0; i < lines.length; i++) {
+      if (errorPattern.test(lines[i])) {
+        // 抓取报错行及其上下文前后各 1 行
+        const start = Math.max(0, i - 1);
+        const end = Math.min(lines.length, i + 2);
+        for (let j = start; j < end; j++) {
+          if (!errorLines.includes(lines[j])) {
+            errorLines.push(lines[j]);
+          }
+        }
+        if (errorLines.length >= 6) break; // 最多优先抓取 6 行关键报错
+      }
+    }
+    return errorLines;
+  }
+
+  /**
    * ⚡ 实时单次工具输出脱水 (Tool Result Dehydration)
    * 当 bash, powershell, fetch_content 或重型 MCP 输出过长时，自动将完整原始输出落盘归档，
    * 仅向下游返回摘要与指纹，彻底阻断数万 Token 垃圾日志污染会话上下文。
    */
   public dehydrateToolOutput(toolName: string, rawText: string): { dehydrated: boolean; text: string; archivePath?: string } {
     if (!rawText || typeof rawText !== "string") return { dehydrated: false, text: rawText };
-    const lines = rawText.split(String.fromCharCode(10));
+
+    // 1. 终端 ANSI 控制字符净化与进度条清洗
+    const sanitized = this.sanitizeTerminalOutput(rawText);
+
+    // 2. 交互式等待绝对豁免（如 [y/N], Password: 等），坚决不截断，防止打废终端交互
+    if (toolName === "bash" || toolName === "powershell") {
+      if (this.isInteractiveWait(sanitized)) {
+        return { dehydrated: false, text: sanitized };
+      }
+    }
+
+    const lines = sanitized.split("\n");
     
     // ⚡ 针对不同类型的工具设置针对性的智能阈值与截断窗口
     let thresholdLines = 40;
@@ -252,8 +340,8 @@ export class ContextDehydrator {
       tailCount = 10;
     }
 
-    if (lines.length <= thresholdLines && rawText.length < thresholdBytes) {
-      return { dehydrated: false, text: rawText };
+    if (lines.length <= thresholdLines && sanitized.length < thresholdBytes) {
+      return { dehydrated: false, text: sanitized };
     }
 
     const safeTool = toolName.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -269,10 +357,17 @@ export class ContextDehydrator {
     const omittedCount = lines.length - (headCount + tailCount);
     const relPath = path.relative(process.cwd(), fullPath).replace(/\\/g, "/");
 
+    // 3. 智能抓取中段关键 Error 行，避免关键编译/运行报错被粗暴掐死
+    const keyErrors = this.extractKeyErrorLines(lines.slice(headCount, Math.max(headCount, lines.length - tailCount)));
+    const errorSection = keyErrors.length > 0 
+      ? ["", "  [⚡ 核心报错摘要提取]:", ...keyErrors.map(e => "  > " + e), ""]
+      : [];
+
     const summaryText = [
       head,
+      ...errorSection,
       "",
-      `... [⚡ ToolFlow Token Optimizer: Dehydrated ${omittedCount} lines (~${Math.round(rawText.length / 4)} tokens) to ${relPath}] ...`,
+      `... [⚡ ToolFlow Token Optimizer: Dehydrated ${omittedCount} lines (~${Math.round(sanitized.length / 4)} tokens) to ${relPath}] ...`,
       "",
       tail
     ].join("\n");
@@ -287,24 +382,88 @@ export class ContextDehydrator {
 
 /**
  * ⚡ 文件读取去重与短期缓存管理器 (ReadCacheManager)
- * 避免大模型在同一个长会话中针对未修改的文件反复通读、反复灌入成千上万 Token
+ * 具备 6 级穿透门禁与极速代码骨架提取 (Symbol Outline)，彻底避免 Agent 致盲与死锁
  */
 export class ReadCacheManager {
   private cache: Map<string, { mtimeMs: number; hash: string; lastTurnIndex: number; linesCount: number }> = new Map();
+  private lastCommandTimestamp: number = 0;
+  private editFailures: Map<string, { failedTurn: number; timestamp: number }> = new Map();
+
+  /**
+   * 记录外部命令（如 bash）执行，作废任何潜在的命令副效应
+   */
+  public recordCommandExecution(): void {
+    this.lastCommandTimestamp = Date.now();
+  }
+
+  /**
+   * 记录 edit/write 失败，用于下一次强制穿透供给完整源码
+   */
+  public recordEditFailure(filePath: string, currentTurn: number): void {
+    if (!filePath) return;
+    const normPath = path.resolve(filePath).replace(/\\/g, "/");
+    this.editFailures.set(normPath, { failedTurn: currentTurn, timestamp: Date.now() });
+    this.invalidate(normPath);
+  }
+
+  /**
+   * 检查近期是否发生过编辑失败
+   */
+  public hasRecentEditFailure(filePath: string, currentTurn: number): boolean {
+    if (!filePath) return false;
+    const normPath = path.resolve(filePath).replace(/\\/g, "/");
+    const record = this.editFailures.get(normPath);
+    if (!record) return false;
+    // 3 轮内或 60 秒内只要发生过编辑失败，强制允许穿透读取供大模型纠错
+    if (currentTurn - record.failedTurn <= 3 || Date.now() - record.timestamp < 60000) {
+      return true;
+    }
+    this.editFailures.delete(normPath);
+    return false;
+  }
 
   /**
    * 检查文件读取是否可以命中去重缓存
    * @param filePath 读取的目标文件路径
    * @param fileContent 文件原始内容
-   * @param currentTurn 当前会话轮次（或消息序号）
+   * @param currentTurn 当前会话轮次
+   * @param input 工具入参（包含 offset / limit）
    */
-  public checkOrUpdate(filePath: string, fileContent: string, currentTurn: number): { isDuplicate: boolean; notice?: string; savedLines?: number } {
-    if (!filePath || !fileContent || fileContent.length < 300) {
-      // 极短文件不拦截，不影响极速阅读体验
+  public checkOrUpdate(
+    filePath: string,
+    fileContent: string,
+    currentTurn: number,
+    input?: ReadToolInput
+  ): CacheCheckResult {
+    // 门禁 G1: 显式指定 offset/limit 的局部切片读取，绝对不拦截（提供精确代码上下文供 edit 匹配）
+    if (input?.offset !== undefined || input?.limit !== undefined) {
+      return { isDuplicate: false, bypassReason: "targeted_window" };
+    }
+
+    if (!filePath || !fileContent) {
       return { isDuplicate: false };
     }
 
     const normPath = path.resolve(filePath).replace(/\\/g, "/");
+
+    // 门禁 G2: 最近发生过 edit/write 失败，强制穿透供给完整文本供大模型纠错
+    if (this.hasRecentEditFailure(normPath, currentTurn)) {
+      return { isDuplicate: false, bypassReason: "recent_edit_failure" };
+    }
+
+    const lines = fileContent.split("\n");
+
+    // 门禁 G3: 极小文件穿透（小于等于 5 行或字符数少于 200 的文件绝对穿透，低成本无拖拽）
+    if (lines.length <= 5 || fileContent.length < 200) {
+      return { isDuplicate: false, bypassReason: "small_file" };
+    }
+
+    // 门禁 G4: 外部命令执行后的副效应保护（15 秒内穿透）
+    if (this.lastCommandTimestamp > 0 && Date.now() - this.lastCommandTimestamp < 15000) {
+      this.invalidate(normPath);
+      return { isDuplicate: false, bypassReason: "command_dirty" };
+    }
+
     let currentMtime = 0;
     try {
       if (fs.existsSync(filePath)) {
@@ -312,43 +471,39 @@ export class ReadCacheManager {
       }
     } catch (_) {}
 
-    // 计算快速内容简版 Hash (首尾 + 长度，避免超大文件全量 sha256 阻塞)
-    const contentLen = fileContent.length;
-    const sample = `${contentLen}:${fileContent.slice(0, 100)}:${fileContent.slice(-100)}`;
-    const hash = crypto.createHash("md5").update(sample).digest("hex");
-    const lines = fileContent.split("\n");
-
+    // 1. 全量内容 SHA256 哈希计算（Node 22 原生极速哈希，耗时 <0.1ms）
+    const hash = crypto.createHash("sha256").update(fileContent).digest("hex");
     const cached = this.cache.get(normPath);
+
     if (cached) {
-      // 必须严格判定：若有 mtime，mtime 变了就代表变了；且内容 hash 必须完全匹配
-      const mtimeMatches = currentMtime > 0 ? Math.abs(currentMtime - cached.mtimeMs) < 500 : true;
+      // 2. 真实物理 mtimeMs 变动检测：若磁盘修改时间发生变动（哪怕 1ms），一票否决
+      const mtimeMatches = currentMtime > 0 ? (cached.mtimeMs === 0 || currentMtime === cached.mtimeMs) : true;
       const isUnchanged = mtimeMatches && cached.hash === hash;
       const turnDistance = currentTurn - cached.lastTurnIndex;
 
+      // 仅在确认文件在磁盘和哈希上毫无任何变动，且处于近邻 15 轮次内生效
       if (isUnchanged && turnDistance >= 1 && turnDistance <= 15) {
         // 更新最后访问轮次
         const lastTurn = cached.lastTurnIndex;
         cached.lastTurnIndex = currentTurn;
         const relativePath = path.relative(process.cwd(), filePath).replace(/\\/g, "/");
-        const approxSavedTokens = Math.max(20, Math.round(contentLen / 4));
-        const headSnippet = lines.slice(0, 5).join("\n");
-        const tailSnippet = lines.slice(-3).join("\n");
+        const approxSavedTokens = Math.max(20, Math.round(fileContent.length / 4));
+
+        const notice = [
+          `=== [⚡ ToolFlow Read Cache: "${relativePath}" (${lines.length} 行, 与第 ${lastTurn} 轮内容一致, 节约 ~${approxSavedTokens} Tokens) ] ===`,
+          `=== [⚡ 提示: 内容完全一致且未变更。若需查看或精准修改实现，请调用 read 传入 offset=<行号> limit=<行数> 按需读取] ===`
+        ].join("\n");
 
         return {
           isDuplicate: true,
           savedLines: lines.length,
-          notice: [
-            headSnippet,
-            "",
-            `[⚡ ToolFlow Read Cache: 文件 "${relativePath}" (${lines.length} 行, ~${approxSavedTokens} tokens) 前文第 ${lastTurn} 轮已读取且无变更，内容完全一致。已自动去重以节省 Token。如需重读特定片段请使用 read 工具的 offset/limit 选项。]`,
-            "",
-            tailSnippet
-          ].join("\n")
+          savedTokens: approxSavedTokens,
+          notice
         };
       }
     }
 
-    // 记录最新指纹
+    // 记录最新真实物理指纹与内容哈希
     this.cache.set(normPath, {
       mtimeMs: currentMtime,
       hash,
@@ -356,7 +511,7 @@ export class ReadCacheManager {
       linesCount: lines.length
     });
 
-    return { isDuplicate: false };
+    return { isDuplicate: false, bypassReason: "not_cached" };
   }
 
   /**

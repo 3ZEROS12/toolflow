@@ -19,6 +19,59 @@ import crypto from "crypto";
 import path from "path";
 import fs from "fs";
 
+export interface TaskRouteDecision {
+  mode: "FAST_TRACK" | "BLUEPRINT";
+  reason: string;
+  suggestedTools: string[];
+}
+
+/**
+ * 任务轻重双模路由器 (Fast-Track 极速直达 vs Blueprint 渐进编排)
+ */
+export function diagnoseTaskExecutionMode(
+  task: string,
+  userExplicitMode?: "fast" | "blueprint"
+): TaskRouteDecision {
+  if (userExplicitMode === "fast") {
+    return {
+      mode: "FAST_TRACK",
+      reason: "用户显式指定极速通道",
+      suggestedTools: ["read", "edit", "write", "bash", "powershell", "grep", "find"]
+    };
+  }
+  if (userExplicitMode === "blueprint") {
+    return {
+      mode: "BLUEPRINT",
+      reason: "用户显式要求工程蓝图编排",
+      suggestedTools: []
+    };
+  }
+
+  const trimmed = (task || "").trim();
+  const lower = trimmed.toLowerCase();
+
+  // 1. 系统级架构词汇强制走完整蓝图
+  const hasHeavyScope = /(重构系统|架构设计|全新系统|端到端开发|从头开发|设计整个|全栈系统|从零构建|新建工程|大型系统|全量迁移|architect|refactor\s+all|from\s+scratch)/i.test(lower);
+  if (hasHeavyScope) {
+    return { mode: "BLUEPRINT", reason: "检测到系统级重构或全局架构诉求", suggestedTools: [] };
+  }
+
+  // 2. 判定极速通道特征：具体文件、行号符号、微操作动词
+  const hasSingleFileTarget = /\b[\w-]+\.(ts|tsx|js|jsx|py|rs|go|json|css|scss|html|vue|md)\b/i.test(lower);
+  const hasSpecificLineOrSymbol = /(第\s*\d+\s*行|line\s*\d+|函数|function\s+\w+|class\s+\w+|方法|变量)/i.test(lower);
+  const hasMicroActionVerb = /(修复|fix|修改|改一下|微调|format|加个注释|添加注释|加注释|补充类型|类型修复|换个颜色|改个文案|改文案|加个字段|加字段|增加字段|输出日志|加log|加打印|优化排版)/i.test(lower);
+
+  if (trimmed.length <= 80 && (hasMicroActionVerb || hasSingleFileTarget || hasSpecificLineOrSymbol)) {
+    return {
+      mode: "FAST_TRACK",
+      reason: `单点日常微任务 (${trimmed.length} 字, 具备局部修改意图)`,
+      suggestedTools: ["read", "edit", "write", "bash", "powershell", "grep", "find"]
+    };
+  }
+
+  return { mode: "BLUEPRINT", reason: "常规多阶段复合任务", suggestedTools: [] };
+}
+
 export interface ProjectArtifactProfile {
   srcPath: string;
   testPath: string;
@@ -151,6 +204,7 @@ export function inferArtifactProfile(fp?: ProjectFingerprint, cwd: string = proc
 
 /**
  * 确定性 Kahn 算法 DAG 拓扑排序与分波调度器 (Kahn's Algorithm & Wave Decomposition)
+ * Ponytail 优化：若 stages 只有 1 个阶段或无任何依赖关系，直接零计算走极简流水线，杜绝虚胖开销。
  */
 export function planDAGWaves(stages: BlueprintStage[]): DAGPlanResult {
   const uniqueStages: BlueprintStage[] = [];
@@ -160,6 +214,25 @@ export function planDAGWaves(stages: BlueprintStage[]): DAGPlanResult {
       seenIds.add(s.stageId);
       uniqueStages.push(s);
     }
+  }
+
+  // 极简流水线快路径：单阶段或完全线性任务零 DAG 开销
+  if (uniqueStages.length <= 1) {
+    return {
+      sortedStages: uniqueStages,
+      waves: [{ waveIndex: 0, stages: uniqueStages, isParallel: false }],
+      hasCycles: false
+    };
+  }
+
+  const hasAnyExplicitDeps = uniqueStages.some(s => s.dependsOn && s.dependsOn.length > 0);
+  if (!hasAnyExplicitDeps) {
+    // 阶段间无任何强制先后依赖：判定为天然可并发波次
+    return {
+      sortedStages: uniqueStages,
+      waves: [{ waveIndex: 0, stages: uniqueStages, isParallel: uniqueStages.length > 1 }],
+      hasCycles: false
+    };
   }
 
   const stageMap = new Map<string, BlueprintStage>();
@@ -799,6 +872,23 @@ Return ONLY valid raw JSON matching this structure (no markdown fences, or wrapp
     };
   }
 
+  // ⚡ 极速优先：默认直接采用本地毫秒级工程指纹与槽位推导，零延迟、零 Token 开销秒出决策舱！
+  // 仅在明确传入 { forceLLM: true } 且任务极为模糊时才降级为后台推理
+  const forceLLM = Boolean((ctx as any)?.forceLLM);
+  if (!forceLLM) {
+    const fallback = generateUniversalMetaSlots(task, taxonomy, fp, tradeOff);
+    const finalFallbackSlots = ecosystemExtensionSlot
+      ? [ecosystemExtensionSlot, ...fallback.requirementSlots]
+      : fallback.requirementSlots;
+
+    return {
+      ...fallback,
+      requirementSlots: finalFallbackSlots,
+      decisionSlots: finalFallbackSlots,
+      tradeOff
+    };
+  }
+
   // 优先通过 pi 官方 modelRegistry 调用当前会话活跃大模型进行 100% 动态实时推理
   if (ctx && (ctx as any).modelRegistry && (ctx as any).model) {
     try {
@@ -899,11 +989,22 @@ export async function synthesizeBlueprintPlanWithLLM(
   // 默认由工程拓扑保底
   const fp = taxonomy.projectFingerprint || sniffProjectFingerprint();
   const profile = inferArtifactProfile(fp);
+
+  // 极速路径：从用户任务中尝试提取明确的文件路径（例如 src/auth.ts、tests/login.test.ts 等）
+  const pathMatch = task.match(/(?:[a-zA-Z0-9_\-\.\/]+\.(?:ts|js|py|rs|go|cpp|c|h|java|vue|tsx|jsx|json|md))/i);
+  const detectedPath = pathMatch ? pathMatch[0].replace(/\\/g, "/") : "";
+
   const fallback = {
-    primaryArtifact: profile.srcPath,
+    primaryArtifact: detectedPath || profile.srcPath,
     targetLanguage: fp.language || "typescript",
     isFrontend: false
   };
+
+  // ⚡ 极速优先：默认跳过二次串行 LLM 往返，零延迟开工！仅在明确 forceLLM 时才触发后台请求
+  const forceLLM = Boolean((ctx as any)?.forceLLM);
+  if (!forceLLM) {
+    return fallback;
+  }
 
   if (!ctx || !(ctx as any).modelRegistry || !(ctx as any).model) {
     return fallback;
@@ -1103,13 +1204,19 @@ export function synthesizeBlueprint(
     : undefined;
 
   // 任务轻重自适应探测 (Adaptive Task Complexity Router)
-  // 识别是否属于日常极轻量单点改动/修补微任务，避免大炮打蚊子
+  // 识别是否属于日常单点改动/局部修补/微任务，打破僵化的字符数硬限制
   const taskLower = (task || "").toLowerCase();
   const explicitMicro = userDecisions.__microTask === "true" || userDecisions.__microTask === ("true" as any);
-  const isLightweightIntent =
-    taskLower.length < 25 &&
-    /(修复|fix|改一下|微调|format|加个注释)/.test(taskLower) &&
-    !/(系统|架构|重构|web|控制台|构建|单页|应用)/.test(taskLower);
+  
+  // 智能微任务判别：
+  // 1. 包含明确的单点修改、修补、微调、日志、类型补充等意图动词
+  const hasMicroActionVerb = /(修复|fix|修改|改一下|微调|format|加个注释|添加注释|加注释|补充类型|类型修复|换个颜色|改个文案|改文案|加个字段|加字段|增加字段|输出日志|加log|加打印)/i.test(taskLower);
+  // 2. 没有强烈的全局多模块架构、系统级新建或全流程生命周期诉求
+  const hasHeavyArchitecturalScope = /(重构系统|架构设计|全新系统|端到端开发|从头开发|设计整个|全栈系统|从零构建|新建工程|大型系统|全量迁移)/i.test(taskLower);
+  // 3. 长度在适度范围内（80字以内单句指令），或者指名了具体的单个文件名/函数名
+  const isTargetedOrConcise = taskLower.length <= 80 || /\.(ts|js|py|rs|go|json|css|html|md)\b/i.test(taskLower);
+
+  const isLightweightIntent = hasMicroActionVerb && !hasHeavyArchitecturalScope && isTargetedOrConcise;
 
   const isMicroTask = !isPlanB && (explicitMicro || isLightweightIntent);
 
@@ -1361,45 +1468,42 @@ export function generateStageActionPrompt(
 
   if (isReview) {
     if (hasGoal) {
-      return `Action: Execute verification gate. When all checks pass, finalize via 'goal_complete({ goal_id, summary })' or inspect diff.${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
+      return `执行测试套件与走查验证，全部通过后确认交付。${skillAdvice}${mcpTemplateAdvice}`;
     }
     if (hasWorkflow) {
-      return `Action: Run independent verification via 'workflow({ name: "code-review" })' or run test gate directly.${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
+      return `可通过 'workflow({ name: "code-review" })' 走查或直接运行测试门禁。${skillAdvice}${mcpTemplateAdvice}`;
     }
-    return `Action: Execute verification gate and inspect diff objectively.${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
+    return `执行测试验证并客观走查关键变更。${skillAdvice}${mcpTemplateAdvice}`;
   }
 
-  // 架构/设计阶段
-  if (stage.stageId.includes("design") || stage.title.includes("设计")) {
+  // 架构/设计/调研阶段
+  if (stage.stageId.includes("design") || stage.title.includes("设计") || stage.title.includes("调研")) {
     if (hasWorkflow) {
-      return `CRITICAL ACTION: You MUST invoke the 'write' tool to output the architectural specification into '${stage.expectedArtifact}' now. (For deep exploration, you may leverage 'workflow({ name: "deep-research" })'). Do NOT merely discuss or think.${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
+      return `CRITICAL ACTION: You MUST invoke the 'write' tool to output the architectural specification into '${stage.expectedArtifact}' now. (For deep exploration, you may leverage 'workflow({ name: "deep-research" })'). Do NOT merely discuss or think.${skillAdvice}${mcpTemplateAdvice}`;
     }
-    return `CRITICAL ACTION: You MUST invoke the 'write' tool to create the design specification file '${stage.expectedArtifact}' immediately. Do NOT merely discuss or think without writing.${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
+    return `CRITICAL ACTION: You MUST invoke the 'write' tool to create the design specification file '${stage.expectedArtifact}' immediately. Do NOT merely discuss or think without writing.${skillAdvice}${mcpTemplateAdvice}`;
   }
 
   // 编码/实现阶段
   if (stage.stageId.includes("implementation") || stage.title.includes("编码") || stage.title.includes("制作")) {
-    if (hasWorkflow && hasSubagent) {
-      return `Action: Implement core logic. Autonomously leverage 'workflow' or 'subagent' for parallel modular tasks, or write target deliverable directly.${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
-    } else if (hasWorkflow) {
-      return `Action: Implement core logic. You may trigger 'workflow' for decomposed implementation, or write target deliverable directly.${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
-    } else if (hasSubagent) {
-      return `Action: Implement core logic. Autonomously delegate sub-tasks via 'subagent' if independent, or write deliverable directly.${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
-    } else if (hasMcp) {
-      return `Action: Implement core logic (${stage.expectedArtifact}). Leverage connected 'mcp' tools where appropriate.${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
+    if (hasWorkflow || hasSubagent) {
+      return `实现核心功能逻辑，可按需调用 workflow/subagent 进行并行分发或直接编写落地。${skillAdvice}${mcpTemplateAdvice}`;
     }
-    return `Action: Write target deliverable to disk (${stage.expectedArtifact}).${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
+    return `编写实现代码并交付落盘 (${stage.expectedArtifact})。${skillAdvice}${mcpTemplateAdvice}`;
   }
 
   // 走查/调优阶段
   if (stage.stageId.includes("preview") || stage.title.includes("走查")) {
-    return `Action: Launch live preview/demo, inspect user-facing behavior, and provide review findings.${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
+    return `启动本地预览/界面走查，验证实际交互效果并查漏补缺。${skillAdvice}${mcpTemplateAdvice}`;
   }
 
-  // 单测/验收阶段
-  if (hasGoal) {
-    return `Action: Run test suite. Ensure all tests pass green, then attest via 'goal_complete'.${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
+  // 单测/验收/门禁阶段
+  if (hasGoal || stage.stageId.includes("gate") || stage.title.includes("验收") || stage.title.includes("门禁")) {
+    if (hasGoal) {
+      return `运行测试验证并通过 goal_complete 门禁确认交付。${skillAdvice}${mcpTemplateAdvice}`;
+    }
+    return `运行测试套件验证功能完备性。${skillAdvice}${mcpTemplateAdvice}`;
   }
 
-  return `Action: Write target deliverable to disk (${stage.expectedArtifact || "target"}).${skillAdvice}${mcpTemplateAdvice} (/toolflow rollback to revert)`;
+  return `编写并落实交付成果 (${stage.expectedArtifact || "目标产物"})。${skillAdvice}${mcpTemplateAdvice}`;
 }

@@ -1,12 +1,43 @@
 import { isZh } from "./i18n.js";
-import { truncateToWidth, visibleWidth, matchesKey, parseKey } from "@earendil-works/pi-tui";
+import { truncateToWidth, visibleWidth, sliceByColumn, matchesKey, parseKey } from "@earendil-works/pi-tui";
 import { PromptsManager, PromptItemInfo } from "./prompts_manager.js";
 import { EcosystemTaxonomy, Blueprint, DecisionSlot, BlueprintStage, ArchitectNavigatorResult, TaskRequirementChoice, TaskDiagnosis } from "./types.js";
+import { diagnoseTaskExecutionMode } from "./engine.js";
 
 // 边框规范与内宽计算
 const BOX_BORDER_LEFT = "│ ";
 const BOX_BORDER_RIGHT = " │";
 const BOX_BORDER_OVERHEAD = BOX_BORDER_LEFT.length + BOX_BORDER_RIGHT.length;
+
+/**
+ * 专为 CJK 设计的单行输入框可视窗口裁剪器
+ * 无论汉字怎么输入、退格，确保返回的物理宽度恒等于 windowWidth
+ */
+export function renderCJKSafeInputBox(
+  prefix: string,
+  text: string,
+  windowWidth: number,
+  theme: any,
+  showCursor: boolean = true
+): string {
+  const prefixWidth = visibleWidth(prefix);
+  const cursorWidth = showCursor ? 1 : 0;
+  const availableWidth = Math.max(10, windowWidth - prefixWidth - cursorWidth);
+
+  const totalTextWidth = visibleWidth(text);
+
+  let visibleSlice = text;
+  if (totalTextWidth > availableWidth) {
+    const startCol = totalTextWidth - availableWidth;
+    visibleSlice = sliceByColumn(text, startCol, availableWidth, true);
+  }
+
+  const currentSliceWidth = visibleWidth(visibleSlice);
+  const padCount = Math.max(0, availableWidth - currentSliceWidth);
+  const cursorChar = showCursor ? theme.fg("accent", "█") : "";
+
+  return `${prefix}${visibleSlice}${cursorChar}${" ".repeat(padCount)}`;
+}
 
 export function padToVisibleWidth(content: string, targetWidth: number): string {
   const truncated = truncateToWidth(content, targetWidth, "", true);
@@ -477,10 +508,21 @@ export function openArchitectNavigator(
             lines.push(titleColor("输入任务目标"));
             lines.push(theme.fg("dim", "用一句话描述您想达成的目标（系统将自动规划最优执行路径与推荐选项）："));
             lines.push("");
-            lines.push(`> ${inputTask}${theme.fg("accent", "█")}`);
+
+            // 使用 CJK 安全滑动视口渲染输入行，彻底防止中文超长溢出与断行
+            const inputBox = renderCJKSafeInputBox("> ", inputTask, innerWidth, theme, true);
+            lines.push(inputBox);
             lines.push("");
-            lines.push("─".repeat(innerWidth));
-            lines.push(theme.fg("dim", "[Enter] 确认推导   [Esc] 返回   [Backspace] 删除"));
+
+            const taskRoute = diagnoseTaskExecutionMode(inputTask);
+            const isFast = taskRoute.mode === "FAST_TRACK";
+            const routeBadge = isFast
+              ? theme.fg("success", "[⚡ Fast-Track 极速直达]") + theme.fg("dim", " (0 冗余阶段，即刻开工)")
+              : theme.fg("accent", "[⌬ Blueprint 完整蓝图]") + theme.fg("dim", " (激活 3 阶段流水线)");
+
+            lines.push(theme.fg("dim", "─".repeat(innerWidth)));
+            lines.push(`调度研判: ${routeBadge}`);
+            lines.push(theme.fg("dim", "[Enter] 确认开工   [Esc] 返回全景   [Backspace] 删除"));
           } else if (state === "deciding") {
             const currentSlot = safeSlots[currentSlotIndex];
             if (!currentSlot) return [];

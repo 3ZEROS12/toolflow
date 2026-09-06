@@ -6,6 +6,14 @@ export interface ToolCallSecurityEvent {
   input?: Record<string, any>;
 }
 
+/**
+ * 工作区防呆与影响面护栏 (Workspace Accident Guard)
+ * 
+ * 设计哲学与安全边界声明：
+ * 1. 定位为防呆护栏 (Accident Guard)，主要防止 Agent 误修改工作区外的系统目录、.git 内部数据或覆写生产配置；
+ * 2. 在无操作系统内核沙盒前提下，明确不承诺抵御恶意的 Shell 混淆攻击；
+ * 3. 核心依靠 CWD 物理路径边界硬拦截，而非虚假的用户态正则穷举与多余的外部命令依赖。
+ */
 const WRITE_TOOLS = new Set([
   "write",
   "edit",

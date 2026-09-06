@@ -471,7 +471,22 @@ export function loadOrRefreshTaxonomy(
     if (!fs.existsSync(parentDir)) {
       fs.mkdirSync(parentDir, { recursive: true });
     }
-    fs.writeFileSync(TAXONOMY_PATH, JSON.stringify(taxonomy, null, 2), "utf-8");
+    // 比较内容，若无实质变动则不刷新 updatedAt 覆写文件，杜绝 git 伪脏数据
+    let shouldWrite = true;
+    if (fs.existsSync(TAXONOMY_PATH)) {
+      try {
+        const raw = fs.readFileSync(TAXONOMY_PATH, "utf-8");
+        const parsed = JSON.parse(raw);
+        const { updatedAt: _o, ...oldRest } = parsed;
+        const { updatedAt: _n, ...newRest } = taxonomy;
+        if (JSON.stringify(oldRest) === JSON.stringify(newRest)) {
+          shouldWrite = false;
+        }
+      } catch (_) {}
+    }
+    if (shouldWrite) {
+      fs.writeFileSync(TAXONOMY_PATH, JSON.stringify(taxonomy, null, 2), "utf-8");
+    }
   } catch (_) {}
 
   return taxonomy;

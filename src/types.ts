@@ -283,6 +283,8 @@ export interface StageVerificationResult {
   isExploring?: boolean;
   reason?: string;
   stderrOutput?: string;
+  missingExpected?: string;
+  heuristicReason?: string;
 }
 
 export interface SessionPlanState {
