@@ -69,11 +69,11 @@ Prevents the LLM from outputting "toy-grade, functionally running but visually h
 - **Smooth Micro-Interactions**: Enforces transition states, hover/focus elevation, subtle shadows, and interactive feedback across all interactive components.
 - **Decoupled Architecture & Real Unit Tests**: Pure business/game logic remains strictly decoupled from rendering, backed by executable unit tests for reliable, production-ready deliverables.
 
-### 6. Interactive Prompt Workbench
-Run `/toolflow` without arguments to access an in-terminal template manager:
-- **Instant Discovery**: Automatically discovers global and project-level `prompts/*.md`, sorted by recent use.
-- **Zero-Friction Insertion**: Press `[p]` to prefill highlighted templates directly into your prompt bar.
-- **On-the-Fly Authoring**: Press `[c]` to author new markdown templates inline without leaving your terminal.
+### 6. Lightweight Companion: Instant Prompt Teleprompter (Zero-Planning Required)
+Don't need a heavy multi-stage workflow for a small task? ToolFlow doubles as your everyday **instant prompt teleprompter and template workbench**:
+- **Zero-Friction Teleprompter Mode**: Simply hit `/toolflow` without arguments to summon the teleprompter overlay. Browse your collection with arrow keys and hit `[p]` to immediately insert the highlighted prompt directly into your terminal input. **Instant pick-and-go—no complex planning phase triggered**.
+- **Global & Local Auto-Discovery**: Automatically indexes all local and global `prompts/*.md` templates, sorted by recent activity, freeing you from digging through notes or clipboard history.
+- **On-the-Fly Template Capture**: Hit `[c]` to author new markdown templates right inside the terminal, complete with optional LLM-assisted command tags and summaries.
 
 ---
 
