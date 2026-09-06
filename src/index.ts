@@ -804,16 +804,15 @@ export default function (pi: ExtensionAPI) {
         }
       }
 
-      // 如果本轮模型根本没有调用写工具（比如还在思考、或者正在使用只读工具/bash调研），
-      // 则绝对不能直接给用户报错或扣减自愈计数，避免由于模型回答了一句话就误触熔断
-      const isExploring = executedToolNames.length > 0 &&
-        !executedToolNames.some(name => ['write', 'edit'].includes(name));
+      const hasActiveWriting = executedToolNames.some(name => ['write', 'edit'].includes(name));
+      const isExploring = executedToolNames.length > 0 && !hasActiveWriting;
 
       const turnCwd = ctx.cwd || process.cwd();
-      const verificationResult = verifyStageArtifacts(currentStage, turnCwd, false, isExploring);
+      // 如果本轮没写文件，以只读查询方式校验产物是否存在，绝对不累加错误重试计数！
+      const verificationResult = verifyStageArtifacts(currentStage, turnCwd, !hasActiveWriting, isExploring);
 
-      // 如果当前产物未生成，但模型本轮仅仅是回答了用户问题或在用非写入工具探索，静默放行，不骚扰用户
-      if (!verificationResult.valid && executedToolNames.length > 0 && !executedToolNames.some(n => ['write', 'edit'].includes(n))) {
+      // 如果当前产物未生成，但模型本轮仅仅是回答了用户问题或在用非写入工具探索，静默放行，不骚扰用户也不报错
+      if (!verificationResult.valid && (!hasActiveWriting || isExploring)) {
         return;
       }
 
