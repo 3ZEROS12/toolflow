@@ -7,7 +7,7 @@ import { diagnoseTaskRequirements, diagnoseTaskExecutionMode, synthesizeBlueprin
 import { EcosystemRadar } from "./deep_ecosystem.js";
 import { renderCompactEcosystemOverview, renderBlueprintSummary, openArchitectNavigator, renderValueReceipt, renderExecutionPipelineCard } from "./ui.js";
 import { t } from "./i18n.js";
-import { ContextDehydrator, ReadCacheManager } from "./dehydrator.js";
+import { ContextDehydrator, ReadCacheManager, StatsManager } from "./dehydrator.js";
 import { BlastRadiusGuard } from "./blast_radius.js";
 import { GracefulDegradationMatrix } from "./degradation_matrix.js";
 import { CodebaseMemoryManager } from "./memory.js";
@@ -41,19 +41,37 @@ const readCache = new ReadCacheManager();
 let globalTurnCounter = 0;
 const reviewGuard = new ReviewIsolationGuard();
 
+function updateToolFlowStatusBar(ctx: any): void {
+  if (!ctx?.ui?.setStatus) return;
+  const state = getSessionState();
+  if (!state.currentBlueprint || state.status === "idle" || state.status === "completed") {
+    ctx.ui.setStatus("toolflow", undefined);
+    return;
+  }
+
+  const currentStage = state.currentBlueprint.stages[state.currentStageIndex];
+  const stageNum = state.currentStageIndex + 1;
+  const totalStages = state.currentBlueprint.stages.length;
+  const stageTitle = currentStage?.title || "running";
+
+  ctx.ui.setStatus("toolflow", `⌬ toolflow [${stageNum}/${totalStages} · ${stageTitle}]`);
+}
+
 export default function (pi: ExtensionAPI) {
   // 启动时静默尝试恢复跨会话蓝图状态
   loadPersistedSessionState();
 
   // 监听全新会话启动 (session_start): 彻底阻断跨会话旧蓝图自愈干扰
   if (typeof pi.on === "function") {
-    pi.on("session_start", async (event: any) => {
+    pi.on("session_start", async (event: any, ctx: any) => {
+      updateToolFlowStatusBar(ctx);
       // 当开启全新会话时，不仅重置内存状态，还物理清理残余持久化文件，彻底消灭幽灵自愈唤醒
       if (event?.reason === "new" || event?.reason === "clear") {
         resetState(process.cwd());
         reviewGuard.deactivate();
         blastGuard.clearAllowedScope();
         applyToolScoping(BASELINE_TOOLS, pi);
+        ctx?.ui?.setStatus?.("toolflow", undefined);
       }
     });
   }
@@ -241,6 +259,7 @@ export default function (pi: ExtensionAPI) {
     const blueprint = synthesizeBlueprint(rawTask, diagnosis, userDecisions, taxonomy, undefined, undefined, llmArtifactPlan);
     recordInitialActiveTools(pi);
     startBlueprintExecution(blueprint, cwd);
+    updateToolFlowStatusBar(ctx);
 
     // 动态增强阶段高权重工具与基线工具 (经过 GracefulDegradationMatrix 统一裁剪)
     const firstStage = blueprint.stages[0];
@@ -314,6 +333,7 @@ export default function (pi: ExtensionAPI) {
       resetState(cwd);
       reviewGuard.deactivate();
       blastGuard.clearAllowedScope();
+      ctx?.ui?.setStatus?.("toolflow", undefined);
       if (ctx?.ui?.notify) {
         ctx.ui.notify(t.resetSuccess, "info");
       }
@@ -340,6 +360,72 @@ export default function (pi: ExtensionAPI) {
         if (ctx?.ui?.notify) {
           ctx.ui.notify(t.exportFailed(err.message), "error");
         }
+      }
+      return;
+    }
+
+    // 3.5 处理脱水收益战报子命令: /toolflow stats
+    if (rawArg === "stats" || rawArg === "tokens" || rawArg === "metrics") {
+      const statsMgr = new StatsManager(cwd);
+      const metrics = statsMgr.getStats();
+
+      const formattedTokens = metrics.totalTokensSaved.toLocaleString();
+      const approxKb = Math.round((metrics.totalTokensSaved * 4) / 1024);
+
+      const asciiReport = [
+        "┌────────────────────────────────────────────────────────────┐",
+        "│                 ⌬ TOOLFLOW TOKEN SAVINGS LEDGER            │",
+        "├────────────────────────────────────────────────────────────┤",
+        `│ 长日志脱水落盘   : ${String(metrics.dehydratedLogsCount).padStart(5)} 次 (拦截巨型控制台日志与测试堆栈)   │`,
+        `│ 重复代码读拦截   : ${String(metrics.readCacheHitsCount).padStart(5)} 次 (杜绝重复读取未修改代码文件)     │`,
+        `│ 敏感文件防爆拦截 : ${String(metrics.blastRadiusBlocksCount).padStart(5)} 次 (拦截破坏性越界文件操作)       │`,
+        "├────────────────────────────────────────────────────────────┤",
+        `│ 累计挽救上下文   : ~ ${formattedTokens.padStart(7)} Tokens (约折合 ${approxKb} KB 上下文空间)│`,
+        "└────────────────────────────────────────────────────────────┘"
+      ].join("\n");
+
+      if (typeof pi.sendMessage === "function") {
+        pi.sendMessage({
+          customType: CUSTOM_MSG_TYPE,
+          content: "```text\n" + asciiReport + "\n```",
+          display: true
+        });
+      } else if (ctx?.ui?.notify) {
+        ctx.ui.notify(`ToolFlow 累计节约 ~${formattedTokens} Tokens`, "info");
+      }
+      return;
+    }
+
+    // 3.6 处理最近一次脱水日志提取子命令: /toolflow logs
+    if (rawArg === "logs" || rawArg === "log" || rawArg === "lastlog") {
+      const latestPath = ContextDehydrator.getLatestLogPath();
+      if (!latestPath || !fs.existsSync(latestPath)) {
+        if (ctx?.ui?.notify) {
+          ctx.ui.notify("暂无脱水日志记录 (当前会话尚未拦截到超长输出)", "info");
+        }
+        return;
+      }
+
+      const relPath = path.relative(cwd, latestPath).replace(/\\/g, "/");
+      let content = "";
+      try {
+        content = fs.readFileSync(latestPath, "utf-8");
+      } catch (err: any) {
+        content = `读取失败: ${err.message}`;
+      }
+
+      const lines = content.split("\n");
+      const displayLines = lines.length > 150 ? lines.slice(-150).join("\n") : content;
+      const headNotice = lines.length > 150 ? `[仅展示最新 150 行，完整原始日志见: ${relPath}]\n\n` : `[完整原始日志: ${relPath}]\n\n`;
+
+      if (typeof pi.sendMessage === "function") {
+        pi.sendMessage({
+          customType: CUSTOM_MSG_TYPE,
+          content: `### ⌬ 最近一次脱水原始日志 (${relPath})\n\`\`\`text\n${headNotice}${displayLines}\n\`\`\``,
+          display: true
+        });
+      } else if (ctx?.ui?.notify) {
+        ctx.ui.notify(`已调出最近脱水日志: ${relPath}`, "info");
       }
       return;
     }

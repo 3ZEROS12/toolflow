@@ -84,6 +84,8 @@ Don't need a heavy multi-stage workflow for a small task? ToolFlow doubles as yo
 | `/toolflow` | Open the prompt workbench & task initialization cockpit |
 | `/toolflow <task>` | Launch a sandboxed task with phase-gated toolchains |
 | `/toolflow status` | Display active stage pipeline & mounted tool state (alias: `/sop`) |
+| `/toolflow stats` | Display cumulative token savings ledger (dehydrated logs & read cache hits) |
+| `/toolflow logs` | Inspect the full raw content of the most recently dehydrated log |
 | `/toolflow rollback` | Revert changes to the snapshot captured at the start of current stage |
 | `/toolflow-rollback` | Direct shortcut for `/toolflow rollback` |
 | `/toolflow reset` | Clear active execution state and flush dehydrated temp caches |

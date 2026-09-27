@@ -1682,6 +1682,35 @@ Always verify diff before finalizing.
     console.log("  [OK] 25.1 - 25.6 文件读缓存与轻重任务自适应路由 100% 验证通过！");
   }
 
+  console.log("\n[TEST-26] 验证 Token 节省收据账本 (StatsManager) 与最新日志索引指针 (latestLogPath)...");
+  {
+    const { StatsManager, ContextDehydrator } = await import("../src/dehydrator.js");
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "toolflow-stats-test-"));
+    try {
+      const statsMgr = new StatsManager(tmpDir);
+      const dehydrator = new ContextDehydrator(tmpDir, "test-bp");
+
+      // 1. 触发一次超长日志脱水
+      const longOutput = Array.from({ length: 100 }, (_, i) => `Log line ${i + 1}: Compiling module...`).join("\n");
+      const dehydrateRes = dehydrator.dehydrateToolOutput("bash", longOutput);
+
+      assert.strictEqual(dehydrateRes.dehydrated, true, "26.1 超长日志成功脱水");
+      assert(ContextDehydrator.getLatestLogPath() !== null, "26.2 最新脱水日志指针已自动记录");
+      assert(fs.existsSync(ContextDehydrator.getLatestLogPath()!), "26.3 最新脱水日志物理文件存在于磁盘");
+
+      // 2. 验证 StatsManager 自动累加了节省数据
+      const stats = statsMgr.getStats();
+      assert(stats.dehydratedLogsCount >= 1, "26.4 脱水次数已准确计入账本");
+      assert(stats.totalTokensSaved > 50, "26.5 累计节省 Token 数大于 50");
+
+      console.log("  [OK] 26.1 - 26.5 Token 节省账本与最新脱水日志指针 100% 验证通过！");
+    } finally {
+      try {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      } catch (_) {}
+    }
+  }
+
 runFullRegressionVerification().catch(err => {
   console.error("[FAILED] 回归测试失败:", err);
   process.exit(1);

@@ -31,6 +31,57 @@ export interface CacheCheckResult {
   bypassReason?: "targeted_window" | "recent_edit_failure" | "small_file" | "command_dirty" | "not_cached";
 }
 
+export interface ToolFlowStats {
+  totalTokensSaved: number;
+  dehydratedLogsCount: number;
+  readCacheHitsCount: number;
+  blastRadiusBlocksCount: number;
+  lastUpdated: number;
+}
+
+export class StatsManager {
+  private statsFile: string;
+
+  constructor(cwd: string = process.cwd()) {
+    const baseDir = path.join(cwd, ".pi", "toolflow");
+    try {
+      fs.mkdirSync(baseDir, { recursive: true });
+    } catch (_) {}
+    this.statsFile = path.join(baseDir, "stats.json");
+  }
+
+  public getStats(): ToolFlowStats {
+    try {
+      if (fs.existsSync(this.statsFile)) {
+        const raw = fs.readFileSync(this.statsFile, "utf-8");
+        return JSON.parse(raw);
+      }
+    } catch (_) {}
+    return {
+      totalTokensSaved: 0,
+      dehydratedLogsCount: 0,
+      readCacheHitsCount: 0,
+      blastRadiusBlocksCount: 0,
+      lastUpdated: Date.now()
+    };
+  }
+
+  public recordSavings(tokens: number, type: "log" | "read_cache" | "blast"): void {
+    const stats = this.getStats();
+    stats.totalTokensSaved += Math.max(0, tokens);
+    if (type === "log") stats.dehydratedLogsCount++;
+    else if (type === "read_cache") stats.readCacheHitsCount++;
+    else if (type === "blast") stats.blastRadiusBlocksCount++;
+    stats.lastUpdated = Date.now();
+
+    try {
+      const tempPath = `${this.statsFile}.tmp.${process.pid}.${Date.now()}`;
+      fs.writeFileSync(tempPath, JSON.stringify(stats, null, 2), "utf-8");
+      fs.renameSync(tempPath, this.statsFile);
+    } catch (_) {}
+  }
+}
+
 const MAX_LOG_SIZE_BYTES = 10 * 1024 * 1024; // 10MB 单阶段日志截断上限
 const MAX_TOTAL_DISK_BYTES = 200 * 1024 * 1024; // 200MB 运行归档总配额
 
@@ -59,15 +110,26 @@ const ERROR_LINE_PATTERN = /(error[:\s]|fatal[:\s]|failed[:\s]|exception[:\s]|pa
 const ANSI_ESCAPE_REGEX = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\([a-zA-Z]/g;
 
 export class ContextDehydrator {
+  private static latestLogPath: string | null = null;
   private runsDir: string;
   private baseDir: string;
+  private stats: StatsManager;
 
   constructor(cwd: string = process.cwd(), blueprintId: string = "default") {
     this.baseDir = path.join(cwd, ".pi", "toolflow", "runs");
     this.runsDir = path.join(this.baseDir, blueprintId);
+    this.stats = new StatsManager(cwd);
     try {
       fs.mkdirSync(this.runsDir, { recursive: true });
     } catch (_) {}
+  }
+
+  public static getLatestLogPath(): string | null {
+    return ContextDehydrator.latestLogPath;
+  }
+
+  public static setLatestLogPath(filePath: string): void {
+    ContextDehydrator.latestLogPath = filePath;
   }
 
   private getDirectorySizeBytes(dirPath: string): number {
@@ -357,6 +419,9 @@ export class ContextDehydrator {
 
     try {
       fs.writeFileSync(fullPath, rawText, "utf-8");
+      ContextDehydrator.latestLogPath = fullPath;
+      const approxTokens = Math.max(10, Math.round(sanitized.length / 4));
+      this.stats.recordSavings(approxTokens, "log");
     } catch (_) {}
 
     const head = lines.slice(0, headCount).join("\n");
@@ -395,6 +460,11 @@ export class ReadCacheManager {
   private cache: Map<string, { mtimeMs: number; hash: string; lastTurnIndex: number; linesCount: number }> = new Map();
   private lastCommandTimestamp: number = 0;
   private editFailures: Map<string, { failedTurn: number; timestamp: number }> = new Map();
+  private stats: StatsManager;
+
+  constructor(cwd: string = process.cwd()) {
+    this.stats = new StatsManager(cwd);
+  }
 
   /**
    * 记录外部命令（如 bash）执行，作废任何潜在的命令副效应
@@ -500,6 +570,8 @@ export class ReadCacheManager {
           `=== [⚡ ToolFlow Read Cache: "${relativePath}" (${lines.length} 行, 与第 ${lastTurn} 轮内容一致, 节约 ~${approxSavedTokens} Tokens) ] ===`,
           `=== [⚡ 提示: 内容完全一致且未变更。若需查看或精准修改实现，请调用 read 传入 offset=<行号> limit=<行数> 按需读取] ===`
         ].join("\n");
+
+        this.stats.recordSavings(approxSavedTokens, "read_cache");
 
         return {
           isDuplicate: true,

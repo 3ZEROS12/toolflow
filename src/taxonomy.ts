@@ -485,7 +485,9 @@ export function loadOrRefreshTaxonomy(
       } catch (_) {}
     }
     if (shouldWrite) {
-      fs.writeFileSync(TAXONOMY_PATH, JSON.stringify(taxonomy, null, 2), "utf-8");
+      try {
+        fs.writeFileSync(TAXONOMY_PATH, JSON.stringify(taxonomy, null, 2), "utf-8");
+      } catch (_) {}
     }
   } catch (_) {}
 

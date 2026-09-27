@@ -87,6 +87,8 @@ ToolFlow 在运行时构筑了四道物理级 Token 节流防线：
 | `/toolflow` | 打开 Prompt 模板工作台与任务初始化面板 |
 | `/toolflow <任务内容>` | 启动带工具沙箱与阶段治理的受控任务 |
 | `/toolflow status` | 查看当前阶段流水线与挂载工具状态 (别名: `/sop`) |
+| `/toolflow stats` | 查看累计节省 Token 收益账单（长日志脱水与重复读拦截统计） |
+| `/toolflow logs` | 一键调出最近一次被脱水截断的完整原始日志 |
 | `/toolflow rollback` | 撤销当前阶段的修改，回退到阶段开始前的快照 |
 | `/toolflow-rollback` | `/toolflow rollback` 的独立快捷指令 |
 | `/toolflow reset` | 清除当前任务状态并清理脱水临时缓存 |

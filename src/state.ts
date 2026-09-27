@@ -282,7 +282,7 @@ export function createStageSnapshot(stageIndex: number, cwd: string = process.cw
     for (const f of gitInfo.changedFiles) candidateFiles.add(f);
     for (const f of gitInfo.untrackedFiles) candidateFiles.add(f);
 
-    // 3. 动态发现或工作区已有重要文件
+    // 3. 动态发现工作区候选源码文件
     const scanned = scanCandidateFiles(cwd, cwd, 30);
     for (const f of scanned) candidateFiles.add(f);
 
