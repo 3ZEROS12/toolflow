@@ -426,72 +426,72 @@ export function generateUniversalMetaSlots(
     }
   }
 
-  // 1. 核心方案路径与工具流协同 (标准技术方案槽位)
+  // 1. Core implementation strategy
   slots.push({
     slotId: "domain_feature_preference",
-    title: "1. 核心功能与技术实现策略 (技术方案)",
+    title: "1. Core Scope & Implementation Strategy",
     category: "scope",
-    question: `针对「${task}」，请选择期望的技术实现路径：`,
+    question: "Select the implementation scope for this task:",
     options: [
       {
         id: "opt_feature_comprehensive",
-        label: "[标准工程方案] 完整业务实现 (推荐)",
-        description: "按照现代软件工程化标准组织代码与接口契约，结构清晰且易于维护",
+        label: "[Standard Engineering] Complete production implementation",
+        description: "Clean modular interfaces, error handling, and maintainable structure",
         isRecommended: true,
         recommendedEcosystem: {
           extensions: [],
-          reason: "标准工程化架构落地"
+          reason: "Standard production architecture"
         }
       },
       {
         id: "opt_feature_minimal",
-        label: "[极简方案] 核心主干功能",
-        description: "聚焦最核心的单点业务链路快速验证可行性，保持轻量纯粹",
+        label: "[Minimal Prototype] Core path only",
+        description: "Focus strictly on the primary happy path with minimal code",
         isRecommended: false,
         recommendedEcosystem: {
           extensions: [],
-          reason: "轻量原型快速落地"
+          reason: "Lightweight rapid prototype"
         }
       }
     ]
   });
 
-  // 2. 视觉基调 / 交互形态 (自适应 Web / CLI / Backend / 通用)
+  // 2. Visual / Runtime / Interaction style
   if (isWeb) {
     slots.push({
       slotId: "visual_style_preference",
-      title: "2. 视觉设计系统与呈现质感 (UI/视觉)",
+      title: "2. Visual Design & UI Aesthetic",
       category: "design",
-      question: "请选择偏好的视觉设计系统与呈现质感：",
+      question: "Select your preferred visual design system:",
       options: [
         {
           id: "opt_style_modern",
-          label: "[高质感现代设计] 专业调色盘/精细矢量图标/平滑微动效 (推荐)",
-          description: "专业级现代 UI：精选调色盘、精细矢量 SVG 图标资产、8px 网格与优雅微动效",
+          label: "[Modern Refined] Curated palette, crisp typography & subtle motion",
+          description: "Balanced spacing, vector SVG icons, 8px grid, and smooth transitions",
           isRecommended: true,
           recommendedEcosystem: {
             extensions: ["pi-web-access", "@plannotator/pi-extension"],
-            reason: "检索精美UI规范并在浏览器中实时走查体验"
+            reason: "Live browser inspection & visual verification"
           }
         },
         {
           id: "opt_style_dark",
-          label: "[深邃极客/暗黑] 霓虹点缀/高对比度/精致光影质感",
-          description: "科技暗黑基调、精致阴影/发光渐变与高对比度重点强调，视觉冲击强烈",
+          label: "[Warm Dark] High-clarity dark mode with accent highlights",
+          description: "Eye-friendly warm dark surfaces with crisp contrast and focus states",
           isRecommended: false,
           recommendedEcosystem: {
             extensions: ["@plannotator/pi-extension"],
-            reason: "走查暗黑主题对比度与细节"
+            reason: "Dark theme contrast inspection"
           }
         },
         {
           id: "opt_style_minimal",
-          label: "[典雅极简/大厂排版] 留白呼吸感/精美字体层次/克制衬色",
-          description: "拒绝粗陋简陋，基于瑞士平面设计法则，以高级克制排版与严谨间距呈现",
+          label: "[Editorial Minimal] Swiss grid layout & generous whitespace",
+          description: "Restrained typography-driven layout with zero visual clutter",
           isRecommended: false,
           recommendedEcosystem: {
             extensions: ["@plannotator/pi-extension"],
-            reason: "快速走查基础排版"
+            reason: "Clean layout walkthrough"
           }
         }
       ]
@@ -499,38 +499,38 @@ export function generateUniversalMetaSlots(
   } else if (isCli) {
     slots.push({
       slotId: "execution_runtime_preference",
-      title: "2. 交互体验与输出形态 (终端交互)",
+      title: "2. Terminal Interaction & Output Style",
       category: "design",
-      question: "请选择命令行工具的交互与输出体验：",
+      question: "Select the CLI interaction and output format:",
       options: [
         {
           id: "opt_cli_rich",
-          label: "[高质感终端] 交互式提示、彩色高亮与进度条 (推荐)",
-          description: "带友好的交互式引导、彩色语法高亮和动态进度条，直观易用",
+          label: "[Interactive TUI] Styled prompts, status indicators & clear summary",
+          description: "Guided terminal prompts with color highlights and progress feedback",
           isRecommended: true,
           recommendedEcosystem: {
             extensions: ["pi-tui-status-beautifier"],
-            reason: "美化终端输出与状态展示"
+            reason: "Polished terminal status output"
           }
         },
         {
           id: "opt_cli_standard",
-          label: "[标准无废话] 简洁参数输入与纯净输出",
-          description: "支持标准标准输入输出与管道重定向，适合脚本管道集成",
+          label: "[Unix Pipe-Friendly] Flags + clean stdout/stderr",
+          description: "Standard POSIX arguments and stream-friendly output for scripting",
           isRecommended: false,
           recommendedEcosystem: {
             extensions: [],
-            reason: "极简纯粹 CLI 交付"
+            reason: "Pure minimal CLI delivery"
           }
         },
         {
           id: "opt_cli_json",
-          label: "[结构化集成] 支持 JSON/YAML 多格式输出",
-          description: "提供机器友好的结构化输出开关，方便与其他工具链互通",
+          label: "[Structured Output] Supports JSON/YAML machine-readable output",
+          description: "Includes structured output flags for downstream automation pipelines",
           isRecommended: false,
           recommendedEcosystem: {
             extensions: [],
-            reason: "自动化工具链标准集成"
+            reason: "Automation pipeline integration"
           }
         }
       ]
@@ -538,38 +538,38 @@ export function generateUniversalMetaSlots(
   } else if (isServiceOrBackend) {
     slots.push({
       slotId: "execution_runtime_preference",
-      title: "2. 架构模式与通信协议 (后端服务)",
+      title: "2. Service Architecture & API Protocol",
       category: "design",
-      question: "请选择服务架构与接口协议规范：",
+      question: "Select the backend service architecture:",
       options: [
         {
           id: "opt_backend_rest",
-          label: "[标准 RESTful/JSON API] 开箱即用且规范完整 (推荐)",
-          description: "提供规范的 RESTful 端点定义、统一错误处理与请求校验",
+          label: "[Standard RESTful JSON API] Explicit routes, validation & error envelopes",
+          description: "Well-structured endpoints with unified error handling and input validation",
           isRecommended: true,
           recommendedEcosystem: {
             extensions: ["pi-web-access"],
-            reason: "遵循行业最新 API 设计标准规范"
+            reason: "Standard API specification alignment"
           }
         },
         {
           id: "opt_backend_fast",
-          label: "[极简轻量服务] 最小依赖、秒级冷启动",
-          description: "精简中间件，依赖最少化，专注于高并发与极速响应",
+          label: "[Zero-Bloat Microservice] Minimal middleware & fast cold start",
+          description: "Lowest dependency footprint focused on throughput and low latency",
           isRecommended: false,
           recommendedEcosystem: {
             extensions: [],
-            reason: "轻量极速后端交付"
+            reason: "Lightweight backend delivery"
           }
         },
         {
           id: "opt_backend_modular",
-          label: "[领域驱动分层] 控制器/服务/数据模型解耦",
-          description: "标准三层或 DDD 分层架构，便于团队协作与长期扩展",
+          label: "[Layered Domain Architecture] Decoupled controller / service / store",
+          description: "Clean separation of concerns for long-term extensibility and testing",
           isRecommended: false,
           recommendedEcosystem: {
-            extensions: ["pi-subagents", "@quintinshaw/pi-dynamic-workflows"],
-            reason: "多智能体协作划分服务各分层模块"
+            extensions: ["pi-subagents"],
+            reason: "Multi-module layered organization"
           }
         }
       ]
@@ -577,175 +577,172 @@ export function generateUniversalMetaSlots(
   } else {
     slots.push({
       slotId: "execution_runtime_preference",
-      title: "2. 交互形态与运行模式 (交互模式)",
+      title: "2. Execution & Interaction Mode",
       category: "design",
-      question: "请选择您偏好的交互形态与部署运行方式：",
+      question: "Select how this solution should run:",
       options: [
         {
           id: "opt_runtime_direct",
-          label: "[直接运行] 本地开箱即用 (推荐)",
-          description: "无需繁琐配置，直接在当前环境一键运行并验证",
+          label: "[Out-of-the-Box Local] Zero-config direct execution",
+          description: "Runs directly in the current workspace with immediate verification",
           isRecommended: true,
           recommendedEcosystem: {
             extensions: ["pi-web-access"],
-            reason: "获取最新环境配置与开箱范式"
+            reason: "Direct workspace verification"
           }
         },
         {
           id: "opt_runtime_cli",
-          label: "[极简命令行] 终端单次按需调用",
-          description: "即敲即用，执行完立即退出，适合自动化脚本或轻量测试",
+          label: "[On-Demand Script] Single-shot CLI invocation",
+          description: "Runs once and exits cleanly, ideal for scripts and automation",
           isRecommended: false,
           recommendedEcosystem: {
             extensions: [],
-            reason: "轻量 CLI 模式"
+            reason: "Lightweight script mode"
           }
         },
         {
           id: "opt_runtime_web",
-          label: "[可视化界面] 包含走查界面或控制面板",
-          description: "提供直观的网页走查或控制台，方便实时监控与交互",
+          label: "[Visual Preview] Includes interactive preview or dashboard",
+          description: "Provides a visual page or console for live inspection",
           isRecommended: false,
           recommendedEcosystem: {
             extensions: ["@plannotator/pi-extension"],
-            reason: "提供直观走查与状态验证"
+            reason: "Visual walkthrough & inspection"
           }
         }
       ]
     });
   }
 
-  // 3. 构建方式与代码结构 (工程架构)
+  // 3. Build & Code Structure
   slots.push({
     slotId: "delivery_strategy",
-    title: "3. 构建方式与代码结构 (构建结构)",
+    title: "3. Code Structure & Packaging",
     category: "scope",
-    question: "请选择代码构建方式：",
+    question: "Select how the codebase should be structured:",
     options: [
       {
         id: "opt_delivery_agile",
         label: isWeb
-          ? "[组件化构建] 开箱即用 (推荐)"
-          : "[极简轻量] 单文件或轻量模块 (推荐)",
+          ? "[Componentized] Clean HTML/CSS/JS modules"
+          : "[Compact & Focused] Single-file or lean module layout",
         description: isWeb
-          ? "HTML/CSS/JS 解耦，开箱即可在浏览器直接运行"
-          : "聚焦核心逻辑，开箱即用",
+          ? "Cleanly separated assets that run immediately in the browser"
+          : "Focused core implementation with zero unnecessary scaffolding",
         isRecommended: true,
         recommendedEcosystem: {
           extensions: ["pi-web-access"],
-          reason: "获取现代标准规范"
+          reason: "Modern clean structure"
         }
       },
       {
         id: "opt_delivery_modular",
-        label: "[标准分层] 模块解耦与分层架构",
-        description: "业务逻辑与接口分层，便于维护",
+        label: "[Modular Layered] Decoupled business logic & interfaces",
+        description: "Separated modules and types for straightforward maintenance",
         isRecommended: false,
         recommendedEcosystem: {
-          extensions: ["pi-subagents", "@quintinshaw/pi-dynamic-workflows"],
-          reason: "多模块解耦落地"
+          extensions: ["pi-subagents"],
+          reason: "Modular decoupled delivery"
         }
       },
       {
         id: "opt_delivery_enterprise",
-        label: "[完整工程] 包含文档与自动化验证",
-        description: "配备完整设计文档、单测与质量门禁",
+        label: "[Full Engineering Suite] Design contract + automated tests",
+        description: "Includes architecture contract, unit test suite, and quality verification",
         isRecommended: false,
         recommendedEcosystem: {
           extensions: ["pi-subagents", "pi-rewind", "@plannotator/pi-extension"],
-          reason: "全自动化质量保障"
+          reason: "End-to-end quality gate"
         }
       }
     ]
   });
 
-  // 4. 特色亮点与扩展考量 (特色亮点)
+  // 4. Quality & Resilience Highlights
   slots.push({
     slotId: "ai_spark_highlights",
-    title: "4. 特色亮点与扩展考量 (附加能力)",
+    title: "4. Resilience & Quality Enhancements",
     category: "general",
-    question: "请选择附加功能偏好：",
+    question: "Select additional quality safeguards:",
     options: [
       {
         id: "opt_spark_smart_assistant",
-        label: "[容错与反馈] 清晰运行提示 (推荐)",
-        description: "增加输入校验与友好错误提示，避免异常崩溃",
+        label: "[Defensive Validation] Input validation & clear diagnostics",
+        description: "Guards boundary conditions with actionable error messages",
         isRecommended: true,
         recommendedEcosystem: {
           extensions: [],
-          reason: "高可用体验保障"
+          reason: "High reliability"
         }
       },
       {
         id: "opt_spark_responsive_export",
-        label: "[接口扩展] 预留配置化接口",
-        description: "预留入参配置，方便未来二次开发",
+        label: "[Configurable Hooks] Extensible options & parameters",
+        description: "Exposes clean configuration parameters for future extension",
         isRecommended: false,
         recommendedEcosystem: {
           extensions: [],
-          reason: "扩展能力支持"
+          reason: "Extensibility support"
         }
       },
       {
         id: "opt_spark_none",
-        label: "[纯净精简] 仅保留核心主功能",
-        description: "不添加额外代码，保持最小交付体积",
+        label: "[Pure Minimal] Core functionality only",
+        description: "Zero extra helpers; smallest possible code footprint",
         isRecommended: false,
         recommendedEcosystem: {
           extensions: [],
-          reason: "极简纯粹交付"
+          reason: "Minimal footprint"
         }
       }
     ]
   });
 
-  // 动态构建通用目标与架构师灵感推荐 (Architect Sparks: 基础通用能力 + 场景特化能力融合)
   const dynamicGoals = [
-    `实现「${task}」核心功能与关键业务链路`,
-    `确保代码结构整洁并提供实机走查与验收验证`
+    `Implement core functionality for "${task}"`,
+    `Verify physical artifacts and pass automated checks`
   ];
 
-  // 1. 软件工程通用能力增益 (Universal Capabilities)
   const architectSparks = [
     {
       id: "spark_graceful_error_handling",
-      title: "健壮容错与友好提示",
-      description: "增强边界条件与输入校验保护，避免异常直接中断流程",
-      impact: "健壮性与稳定性",
+      title: "Boundary Input Validation & Error Recovery",
+      description: "Guard edge cases and invalid inputs without crashing",
+      impact: "Reliability & resilience",
       isAcceptedByDefault: true
     },
     {
       id: "spark_inspect_and_verify",
-      title: "零依赖自省与快速自测",
-      description: "内置轻量快速自测与健康检查逻辑，便于验证产物完备性",
-      impact: "可测试性与交付质量",
+      title: "Zero-Dependency Self-Check",
+      description: "Include a fast runnable verification check for core logic",
+      impact: "Testability & confidence",
       isAcceptedByDefault: false
     }
   ];
 
-  // 2. 领域场景特化能力增益 (Domain-Specific Capabilities)
   if (isWeb) {
     architectSparks.push({
       id: "spark_responsive_modern_ui",
-      title: "响应式适配与交互美化",
-      description: "自适应移动端与桌面端视口，增加微动效与优雅无障碍支持",
-      impact: "UI/UX 体验提升",
+      title: "Responsive Layout & Accessibility",
+      description: "Adapt cleanly across desktop and mobile viewports with keyboard support",
+      impact: "UI/UX polish",
       isAcceptedByDefault: true
     });
   } else if (isCli) {
     architectSparks.push({
       id: "spark_cli_pipe_friendly",
-      title: "管道流支持与丰富退出码",
-      description: "支持标准输入输出流管道传输 (stdin/stdout) 并提供标准 Exit Code",
-      impact: "脚本与自动化集成友好",
+      title: "Standard Streams & Exit Codes",
+      description: "Support stdin/stdout piping and standard non-zero exit codes on failure",
+      impact: "Script & CI integration",
       isAcceptedByDefault: true
     });
   } else if (isServiceOrBackend) {
     architectSparks.push({
       id: "spark_security_structured_log",
-      title: "结构化日志与安全鉴权防御",
-      description: "集成 JSON 格式结构化请求追踪与基础防刷限流守卫",
-      impact: "可观测性与安全防御",
+      title: "Structured Logging & Request Guards",
+      description: "Emit structured JSON logs and guard against malformed payloads",
+      impact: "Observability & security",
       isAcceptedByDefault: true
     });
   }
@@ -856,9 +853,9 @@ Return ONLY valid raw JSON matching this structure (no markdown fences, or wrapp
   if (ecosystemBundles && ecosystemBundles.length > 0) {
     ecosystemExtensionSlot = {
       slotId: "slot_ecosystem_expansion",
-      title: "0. 生态扩展提议 (公认最优解套件推荐)",
+      title: "0. Ecosystem Bundle Recommendation",
       category: "ecosystem",
-      question: "针对当前任务，社区/官方已存在公认极佳的专用扩展与 MCP 方案。是否一键装配？",
+      question: "Curated ecosystem packages match this task. Enable bundle?",
       options: ecosystemBundles.map(b => ({
         id: b.id,
         label: b.title,
@@ -866,7 +863,7 @@ Return ONLY valid raw JSON matching this structure (no markdown fences, or wrapp
         isRecommended: b.isRecommended,
         recommendedEcosystem: {
           extensions: b.packages.map(p => p.name),
-          reason: b.isRecommended ? "引入社区公认神装，避免重复造轮子" : "纯净开发"
+          reason: b.isRecommended ? "Use proven community bundle" : "Pure standalone implementation"
         }
       }))
     };

@@ -654,7 +654,7 @@ async function runFullRegressionVerification() {
     assert(domainSlot, "12.23 成功提取方案路径决策槽位");
     const recommendedOpt = domainSlot?.options.find(o => o.isRecommended);
     assert(recommendedOpt, "12.24 成功生成推荐的技术路线方案");
-    assert(recommendedOpt?.label.includes("方案"), "12.25 正确生成专业架构方案说明");
+    assert(recommendedOpt?.label.includes("Standard") || recommendedOpt?.label.includes("方案"), "12.25 正确生成专业架构方案说明");
 
     // 12.7 进阶 P0~P3: 工具剪枝、权限审批、记忆库与多 Worker 编排
     const designTools = matrix.resolvePrunedToolsForStage("design");

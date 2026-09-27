@@ -141,16 +141,16 @@ export default function (pi: ExtensionAPI) {
       applyToolScoping(BASELINE_TOOLS, pi);
 
       if (ctx?.ui?.notify) {
-        ctx.ui.notify("⚡ 已启用 Fast-Track 极速直达通道 (0 阶段拖拽，即刻开工)", "info");
+        ctx.ui.notify("⚡ Fast-Track enabled (direct execution, 0 stage overhead)", "info");
       }
 
       if (typeof (pi as any).sendUserMessage === "function") {
         (pi as any).sendUserMessage(
-          `⚡ [ToolFlow Fast-Track 极速直达通道]\n` +
-          `目标任务: ${rawTask}\n` +
-          `研判依据: ${route.reason}\n` +
-          `装配工具: @read @edit @write @bash @grep @find\n` +
-          `请直接定位并完成修改，验证无误后即可交付，无需多阶段汇报或握手。`,
+          `⚡ [ToolFlow Fast-Track]\n` +
+          `Task: ${rawTask}\n` +
+          `Route Rationale: ${route.reason}\n` +
+          `Active Tools: @read @edit @write @bash @grep @find\n` +
+          `Locate and apply the changes directly, verify, and deliver without multi-stage handoffs.`,
           { deliverAs: "followUp" }
         );
       }
@@ -234,18 +234,18 @@ export default function (pi: ExtensionAPI) {
       const targetBundle = bundles.find(b => b.id === ecosystemDecision);
       if (targetBundle && targetBundle.packages.length > 0) {
         if (ctx?.ui?.notify) {
-          ctx.ui.notify(`正在为当前工程安全装配生态套件 [${targetBundle.title}]...`, "info");
+          ctx.ui.notify(`Installing ecosystem bundle [${targetBundle.title}]...`, "info");
         }
         const installResult = await EcosystemRadar.installPackagesLocally(targetBundle.packages);
         if (installResult.success) {
           if (ctx?.ui?.notify) {
-            ctx.ui.notify(`生态套件安装成功！已热重载项目环境与工具注册表。`, "info");
+            ctx.ui.notify(`Ecosystem bundle installed! Reloaded project environment.`, "info");
           }
           // 热重载本地生态与拓扑
           taxonomy = await reflectEnvironmentContext(ctx);
         } else {
           if (ctx?.ui?.notify) {
-            ctx.ui.notify(`套件安装未完全成功，平滑回退至纯净工程方案。`, "warning");
+            ctx.ui.notify(`Bundle installation incomplete; falling back to baseline setup.`, "warning");
           }
         }
       }
@@ -373,15 +373,15 @@ export default function (pi: ExtensionAPI) {
       const approxKb = Math.round((metrics.totalTokensSaved * 4) / 1024);
 
       const asciiReport = [
-        "┌────────────────────────────────────────────────────────────┐",
-        "│                 ⌬ TOOLFLOW TOKEN SAVINGS LEDGER            │",
-        "├────────────────────────────────────────────────────────────┤",
-        `│ 长日志脱水落盘   : ${String(metrics.dehydratedLogsCount).padStart(5)} 次 (拦截巨型控制台日志与测试堆栈)   │`,
-        `│ 重复代码读拦截   : ${String(metrics.readCacheHitsCount).padStart(5)} 次 (杜绝重复读取未修改代码文件)     │`,
-        `│ 敏感文件防爆拦截 : ${String(metrics.blastRadiusBlocksCount).padStart(5)} 次 (拦截破坏性越界文件操作)       │`,
-        "├────────────────────────────────────────────────────────────┤",
-        `│ 累计挽救上下文   : ~ ${formattedTokens.padStart(7)} Tokens (约折合 ${approxKb} KB 上下文空间)│`,
-        "└────────────────────────────────────────────────────────────┘"
+        "+------------------------------------------------------------+",
+        "|                TOOLFLOW TOKEN SAVINGS LEDGER               |",
+        "+------------------------------------------------------------+",
+        `| Verbose Logs Dehydrated : ${String(metrics.dehydratedLogsCount).padStart(6)}x (archived to disk)       |`,
+        `| Redundant Reads Cached  : ${String(metrics.readCacheHitsCount).padStart(6)}x (SHA-256 unchanged hit)  |`,
+        `| Blast-Radius Blocks     : ${String(metrics.blastRadiusBlocksCount).padStart(6)}x (unsafe writes blocked)  |`,
+        "+------------------------------------------------------------+",
+        `| Total Context Saved     : ~${formattedTokens.padStart(8)} tokens (~${String(approxKb).padStart(4)} KB)      |`,
+        "+------------------------------------------------------------+"
       ].join("\n");
 
       if (typeof pi.sendMessage === "function") {
@@ -391,7 +391,7 @@ export default function (pi: ExtensionAPI) {
           display: true
         });
       } else if (ctx?.ui?.notify) {
-        ctx.ui.notify(`ToolFlow 累计节约 ~${formattedTokens} Tokens`, "info");
+        ctx.ui.notify(`ToolFlow saved ~${formattedTokens} tokens`, "info");
       }
       return;
     }
@@ -401,7 +401,7 @@ export default function (pi: ExtensionAPI) {
       const latestPath = ContextDehydrator.getLatestLogPath();
       if (!latestPath || !fs.existsSync(latestPath)) {
         if (ctx?.ui?.notify) {
-          ctx.ui.notify("暂无脱水日志记录 (当前会话尚未拦截到超长输出)", "info");
+          ctx.ui.notify("No dehydrated logs recorded in this session yet.", "info");
         }
         return;
       }
@@ -411,21 +411,21 @@ export default function (pi: ExtensionAPI) {
       try {
         content = fs.readFileSync(latestPath, "utf-8");
       } catch (err: any) {
-        content = `读取失败: ${err.message}`;
+        content = `Failed to read log: ${err.message}`;
       }
 
       const lines = content.split("\n");
       const displayLines = lines.length > 150 ? lines.slice(-150).join("\n") : content;
-      const headNotice = lines.length > 150 ? `[仅展示最新 150 行，完整原始日志见: ${relPath}]\n\n` : `[完整原始日志: ${relPath}]\n\n`;
+      const headNotice = lines.length > 150 ? `[Showing last 150 lines; full raw log at: ${relPath}]\n\n` : `[Full raw log: ${relPath}]\n\n`;
 
       if (typeof pi.sendMessage === "function") {
         pi.sendMessage({
           customType: CUSTOM_MSG_TYPE,
-          content: `### ⌬ 最近一次脱水原始日志 (${relPath})\n\`\`\`text\n${headNotice}${displayLines}\n\`\`\``,
+          content: `### ⌬ Latest Dehydrated Raw Log (${relPath})\n\`\`\`text\n${headNotice}${displayLines}\n\`\`\``,
           display: true
         });
       } else if (ctx?.ui?.notify) {
-        ctx.ui.notify(`已调出最近脱水日志: ${relPath}`, "info");
+        ctx.ui.notify(`Latest dehydrated log: ${relPath}`, "info");
       }
       return;
     }

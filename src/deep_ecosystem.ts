@@ -353,47 +353,47 @@ export const CURATED_ECOSYSTEM_CATALOG: Array<{
     name: "@earendil-works/pi-subagents",
     source: "npm:pi-subagents",
     keywords: ["subagent", "agent", "worker", "parallel", "council", "多代理", "子代理", "并行", "审查会"],
-    description: "Pi 官方多代理隔离并发编排核心",
-    leverageReason: "实现子任务隔离沙盒与并发分发，避免主会话日志爆炸",
+    description: "Official Pi multi-agent isolated concurrent orchestration engine",
+    leverageReason: "Isolated subagent sandboxes and parallel execution without main context bloat",
     official: true
   },
   {
     name: "@quintinshaw/pi-dynamic-workflows",
     source: "npm:@quintinshaw/pi-dynamic-workflows",
     keywords: ["workflow", "pipeline", "dag", "flow", "工作流", "流水线"],
-    description: "Pi 官方原生动态有向无环工作流调度引擎",
-    leverageReason: "提供工业级状态机流转与任务管道拓扑",
+    description: "Dynamic DAG workflow orchestration engine",
+    leverageReason: "Provides stateful pipeline orchestration",
     official: true
   },
   {
     name: "@plannotator/pi-extension",
     source: "npm:@plannotator/pi-extension",
     keywords: ["review", "annotation", "diff", "audit", "走查", "批注", "审查", "代码评审"],
-    description: "专业可视化代码与架构走查审查套件",
-    leverageReason: "提供交互式 Diff 批注与无记忆冷启动质检",
+    description: "Interactive visual code & plan review extension",
+    leverageReason: "Interactive diff annotations and cold-start plan inspection",
     official: true
   },
   {
     name: "@modelcontextprotocol/server-playwright",
     source: "npm:@modelcontextprotocol/server-playwright",
     keywords: ["browser", "web", "crawl", "scrape", "ui test", "e2e", "页面走查", "浏览器", "网页自动化", "截图"],
-    description: "无头浏览器控制与自动化截图/端到端测试 MCP 服务",
-    leverageReason: "免去从零编写 Selenium/Puppeteer 脚本，直接通过标准 MCP 调用浏览器",
+    description: "Headless browser control & automated E2E testing MCP server",
+    leverageReason: "Direct browser automation and screenshots without custom Puppeteer boilerplate",
     official: true
   },
   {
     name: "@modelcontextprotocol/server-postgres",
     source: "npm:@modelcontextprotocol/server-postgres",
     keywords: ["postgres", "pgsql", "database", "sql", "数据库", "表结构"],
-    description: "PostgreSQL 数据库元数据探测与查询 MCP 服务",
-    leverageReason: "直接读取库表结构与执行 SQL 巡检，免去手写数据库驱动"
+    description: "PostgreSQL schema inspection & query MCP server",
+    leverageReason: "Direct schema introspection and SQL queries"
   },
   {
     name: "@modelcontextprotocol/server-github",
     source: "npm:@modelcontextprotocol/server-github",
     keywords: ["github", "pr", "issue", "repo", "commit", "代码库"],
-    description: "GitHub 仓库/PR/Issue 官方 MCP 读写网关",
-    leverageReason: "一键集成 Pull Request 自动化走查与提交"
+    description: "Official GitHub repository, PR & issue MCP gateway",
+    leverageReason: "Automated PR review and issue workflow integration"
   }
 ];
 
@@ -436,7 +436,7 @@ export class EcosystemRadar {
     if (recommendedPackages.length > 0) {
       const bundleA: EcosystemBundlePlan = {
         id: "bundle_recommended",
-        title: `[一键装配] 自动引入 ${recommendedPackages.length} 个社区/官方公认神装套件 (强烈推荐)`,
+        title: `[Auto-Assemble] Enable ${recommendedPackages.length} curated ecosystem package(s)`,
         description: recommendedPackages.map(p => `• @${p.name}: ${p.leverageReason}`).join("\n"),
         packages: recommendedPackages,
         isRecommended: true
@@ -444,8 +444,8 @@ export class EcosystemRadar {
 
       const bundleB: EcosystemBundlePlan = {
         id: "bundle_vanilla",
-        title: "[直接从零手写] 不引入外部新插件，仅用本地环境与标准库实现",
-        description: "适合网络受限或纯净项目环境，将从零手写核心业务逻辑与通信通道",
+        title: "[Standalone] Use local workspace & standard library only",
+        description: "Zero external plugin installation; implement directly with existing tools",
         packages: [],
         isRecommended: false
       };

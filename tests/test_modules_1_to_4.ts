@@ -95,6 +95,54 @@ async function run() {
     console.log("  [OK] 29.1 TUI CJK 滑动视口列宽稳定性 100% 验证通过！");
   }
 
+  console.log("\n[TEST-30] 验证 openArchitectNavigator 基于官方 Editor 组件的无右边框渲染与退格防重影...");
+  {
+    const { openArchitectNavigator } = await import("../src/ui.js");
+    const { visibleWidth, CURSOR_MARKER } = await import("@earendil-works/pi-tui");
+    const mockTheme = {
+      fg: (_c: string, s: string) => s,
+      bg: (_c: string, s: string) => s,
+      bold: (s: string) => s
+    };
+
+    let capturedComp: any = null;
+    const mockUi = {
+      custom: (factory: any) => {
+        capturedComp = factory(
+          { requestRender: () => {} },
+          mockTheme,
+          {},
+          () => {}
+        );
+        return Promise.resolve(null);
+      }
+    };
+
+    void openArchitectNavigator(mockUi, {
+      updatedAt: new Date().toISOString(),
+      extensions: [],
+      skills: [],
+      prompts: []
+    }, "想要完全检查一下我现在 D:\\Workspace");
+
+    assert(capturedComp, "30.1 成功挂载自定义 TUI 组件");
+    capturedComp.handleInput("文件还");
+    capturedComp.handleInput("\x7f");
+    capturedComp.handleInput("\x7f");
+
+    const lines: string[] = capturedComp.render(80);
+    for (const l of lines) {
+      const cleanLine = l.replace(CURSOR_MARKER, "");
+      assert(visibleWidth(cleanLine) <= 80, `30.2 任意渲染行宽度不得超过终端宽度 80 (实际: ${visibleWidth(cleanLine)})`);
+      assert(!cleanLine.endsWith("│"), "30.3 严禁使用会导致 CJK 终端折行错位的右侧竖线边框");
+    }
+    const joined = lines.join("\n");
+    assert(joined.includes("Enter Task Objective"), "30.4 界面全面统一为英文标签");
+    assert(joined.includes("想要完全检查一下我现在 D:\\Workspace文"), "30.5 中文追加与连续退格精确无误");
+
+    console.log("  [OK] 30.1 - 30.5 官方 Editor 输入组件与英文无边框布局 100% 验证通过！");
+  }
+
   console.log("\n================================================================================");
   console.log("[ALL-EXTENDED-PASSED] Module 1 ~ 4 新增专项断言 100% 全部绿灯通过！");
   console.log("================================================================================\n");
