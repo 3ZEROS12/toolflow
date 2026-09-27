@@ -137,10 +137,105 @@ async function run() {
       assert(!cleanLine.endsWith("│"), "30.3 严禁使用会导致 CJK 终端折行错位的右侧竖线边框");
     }
     const joined = lines.join("\n");
-    assert(joined.includes("Enter Task Objective"), "30.4 界面全面统一为英文标签");
+    assert(joined.includes("Task Objective"), "30.4 界面外壳采用极简通用英文标签");
     assert(joined.includes("想要完全检查一下我现在 D:\\Workspace文"), "30.5 中文追加与连续退格精确无误");
 
     console.log("  [OK] 30.1 - 30.5 官方 Editor 输入组件与英文无边框布局 100% 验证通过！");
+  }
+
+  console.log("\n[TEST-31] 验证 LLM 母语动态选项生成、网页游戏产物识别 (index.html) 与工具列表压缩...");
+  {
+    const { diagnoseTaskRequirements, synthesizeBlueprintPlanWithLLM, synthesizeBlueprint } = await import("../src/engine.js");
+    const { renderBlueprintSummary } = await import("../src/ui.js");
+
+    const tax = {
+      updatedAt: new Date().toISOString(),
+      extensions: [],
+      skills: [],
+      prompts: [],
+      tools: Array.from({ length: 40 }, (_, i) => ({
+        name: `browser_tool_${i}`,
+        type: "tool" as const,
+        layer: "L1_UTILITY" as const,
+        source: "test",
+        digest: "test"
+      })),
+      availableToolNames: Array.from({ length: 40 }, (_, i) => `browser_tool_${i}`)
+    };
+
+    const mockCtx: any = {
+      model: { id: "mock-model" },
+      modelRegistry: {
+        complete: async () => ({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                researchSummary: "针对儿童坦克大战网页游戏的定制推导",
+                requirementSlots: [
+                  {
+                    slotId: "domain_feature_preference",
+                    title: "1. 玩法与关卡设计",
+                    category: "scope",
+                    question: "请选择适合孩子的坦克大战玩法：",
+                    options: [
+                      {
+                        id: "opt_coop",
+                        label: "[双人同屏护基地] 家长与孩子协作闯关",
+                        description: "支持双人键盘同屏操作，难度温和有趣",
+                        isRecommended: true,
+                        recommendedEcosystem: { extensions: ["@plannotator/pi-extension"], reason: "浏览器预览" }
+                      }
+                    ]
+                  },
+                  {
+                    slotId: "visual_style_preference",
+                    title: "2. 画面风格",
+                    category: "design",
+                    question: "请选择视觉画风：",
+                    options: [
+                      {
+                        id: "opt_cartoon",
+                        label: "[儿童卡通像素风] 明亮色彩与趣味音效",
+                        description: "护眼明亮配色",
+                        isRecommended: true,
+                        recommendedEcosystem: { extensions: [], reason: "Canvas 原生绘制" }
+                      }
+                    ]
+                  }
+                ],
+                architectSparks: [
+                  {
+                    id: "spark_kids",
+                    title: "儿童防误触与无限生命开关",
+                    description: "内置护盾与友军免伤模式",
+                    impact: "儿童友好度提升",
+                    isAcceptedByDefault: true
+                  }
+                ],
+                dynamicGoals: ["构建可玩的坦克大战 index.html"]
+              })
+            }
+          ]
+        })
+      }
+    };
+
+    const task = "我想要做一个坦克大战网页版游戏给孩子玩";
+    const diag = await diagnoseTaskRequirements(task, tax, mockCtx);
+    assert.strictEqual(diag.requirementSlots.length, 2, "31.1 LLM 动态返回 2 个贴合坦克大战的母语决策维度");
+    assert(diag.requirementSlots[0].title.includes("玩法与关卡设计"), "31.2 选项完全跟随用户输入母语生成");
+
+    const plan = await synthesizeBlueprintPlanWithLLM(task, diag, {}, tax);
+    assert.strictEqual(plan.primaryArtifact, "index.html", "31.3 网页版游戏自动推导产物为 index.html 而非 src/index.js");
+    assert.strictEqual(plan.isFrontend, true, "31.4 正确识别为前端/网页交互应用");
+
+    const bp = synthesizeBlueprint(task, diag, {}, tax, "B", undefined, plan);
+    const summaryMd = renderBlueprintSummary(bp);
+    assert(!summaryMd.includes("@@plannotator"), "31.5 消除 @@ 双重前缀 Bug");
+    assert(summaryMd.includes("(+"), "31.6 40+ 工具列表自动折叠为 (+N more) 杜绝刷屏");
+
+    console.log("  [OK] 31.1 - 31.6 LLM 母语自适应、index.html 推导与工具列表折叠 100% 验证通过！");
   }
 
   console.log("\n================================================================================");

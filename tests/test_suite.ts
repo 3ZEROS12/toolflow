@@ -320,7 +320,7 @@ async function runFullRegressionVerification() {
   const bp = synthesizeBlueprint("构建现代Web控制台", diagnosis, {}, tax);
 
   const dagLines = renderUnicodeDAG(bp.stages, { currentStageIndex: 2 });
-  assert(dagLines.some(l => l.includes("实机走查") || l.includes("效果走查") || l.includes("实机运行与共创调优")), "8.1 DAG 包含共创走查层");
+  assert(dagLines.some(l => l.includes("Walkthrough") || l.includes("实机走查") || l.includes("效果走查")), "8.1 DAG 包含共创走查层");
 
   const receipt = renderValueReceipt({
     task: "构建现代Web控制台",
@@ -1294,9 +1294,9 @@ async function runFullRegressionVerification() {
     verifiedArtifactCount: 1
   });
   assert(pipelineCard.includes("bp_test_12345"), "17.2.1 看板正确渲染蓝图 ID");
-  assert(pipelineCard.includes("已验收完成"), "17.2.2 看板正确标记前序已完成节点");
-  assert(pipelineCard.includes("正在执行"), "17.2.3 看板正确突出当前正在执行的阶段");
-  assert(pipelineCard.includes("1 / 2 已物理落地并校验"), "17.2.4 看板正确汇总交付物物理进度");
+  assert(pipelineCard.includes("Verified"), "17.2.2 看板正确标记前序已完成节点");
+  assert(pipelineCard.includes("Running"), "17.2.3 看板正确突出当前正在执行的阶段");
+  assert(pipelineCard.includes("1 / 2"), "17.2.4 看板正确汇总交付物物理进度");
 
   // 17.3 阶段性动态工具白名单绝对剪枝 (问题 4)
   const matrix = new GracefulDegradationMatrix();

@@ -416,7 +416,9 @@ export default function (pi: ExtensionAPI) {
 
       const lines = content.split("\n");
       const displayLines = lines.length > 150 ? lines.slice(-150).join("\n") : content;
-      const headNotice = lines.length > 150 ? `[Showing last 150 lines; full raw log at: ${relPath}]\n\n` : `[Full raw log: ${relPath}]\n\n`;
+      const headNotice = lines.length > 150
+        ? `[Showing last 150 lines; full raw log at: ${relPath}]\n\n`
+        : `[Full raw log: ${relPath}]\n\n`;
 
       if (typeof pi.sendMessage === "function") {
         pi.sendMessage({

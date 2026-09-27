@@ -1,9 +1,9 @@
-// Unified English dictionary for ToolFlow TUI & notifications
+// Unified minimal English UI chrome dictionary for ToolFlow.
+// Dynamic task content (options, questions, goals, sparks) is generated in the user's native language by the active LLM.
 
 export const isZh = false;
 
 export const t = {
-  // Common notifications
   analyzingTask: (task: string) => `Analyzing "${task}" and generating stage plan...`,
   cancelled: "Task execution cancelled.",
   noDecision: "No option selected. Exited.",

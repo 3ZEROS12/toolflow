@@ -15,6 +15,7 @@ import {
 import { sniffProjectFingerprint, cleanName } from "./taxonomy.js";
 import { bindDeepEcosystemToStage, EcosystemRadar } from "./deep_ecosystem.js";
 import { extractValidJsonObject } from "./json_extractor.js";
+import { CancellableLoader } from "@earendil-works/pi-tui";
 import crypto from "crypto";
 import path from "path";
 import fs from "fs";
@@ -776,64 +777,52 @@ export async function diagnoseTaskRequirements(
   const registeredToolList = (taxonomy.availableToolNames || []).join(", ");
 
   const prompt = `[ROLE: Senior Architect & Product Lead]
-Task: "${task}"
+User Task: "${task}"
 Local Environment: Project Type=${fp.projectType}, Framework=${fp.mainFramework || "none"}, PackageManager=${fp.packageManager}
 Available Tools: Extensions=[${availableExtList}], Skills=[${availableSkillList}], MCP=[${availableMcpList}], Prompts=[${availablePromptList}], RegisteredTools=[${registeredToolList}]
 
-[MISSION: TAILORED DECISION MATRIX FOR THIS SPECIFIC TASK]
-You must dynamically generate a tailored, plain-language 4-dimension decision matrix and 2-4 concrete dynamic goals for "${task}".
-No rigid templates, no tech jargon, no generic robotic wording. Everything must be 100% relevant to the user's specific task.
-
-[CORE PHILOSOPHY: ECOSYSTEM & TOOL MANAGEMENT FIRST (PONYTAIL PRINCIPLE)]
-You are a TOOL-FLOW ORCHESTRATOR & ECOSYSTEM MANAGER.
-Your mission is to understand the true essence of "${task}".
-- ECOSYSTEM MATCHING: ONLY recommend an installed extension/tool/skill IF it has strong, direct, real-world semantic relevance to the task domain! DO NOT force or hallucinate unrelated tools (e.g. NEVER recommend auxiliary note/query tools like 'pi-btw' or rollback tools like 'pi-rewind' as core architecture for WeChat/Backend/Network tasks). If no installed tool is directly relevant, recommend clean custom development or standard library implementation.
-- ARTIFACT REASONING: Analyze what kind of software "${task}" truly is! If it is a backend integration, message hook, daemon, bot, or CLI, the primary deliverable should be 'src/index.ts', 'src/main.ts', or 'src/bot.ts'—NEVER output 'index.html' unless the task explicitly asks for a web frontend or browser game!
-
-[4 DIMENSIONS TO GENERATE]:
-1. domain_feature_preference: "1. 方案路径与工具流协同 (推荐路径)"
-   - If installed tools match the task: First option MUST be "[推荐] 现成工具流协同方案" (explaining how to directly use installed extensions/skills with zero or minimal boilerplate code).
-   - Other options: "[自研] 从零定制开发" (custom implementation in workspace) or "[轻量] 极简核心原型".
-2. visual_style_preference OR execution_runtime_preference:
-   - For UI/Web/Frontend tasks: "2. 视觉基调与交互质感 (交互与样式)" with 3 distinct aesthetic/UX choices tailored to "${task}".
-   - For CLI/Backend/Script tasks: "2. 交互体验与运行模式 (交互模式)" with 3 distinct runtime/interaction styles tailored to "${task}".
-3. delivery_strategy: "3. 构建方式与代码结构 (工程架构)"
-   - Question: Ask how the code and project structure should be organized for "${task}".
-   - Provide 3 distinct options (e.g. Clean zero-config standalone, Modular decoupled, Full-spec industrial).
-4. ai_spark_highlights: "4. 特色亮点与体验加分项 (特色亮点)"
-   - Question: Suggest 2-3 unexpected, delightful spark features specifically tailored to "${task}".
-   - Provide 3 options (Rich delightful spark feature, Practical utility feature, Keep minimal & pure).
-
-[ECOSYSTEM ATTACHMENT RULES]:
-- Bind recommended extensions/skills ONLY from the Available Tools list if they genuinely assist the choice.
-- For options that leverage installed tools, explicitly list them in recommendedEcosystem.extensions and explain the direct benefit.
-- Every option MUST have: id, label (starting with tag e.g. "[完整方案]"), description (plain-language explanation of what the user gets), isRecommended (true for the best choice in the slot), recommendedEcosystem: { extensions: [...], reason: "plain-language value to user" }.
-
-[DYNAMIC GOALS]:
-- Formulate 2-4 specific, actionable milestone goals tailored to "${task}" (e.g. "构建可交互的宠物卡片与领养表单", "提供浏览器即开即用的实机走查体验").
+[CRITICAL LANGUAGE & FLEXIBILITY RULES]:
+1. MATCH USER LANGUAGE (ALL WORLD LANGUAGES): Detect the language of User Task ("${task}") — e.g. Chinese, English, Japanese, Korean, Spanish, French, German — and write ALL "title", "question", "label", "description", "reason", "researchSummary", "dynamicGoals", and "architectSparks" in that EXACT SAME LANGUAGE. Never mix languages.
+2. TASK-ADAPTIVE FLEXIBILITY: Generate 2 to 4 decision dimensions ("requirementSlots") dynamically tailored to "${task}". Do NOT output generic corporate software boilerplate. Ask concrete, domain-specific questions that directly shape "${task}" (e.g., for a tank game: gameplay mode, visual theme, controls/difficulty; for a web app: layout, interactivity, data flow; for a CLI/backend: interface, storage, error handling).
+3. ECOSYSTEM MATCHING: Only attach an installed extension/skill in "recommendedEcosystem.extensions" if it genuinely assists that option.
+4. Keep "slotId" values as stable keys: first slot "domain_feature_preference", second slot "visual_style_preference" (for web/UI) or "execution_runtime_preference", third slot "delivery_strategy", optional fourth slot "ai_spark_highlights".
 
 [OUTPUT FORMAT]:
-Return ONLY valid raw JSON matching this structure (no markdown fences, or wrapped in \`\`\`json):
+Return ONLY valid raw JSON matching this structure:
 {
-  "researchSummary": "针对「${task}」已结合当前工程环境与业务特征完成场景化推导。",
+  "researchSummary": "...",
   "requirementSlots": [
     {
       "slotId": "domain_feature_preference",
-      "title": "1. 核心功能与业务范围 (功能范围)",
+      "title": "1. ...",
       "category": "scope",
       "question": "...",
       "options": [
         {
           "id": "opt_feature_comprehensive",
-          "label": "[完整方案] ... (推荐)",
+          "label": "[...] ...",
           "description": "...",
           "isRecommended": true,
-          "recommendedEcosystem": { "extensions": ["pi-web-access"], "reason": "..." }
+          "recommendedEcosystem": { "extensions": [], "reason": "..." }
         },
-        ...
+        {
+          "id": "opt_feature_minimal",
+          "label": "[...] ...",
+          "description": "...",
+          "isRecommended": false,
+          "recommendedEcosystem": { "extensions": [], "reason": "..." }
+        }
       ]
-    },
-    ...
+    }
+  ],
+  "architectSparks": [
+    {
+      "id": "spark_1",
+      "title": "...",
+      "description": "...",
+      "impact": "...",
+      "isAcceptedByDefault": true
+    }
   ],
   "dynamicGoals": [
     "...",
@@ -841,7 +830,6 @@ Return ONLY valid raw JSON matching this structure (no markdown fences, or wrapp
   ]
 }`;
 
-  // 先检查全网公认生态插件（Ecosystem Radar）是否存在最优套餐方案
   const installedNames = [
     ...(taxonomy.extensions || []).map(e => e.name),
     ...(taxonomy.skills || []).map(s => s.name),
@@ -853,9 +841,9 @@ Return ONLY valid raw JSON matching this structure (no markdown fences, or wrapp
   if (ecosystemBundles && ecosystemBundles.length > 0) {
     ecosystemExtensionSlot = {
       slotId: "slot_ecosystem_expansion",
-      title: "0. Ecosystem Bundle Recommendation",
+      title: "0. Ecosystem Bundle",
       category: "ecosystem",
-      question: "Curated ecosystem packages match this task. Enable bundle?",
+      question: "",
       options: ecosystemBundles.map(b => ({
         id: b.id,
         label: b.title,
@@ -863,102 +851,93 @@ Return ONLY valid raw JSON matching this structure (no markdown fences, or wrapp
         isRecommended: b.isRecommended,
         recommendedEcosystem: {
           extensions: b.packages.map(p => p.name),
-          reason: b.isRecommended ? "Use proven community bundle" : "Pure standalone implementation"
+          reason: b.isRecommended ? "Curated ecosystem bundle" : "Standalone"
         }
       }))
     };
   }
 
-  // ⚡ 极速优先：默认直接采用本地毫秒级工程指纹与槽位推导，零延迟、零 Token 开销秒出决策舱！
-  // 仅在明确传入 { forceLLM: true } 且任务极为模糊时才降级为后台推理
-  const forceLLM = Boolean((ctx as any)?.forceLLM);
-  if (!forceLLM) {
-    const fallback = generateUniversalMetaSlots(task, taxonomy, fp, tradeOff);
-    const finalFallbackSlots = ecosystemExtensionSlot
-      ? [ecosystemExtensionSlot, ...fallback.requirementSlots]
-      : fallback.requirementSlots;
+  // In live Pi sessions (ctx.modelRegistry + ctx.model available), invoke the LLM dynamically
+  // so options, questions, and goals are tailored to the task in the user's native language.
+  const canUseLLM = Boolean(
+    ctx &&
+    (ctx as any).modelRegistry &&
+    (ctx as any).model &&
+    (ctx as any).forceLLM !== false
+  );
 
-    return {
-      ...fallback,
-      requirementSlots: finalFallbackSlots,
-      decisionSlots: finalFallbackSlots,
-      tradeOff
-    };
-  }
-
-  // 优先通过 pi 官方 modelRegistry 调用当前会话活跃大模型进行 100% 动态实时推理
-  if (ctx && (ctx as any).modelRegistry && (ctx as any).model) {
+  if (canUseLLM) {
     try {
       const mr = (ctx as any).modelRegistry;
       const model = (ctx as any).model;
-      const res = await mr.complete(
-        model,
-        {
-          messages: [
-            {
-              role: "user",
-              content: [{ type: "text", text: prompt }],
-              timestamp: Date.now()
-            }
-          ]
-        },
-        {
-          maxTokens: 2500,
-          temperature: 0.3
-        }
-      );
+      const ui = (ctx as any).ui;
 
-      const textBlocks = (res.content || [])
-        .filter((c: any) => c.type === "text")
-        .map((c: any) => c.text)
-        .join("\n");
+      const invokeModel = async (signal?: AbortSignal): Promise<string | null> => {
+        const res = await mr.complete(
+          model,
+          {
+            messages: [
+              {
+                role: "user",
+                content: [{ type: "text", text: prompt }],
+                timestamp: Date.now()
+              }
+            ]
+          },
+          {
+            maxTokens: 2000,
+            temperature: 0.3,
+            ...(signal ? { signal } : {})
+          }
+        );
+        if ((res as any)?.stopReason === "aborted") return null;
+        return (res.content || [])
+          .filter((c: any) => c.type === "text")
+          .map((c: any) => c.text)
+          .join("\n");
+      };
+
+      let textBlocks: string | null = null;
+      if (ui && typeof ui.custom === "function") {
+        textBlocks = await ui.custom((tui: any, theme: any, _kb: any, done: (val: string | null) => void) => {
+          const loader = new CancellableLoader(
+            tui,
+            (s: string) => theme.fg("accent", s),
+            (s: string) => theme.fg("dim", s),
+            `Analyzing task with ${model.id || "AI"}... (Esc to skip)`
+          );
+          loader.onAbort = () => done(null);
+          invokeModel(loader.signal)
+            .then(done)
+            .catch(() => done(null));
+          return loader;
+        });
+      } else {
+        textBlocks = await invokeModel();
+      }
 
       if (textBlocks) {
-        // 健壮提取 JSON 内容（优先 Markdown 围栏代码块，回退平衡大括号，避开贪婪匹配跨块崩溃）
         const parsed = extractValidJsonObject(textBlocks);
-        if (parsed.requirementSlots && Array.isArray(parsed.requirementSlots) && parsed.requirementSlots.length >= 3) {
-          const isWeb = /网页|网站|单页|web|ui|前端|页面|组件|vue|react|html|css|界面|dashboard|app/i.test(task);
-          const fallbackSparks = isWeb
-            ? [
-                {
-                  id: "spark_micro_animations",
-                  title: "微交互反馈与流畅过渡",
-                  description: "为核心操作增添平滑的触觉反馈与状态过渡，大幅提升界面呼吸感",
-                  impact: "交互体验跃升",
-                  isAcceptedByDefault: true
-                }
-              ]
-            : [
-                {
-                  id: "spark_graceful_error_healing",
-                  title: "优雅容错与输入校验",
-                  description: "内置完善的入参自愈与异常友好提示，避免底层错误直接倾泻",
-                  impact: "健壮性倍增",
-                  isAcceptedByDefault: true
-                }
-              ];
-
+        if (parsed.requirementSlots && Array.isArray(parsed.requirementSlots) && parsed.requirementSlots.length >= 2) {
           const finalSlots = ecosystemExtensionSlot
             ? [ecosystemExtensionSlot, ...parsed.requirementSlots]
             : parsed.requirementSlots;
 
           return {
             taskDescription: task,
-            researchSummary: parsed.researchSummary || `已针对「${task}」由 AI 架构师结合本地环境实时动态推导。`,
+            researchSummary: parsed.researchSummary || task,
             requirementSlots: finalSlots,
             decisionSlots: finalSlots,
             dynamicGoals: Array.isArray(parsed.dynamicGoals) && parsed.dynamicGoals.length > 0
               ? parsed.dynamicGoals
-              : [`实现「${task}」核心业务功能与关键流程`, `确保工程代码结构规范并完成实机走查验证`],
+              : [task],
             tradeOff,
-            architectSparks: Array.isArray(parsed.architectSparks) && parsed.architectSparks.length > 0
-              ? parsed.architectSparks
-              : fallbackSparks
+            architectSparks: Array.isArray(parsed.architectSparks) ? parsed.architectSparks : []
           };
         }
       }
     } catch (_err) {
-      // 容错降级至本地智能自适应推导
+      // Fallback to offline heuristic slots if LLM call fails or is aborted
     }
   }
 
@@ -988,13 +967,29 @@ export async function synthesizeBlueprintPlanWithLLM(
   const profile = inferArtifactProfile(fp);
 
   // 极速路径：从用户任务中尝试提取明确的文件路径（例如 src/auth.ts、tests/login.test.ts 等）
-  const pathMatch = task.match(/(?:[a-zA-Z0-9_\-\.\/]+\.(?:ts|js|py|rs|go|cpp|c|h|java|vue|tsx|jsx|json|md))/i);
+  const pathMatch = task.match(/(?:[a-zA-Z0-9_\-\.\/]+\.(?:ts|js|py|rs|go|cpp|c|h|java|vue|tsx|jsx|json|md|html))/i);
   const detectedPath = pathMatch ? pathMatch[0].replace(/\\/g, "/") : "";
 
+  const isFrontendHeuristic =
+    /(网页|网站|前端|页面|组件|单页|画布|网页版|小游戏|坦克|贪吃蛇|俄罗斯方块|打砖块|五子棋|2048|扫雷|vue|react|html|css|界面|dashboard|landing\s*page|web\s*app|browser\s*game|ui(?![a-z])|canvas|frontend)/i.test(
+      task
+    ) && !/(backend|后端|通信|hook|服务|daemon|http\s*api|server|api|cli|terminal)/i.test(task);
+
+  const hasFrontendFramework = Boolean(
+    fp.mainFramework &&
+    fp.mainFramework !== "none" &&
+    /(react|vue|next|nuxt|svelte|angular)/i.test(fp.mainFramework)
+  );
+  const defaultPrimaryArtifact =
+    detectedPath ||
+    (isFrontendHeuristic && !hasFrontendFramework
+      ? "index.html"
+      : profile.srcPath);
+
   const fallback = {
-    primaryArtifact: detectedPath || profile.srcPath,
-    targetLanguage: fp.language || "typescript",
-    isFrontend: false
+    primaryArtifact: defaultPrimaryArtifact,
+    targetLanguage: fp.language || (isFrontendHeuristic ? "html" : "typescript"),
+    isFrontend: isFrontendHeuristic
   };
 
   // ⚡ 极速优先：默认跳过二次串行 LLM 往返，零延迟开工！仅在明确 forceLLM 时才触发后台请求
@@ -1083,9 +1078,11 @@ export function synthesizeBlueprint(
   const blueprintId = `bp_${crypto.randomBytes(4).toString("hex")}`;
   const fp = taxonomy.projectFingerprint || sniffProjectFingerprint();
   const profile = inferArtifactProfile(fp);
-  const isWebOrUI = llmArtifactPlan !== undefined
-    ? llmArtifactPlan.isFrontend
-    : (/(网页|网站|前端|页面|组件|vue|react|html|css|界面|dashboard|ui(?![a-z])|canvas|frontend)/i.test(task) &&
+  const isWebOrUI = llmArtifactPlan !== undefined && llmArtifactPlan.isFrontend !== undefined
+    ? Boolean(llmArtifactPlan.isFrontend) ||
+      (/(网页|网站|前端|页面|组件|单页|画布|网页版|小游戏|坦克|贪吃蛇|俄罗斯方块|打砖块|五子棋|2048|扫雷|vue|react|html|css|界面|dashboard|landing\s*page|web\s*app|browser\s*game|ui(?![a-z])|canvas|frontend)/i.test(task) &&
+       !/(backend|后端|通信|hook|服务|daemon|http\s*api|server|api|cli|terminal)/i.test(task))
+    : (/(网页|网站|前端|页面|组件|单页|画布|网页版|小游戏|坦克|贪吃蛇|俄罗斯方块|打砖块|五子棋|2048|扫雷|vue|react|html|css|界面|dashboard|landing\s*page|web\s*app|browser\s*game|ui(?![a-z])|canvas|frontend)/i.test(task) &&
        !/(backend|后端|通信|hook|服务|daemon|http\s*api|server|api|cli|terminal)/i.test(task));
 
   const activatedExts = new Set<string>();
@@ -1100,7 +1097,7 @@ export function synthesizeBlueprint(
       opt.recommendedEcosystem.extensions?.forEach(e => activatedExts.add(e));
       opt.recommendedEcosystem.skills?.forEach(s => activatedSkills.add(s));
       opt.recommendedEcosystem.prompts?.forEach(p => activatedPrompts.add(p));
-      reasons.push(`【${slot.title}】选择「${opt.label}」➔ 赋能: ${opt.recommendedEcosystem.reason}`);
+      reasons.push(`• ${slot.title}: ${opt.label} (${opt.recommendedEcosystem.reason})`);
     }
   }
 
@@ -1111,7 +1108,7 @@ export function synthesizeBlueprint(
     : undefined);
 
   const customReqNotice = customReqs && customReqs.length > 0
-    ? `\n[用户个性化补充需求 (最高优先级)]: ${customReqs.join("; ")}`
+    ? `\n[Custom Requirements (Highest Priority)]: ${customReqs.join("; ")}`
     : "";
 
   const isOrchestrationActive = activatedExts.has("pi-subagents") || activatedExts.has("@quintinshaw/pi-dynamic-workflows");
@@ -1222,9 +1219,9 @@ export function synthesizeBlueprint(
     rawStages = [
       {
         stageId: "stage_1_direct_execution",
-        title: "极速响应与验证 (单阶段极简通道)",
+        title: "Direct Execution & Verification",
         roleProfile: "quick_specialist",
-        coreObjective: `针对目标任务快速实施变更并执行必要验证，完成后直接交付。${customReqNotice}`,
+        coreObjective: `Apply the requested changes directly, verify, and deliver.${customReqNotice}`,
         boundCapabilities: {
           extensions: [],
           skills: []
@@ -1232,10 +1229,10 @@ export function synthesizeBlueprint(
         expectedArtifact: defaultSrcPath,
         expectedArtifacts: [defaultSrcPath],
         targetPatterns: ["src/**", "lib/**", "tests/**", "*"],
-        artifactContract: `直接产出修改代码并确保无语法错误。`,
+        artifactContract: `Produce verified code changes.`,
         verificationCommands: stage2VerificationCommands,
         allowedTools: ["read", "edit", "write", "bash", "powershell", "grep", "find"],
-        tokenCostNotice: "极简直接执行，0 前置冗余"
+        tokenCostNotice: "Direct execution, 0 stage overhead"
       }
     ];
   } else {
@@ -1243,9 +1240,9 @@ export function synthesizeBlueprint(
       ? [
         {
           stageId: "stage_1_design",
-          title: "方案设计与契约 (设计阶段)",
+          title: "Design Contract",
           roleProfile: "system_architect",
-          coreObjective: `依据任务目标快速确立 ${fp.projectType} 架构设计与契约 (${profile.docPath})。优先调用最新检索规范。${customReqNotice}`,
+          coreObjective: `Define the ${fp.projectType} architecture and interface contract in ${profile.docPath}.${customReqNotice}`,
           boundCapabilities: {
             extensions: l2PerceptionExts.slice(0, 2),
             prompts: Array.from(activatedPrompts).filter(p => p.includes("research") || p.includes("clarify"))
@@ -1253,16 +1250,16 @@ export function synthesizeBlueprint(
           expectedArtifact: profile.docPath,
           expectedArtifacts: [profile.docPath],
           targetPatterns: ["docs/**", "*.md"],
-          artifactContract: `包含模块架构与接口契约，落盘于 ${profile.docPath}。${customReqNotice ? " 约束说明: " + customReqNotice : ""}`,
+          artifactContract: `Module architecture and interface contract written to ${profile.docPath}.${customReqNotice ? " Constraints: " + customReqNotice : ""}`,
           allowedTools: stage1Tools,
-          tokenCostNotice: "快速确立设计契约，杜绝架构跑偏"
+          tokenCostNotice: "Establish clear design contract"
         },
         {
           stageId: "stage_2_implementation_preview",
-          title: "[核心制作] 敏捷编码与实机走查",
+          title: "Implementation & Live Walkthrough",
           roleProfile: isOrchestrationActive ? "subagent_orchestrator" : "principal_engineer",
           dependsOn: ["stage_1_design"],
-          coreObjective: `遵循契约完成核心源码编写 (${defaultSrcPath})，拉起实机走查并向用户展示核心亮点。进入前自动建立安全快照。`,
+          coreObjective: `Implement core functionality in ${defaultSrcPath} following the design contract and run a live walkthrough.`,
           isInteractiveCoCreation: true,
           previewUrl: livePreviewUrl,
           previewCommand: livePreviewCmd,
@@ -1273,17 +1270,17 @@ export function synthesizeBlueprint(
           expectedArtifact: defaultSrcPath,
           expectedArtifacts: [defaultSrcPath],
           targetPatterns: ["src/**", "lib/**", "*.ts", "*.js", "*.rs", "*.py", "*.go", "*.html"],
-          artifactContract: `完成 ${defaultSrcPath} 编写与运行走查，语法无误。`,
+          artifactContract: `Complete and verify ${defaultSrcPath}.`,
           verificationCommands: stage2VerificationCommands,
           allowedTools: stage2Tools,
-          tokenCostNotice: "敏捷合并编码与实机走查，秒级交付"
+          tokenCostNotice: "Combined implementation & walkthrough"
         },
         {
           stageId: "stage_3_verification_delivery",
-          title: "[门禁终审] 自动化验收与成果交付",
+          title: "Verification & Delivery Receipt",
           roleProfile: "quality_auditor",
           dependsOn: ["stage_2_implementation_preview"],
-          coreObjective: `执行自动化测试与 64 位 SHA 门禁，生成交付凭证与价值结算单。`,
+          coreObjective: `Run automated verification and SHA-256 artifact checks, then write the delivery report.`,
           boundCapabilities: {
             extensions: Array.from(activatedExts).filter(e => e.includes("goal") || e.includes("tui")),
             skills: Array.from(activatedSkills)
@@ -1291,7 +1288,7 @@ export function synthesizeBlueprint(
           expectedArtifact: profile.reportPath,
           expectedArtifacts: [profile.reportPath, ...(isWebOrUI || !profile.testPath ? [] : [profile.testPath])],
           targetPatterns: ["reports/**", "tests/**", "docs/**", "*.test.*", "*.spec.*"],
-          artifactContract: `包含 SHA-256 校验和与测试结果，落盘于 ${profile.reportPath}。`,
+          artifactContract: `Verification report with SHA-256 checksums at ${profile.reportPath}.`,
           verificationCommands: !isWebOrUI && profile.testCommands && profile.testCommands.length > 0 ? profile.testCommands : undefined,
           allowedTools: stage3Tools,
           isReviewStage: true,
@@ -1300,15 +1297,15 @@ export function synthesizeBlueprint(
             requireColdStart: true,
             diffOnlyContext: true
           },
-          tokenCostNotice: "自动化测试闭环，生成价值交付收据"
+          tokenCostNotice: "Automated verification & delivery receipt"
         }
       ]
     : [
         {
           stageId: "stage_1_design",
-          title: "[架构设计] 方案设计与意图契约",
+          title: "Design Contract",
           roleProfile: "system_architect",
-          coreObjective: `依据任务目标与用户共创选型，完成 ${fp.projectType} 架构契约与设计文档编写。优先调用检索工具获取最新官方规范，杜绝过时盲猜。${customReqNotice}`,
+          coreObjective: `Author the ${fp.projectType} architecture specification and design contract in ${profile.docPath}.${customReqNotice}`,
           boundCapabilities: {
             extensions: l2PerceptionExts.slice(0, 2),
             prompts: Array.from(activatedPrompts).filter(p => p.includes("research") || p.includes("clarify"))
@@ -1316,16 +1313,16 @@ export function synthesizeBlueprint(
           expectedArtifact: profile.docPath,
           expectedArtifacts: [profile.docPath],
           targetPatterns: ["docs/**", "*.md"],
-          artifactContract: `包含业务范围、模块架构、接口契约与依赖规范，落盘于 ${profile.docPath}。${customReqNotice ? " 约束说明: " + customReqNotice : ""}`,
+          artifactContract: `Complete design specification written to ${profile.docPath}.${customReqNotice ? " Constraints: " + customReqNotice : ""}`,
           allowedTools: stage1Tools,
-          tokenCostNotice: "主动检索官方最新规范，确保设计 100% 准确"
+          tokenCostNotice: "Upfront design contract"
         },
         {
           stageId: "stage_2_implementation",
-          title: "[核心制作] 功能编写与模块构建",
+          title: "Core Implementation",
           roleProfile: isOrchestrationActive ? "subagent_orchestrator" : "principal_engineer",
           dependsOn: ["stage_1_design"],
-          coreObjective: `遵循阶段 1 设计契约完成核心代码编写 (${defaultSrcPath})。按需自主决策使用 workflow / subagent 派发并行子任务，或直接编码实现。进入前系统自动建立安全快照点。`,
+          coreObjective: `Implement core modules in ${defaultSrcPath} strictly following Stage 1's design contract.`,
           boundCapabilities: {
             extensions: Array.from(activatedExts).filter(e => e.includes("subagents") || e.includes("workflows") || e.includes("rewind")),
             skills: Array.from(activatedSkills)
@@ -1333,19 +1330,19 @@ export function synthesizeBlueprint(
           expectedArtifact: defaultSrcPath,
           expectedArtifacts: [defaultSrcPath],
           targetPatterns: ["src/**", "lib/**", "*.ts", "*.js", "*.rs", "*.py", "*.go", "*.html"],
-          artifactContract: `完成 ${defaultSrcPath} 核心业务逻辑编写，语法无误且符合设计契约。`,
+          artifactContract: `Complete ${defaultSrcPath} matching the design contract.`,
           verificationCommands: stage2VerificationCommands,
           allowedTools: stage2Tools,
-          tokenCostNotice: "专注核心源码编写，严格落实设计契约"
+          tokenCostNotice: "Focused core implementation"
         },
         {
           stageId: "stage_3_preview_cocreation",
-          title: "[效果走查] 实机运行与共创调优",
+          title: "Live Walkthrough & Preview",
           roleProfile: "experience_consultant",
           dependsOn: ["stage_2_implementation"],
-          coreObjective: "运行演示命令或调起实机预览，向用户直观展示当前成果亮点，并主动征询 2~3 个具体优化建议。可按需借助 plannotator / 浏览器走查工具辅助审查。",
+          coreObjective: "Launch live preview or walkthrough, verify interactive UX, and record walkthrough observations.",
           isInteractiveCoCreation: true,
-          proactiveInquiryPrompt: "我已完成核心功能编写，以下是实际运行效果与亮点。针对交互手感/文案/样式，您是否有特定微调偏好？",
+          proactiveInquiryPrompt: "Core implementation is complete. Would you like any adjustments to interaction, layout, or styling?",
           previewUrl: livePreviewUrl,
           previewCommand: livePreviewCmd,
           boundCapabilities: {
@@ -1355,17 +1352,17 @@ export function synthesizeBlueprint(
           expectedArtifact: profile.previewPath,
           expectedArtifacts: [profile.previewPath],
           targetPatterns: ["reports/**", "docs/**", "*.md"],
-          artifactContract: `输出包含运行效果走查、功能完成对照与用户征询问题的记录，落盘于 ${profile.previewPath}。`,
+          artifactContract: `Walkthrough summary written to ${profile.previewPath}.`,
           verificationCommands: profile.previewCommands && profile.previewCommands.length > 0 ? profile.previewCommands : undefined,
           allowedTools: hasTool("mcp") ? ["read", "write", "bash", "powershell", "grep", "find", "mcp"] : ["read", "write", "bash", "powershell", "grep", "find"],
-          tokenCostNotice: "拉起实机走查，人机深度共创把关"
+          tokenCostNotice: "Interactive walkthrough & UX check"
         },
         {
           stageId: "stage_4_testing",
-          title: "自动化单测与物理门禁 (单测验证)",
+          title: "Automated Testing",
           roleProfile: "test_engineer",
           dependsOn: ["stage_3_preview_cocreation"],
-          coreObjective: `根据共创定稿成果编写单测 (${profile.testPath})，执行验证命令，确保全部绿灯并通过 64 位 SHA 物理校验。可自主使用 goal / workflow(adversarial-review) 强化门禁质量。`,
+          coreObjective: `Write automated tests (${profile.testPath}) and verify all checks pass.`,
           boundCapabilities: {
             extensions: Array.from(activatedExts).filter(e => e.includes("goal")),
             skills: Array.from(activatedSkills)
@@ -1373,17 +1370,17 @@ export function synthesizeBlueprint(
           expectedArtifact: profile.testPath,
           expectedArtifacts: [profile.testPath],
           targetPatterns: ["tests/**", "*.test.*", "*.spec.*"],
-          artifactContract: `包含测试用例，运行 ${profile.testCommands.join(" / ") || "单测命令"} 必须通过。`,
+          artifactContract: `Test suite passing at ${profile.testPath}.`,
           verificationCommands: profile.testCommands,
           allowedTools: stage2Tools.concat(stage3Tools.filter(t => !stage2Tools.includes(t))),
-          tokenCostNotice: "自动化单测验证，拦截 0-Byte 伪交付"
+          tokenCostNotice: "Automated test gate"
         },
         {
           stageId: "stage_5_audit_delivery",
-          title: "终审归档与高保真通知 (终审交付)",
+          title: "Final Delivery Receipt",
           roleProfile: "quality_auditor",
           dependsOn: ["stage_4_testing"],
-          coreObjective: `生成交付成果清单与文件校验和，并通过终端 TUI 输出交付卡片。`,
+          coreObjective: `Generate the final verification summary and SHA-256 artifact ledger.`,
           boundCapabilities: {
             extensions: Array.from(activatedExts).filter(e => e.includes("goal") || e.includes("tui")),
             skills: []
@@ -1391,7 +1388,7 @@ export function synthesizeBlueprint(
           expectedArtifact: profile.reportPath,
           expectedArtifacts: [profile.reportPath],
           targetPatterns: ["reports/**", "docs/**"],
-          artifactContract: `包含测试覆盖数据、物理产物 64 位 SHA-256 指纹与竣工报告，落盘于 ${profile.reportPath}。`,
+          artifactContract: `Final verification summary at ${profile.reportPath}.`,
           allowedTools: ["read", "write", "bash", "powershell", "grep", "find", "mcp"],
           isReviewStage: true,
           reviewIsolation: {
@@ -1399,7 +1396,7 @@ export function synthesizeBlueprint(
             requireColdStart: true,
             diffOnlyContext: true
           },
-          tokenCostNotice: "生成最终交付凭证，触发高保真多端通知"
+          tokenCostNotice: "Final settlement & delivery receipt"
         }
       ];
   }
