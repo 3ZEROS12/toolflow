@@ -34,6 +34,30 @@ export interface CacheCheckResult {
 const MAX_LOG_SIZE_BYTES = 10 * 1024 * 1024; // 10MB 单阶段日志截断上限
 const MAX_TOTAL_DISK_BYTES = 200 * 1024 * 1024; // 200MB 运行归档总配额
 
+const BINARY_EXTS = new Set([
+  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp", ".svg",
+  ".exe", ".dll", ".so", ".dylib", ".wasm", ".zip", ".tar", ".gz",
+  ".7z", ".pdf", ".db", ".sqlite", ".bin"
+]);
+
+const IMPORT_REGEX = /(?:import\s+(?:\{[^}]+\}|\w+|\*\s+as\s+\w+)\s+from\s+["']([^"']+)["']|require\(["']([^"']+)["']\))/g;
+const EXPORT_REGEX = /export\s+(?:async\s+)?(?:const|let|var|class|interface|type|enum|function)\s+(\w+)/g;
+const NAMED_EXPORT_BLOCK_REGEX = /export\s*\{\s*([^}]+)\s*\}/g;
+
+const INTERACTIVE_PATTERNS = [
+  /\[y\/n\]/i,
+  /\(y\/n\)/i,
+  /\[yes\/no\]/i,
+  /are you sure/i,
+  /press any key/i,
+  /password:/i,
+  /enter pass phrase/i,
+  /\? /
+];
+
+const ERROR_LINE_PATTERN = /(error[:\s]|fatal[:\s]|failed[:\s]|exception[:\s]|panic[:\s]|traceback)/i;
+const ANSI_ESCAPE_REGEX = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\([a-zA-Z]/g;
+
 export class ContextDehydrator {
   private runsDir: string;
   private baseDir: string;
@@ -137,12 +161,6 @@ export class ContextDehydrator {
     } catch (_) {}
 
     // 解析产物中涉及的导入与导出符号拓扑 (跳过二进制文件)
-    const BINARY_EXTS = new Set([
-      ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp", ".svg",
-      ".exe", ".dll", ".so", ".dylib", ".wasm", ".zip", ".tar", ".gz",
-      ".7z", ".pdf", ".db", ".sqlite", ".bin"
-    ]);
-
     const importedModules: string[] = [];
     const exportedSymbols: string[] = [];
     for (const art of artifacts) {
@@ -151,20 +169,20 @@ export class ContextDehydrator {
         try {
           const content = fs.readFileSync(art.path, "utf-8").slice(0, 32768);
           // 匹配 ES Module 和 CommonJS 导入
-          const importMatches = content.matchAll(/(?:import\s+(?:\{[^}]+\}|\w+|\*\s+as\s+\w+)\s+from\s+["']([^"']+)["']|require\(["']([^"']+)["']\))/g);
+          const importMatches = content.matchAll(IMPORT_REGEX);
           for (const m of importMatches) {
             const mod = m[1] || m[2];
             if (mod && !importedModules.includes(mod)) importedModules.push(mod);
           }
 
           // 匹配各类 export 声明 (function / async function / class / interface / type / enum / const / let)
-          const exportMatches = content.matchAll(/export\s+(?:async\s+)?(?:const|let|var|class|interface|type|enum|function)\s+(\w+)/g);
+          const exportMatches = content.matchAll(EXPORT_REGEX);
           for (const m of exportMatches) {
             if (m[1] && !exportedSymbols.includes(m[1])) exportedSymbols.push(m[1]);
           }
 
           // 匹配 export { a, b, c }
-          const namedExportBlock = content.matchAll(/export\s*\{\s*([^}]+)\s*\}/g);
+          const namedExportBlock = content.matchAll(NAMED_EXPORT_BLOCK_REGEX);
           for (const block of namedExportBlock) {
             if (block[1]) {
               const names = block[1].split(",").map(n => n.trim().split(/\s+as\s+/)[0].trim()).filter(Boolean);
@@ -219,7 +237,7 @@ export class ContextDehydrator {
   private sanitizeTerminalOutput(rawText: string): string {
     if (!rawText) return "";
     // 1. 去除 ANSI 转义控制字符 (色彩代码、光标跳跃等 \x1b[...m)
-    let text = rawText.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "").replace(/\x1b\([a-zA-Z]/g, "");
+    let text = rawText.replace(ANSI_ESCAPE_REGEX, "");
 
     // 2. 压缩 \r 产生的刷屏进度条（例如 npm install / wget / docker 下载进度）
     // 仅保留由 \r 覆盖的最后一行
@@ -241,17 +259,7 @@ export class ContextDehydrator {
   private isInteractiveWait(text: string): boolean {
     if (!text) return false;
     const trimmedTail = text.slice(-300).trim();
-    const interactivePatterns = [
-      /\[y\/n\]/i,
-      /\(y\/n\)/i,
-      /\[yes\/no\]/i,
-      /are you sure/i,
-      /press any key/i,
-      /password:/i,
-      /enter pass phrase/i,
-      /\? /
-    ];
-    return interactivePatterns.some(p => p.test(trimmedTail));
+    return INTERACTIVE_PATTERNS.some(p => p.test(trimmedTail));
   }
 
   /**
@@ -259,9 +267,8 @@ export class ContextDehydrator {
    */
   private extractKeyErrorLines(lines: string[]): string[] {
     const errorLines: string[] = [];
-    const errorPattern = /(error[:\s]|fatal[:\s]|failed[:\s]|exception[:\s]|panic[:\s]|traceback)/i;
     for (let i = 0; i < lines.length; i++) {
-      if (errorPattern.test(lines[i])) {
+      if (ERROR_LINE_PATTERN.test(lines[i])) {
         // 抓取报错行及其上下文前后各 1 行
         const start = Math.max(0, i - 1);
         const end = Math.min(lines.length, i + 2);

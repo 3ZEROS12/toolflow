@@ -43,14 +43,20 @@ export function atomicWriteFileSync(filePath: string, content: string): boolean 
     fs.writeFileSync(tempPath, content, "utf-8");
 
     let renamed = false;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 1; attempt <= 6; attempt++) {
       try {
         fs.renameSync(tempPath, filePath);
         renamed = true;
         break;
-      } catch (_) {
-        const start = Date.now();
-        while (Date.now() - start < 10) {}
+      } catch (err: any) {
+        const code = err?.code;
+        if ((code === "EBUSY" || code === "EPERM" || code === "EACCES") && attempt < 6) {
+          const delay = Math.floor(attempt * 15 + Math.random() * 10);
+          const end = Date.now() + delay;
+          while (Date.now() < end) {}
+          continue;
+        }
+        break;
       }
     }
 
