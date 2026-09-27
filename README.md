@@ -7,24 +7,19 @@
 
 ---
 
-### Office Chats: Sam and Alex at the Coffee Bar
+## Why ToolFlow?
 
-> **Scene**: 3:30 PM Friday. Break room. Sam is staring at their laptop, looking exhausted with an oversized coffee. Alex walks over after wrapping up a PR.
+When developing software with AI coding agents equipped with dozens of tools, plugins, and MCP servers, three systemic frictions emerge:
 
-**Sam** 😫: "Alex, I'm losing my mind. To build this new feature, I loaded up every MCP I could find—browser automation, DB query tools, docs search, code reviewers. But now the model acts like a drunk intern: I ask for a pure function and it tries to spin up Chromium; I ask for an error trace and it queries the production database. Run one test suite, and 2,000 lines of console output flood the context. On top of that, I'm constantly hunting through notes to find my favorite prompt templates..."
+1. **Tool Overload & Misdirection**: Exposing 40+ tool definitions simultaneously overwhelms the LLM. Asking for a simple utility function prompts the model to spin up a browser or query a database because its tool selection entropy is too high.
+2. **Context Blowout from Verbose Logs**: Running test suites or builds often outputs hundreds or thousands of lines. Flooding the context window with raw stack traces burns tokens, dilutes attention, and rapidly triggers premature context compaction.
+3. **Template Scramble**: Developers constantly copy-paste prompt templates from notes, web browsers, or chat history, interrupting the terminal development flow.
 
-**Alex** ☕: "Haha, you strapped an entire hardware store to your back and wondered why you can't run. Having tools installed is useless if they aren't **organized to achieve your goal**. Aren't you using ToolFlow?"
-
-**Sam** 😯: "Wait, how does it organize them?"
-
-**Alex** 🛠️: "Think of it as a pragmatic, lazy architect on your team:
-1. **Orchestrates Tools by Stage**: It breaks your task into phases. During exploration, it gives the model search tools and locks write permissions. During implementation, it hides unrelated heavy MCPs so the model stays razor-sharp and never misfires. During review, it physically strips edit privileges so the model can't secretly mutate code.
-2. **Dehydrates Verbose Logs in Milliseconds**: Test threw 500 lines of stack trace? ToolFlow archives the full dump to disk, leaving only the return code, key failure summary, and file path in context. That saves tens of thousands of tokens.
-3. **Built-in Prompt Workbench**: Hit `[p]` on startup to pick your battle-tested prompts right away, or press `[+]` to draft one on the fly. You can even press `Ctrl+L` and let the LLM auto-tag and summarize it. No more copy-pasting from scratch."
-
-**Sam** 🤩: "What happens when the mission is done? Does it mess up my environment?"
-
-**Alex** 🚀: "Not a chance. Everything resets back to your original native toolset cleanly. Just run `/toolflow build a user auth system` and watch it deploy the right tools at each step."
+**ToolFlow brings discipline to the agent's toolbox**:
+- **Stage-Gated Capability Mounting**: Native core tools (`read`, `write`, `edit`, `bash`, `grep`, `find`, `ls`) remain accessible at all times; heavy external MCPs, browser controllers, and subagents mount only in phases where they are strictly needed.
+- **Real-Time Log Dehydration (-95% Overhead)**: Long tool outputs (>40 lines) are automatically archived to disk (`.pi/toolflow/runs/...`), passing only the exit code, root failure summary, and on-disk file path to the model.
+- **Built-in Prompt Workbench**: Summon an instant terminal teleprompter with `/toolflow` to insert battle-tested prompts directly into your editor with zero planning ceremony.
+- **Guaranteed Cleanup**: Upon task completion or `/toolflow reset`, tool definitions are restored to their original clean state.
 
 ---
 
