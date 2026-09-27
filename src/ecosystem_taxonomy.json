@@ -1,5 +1,5 @@
 {
-  "installedFingerprint": "c40b443240057458",
+  "installedFingerprint": "43e01e44dff93647",
   "projectFingerprint": {
     "projectType": "node",
     "mainFramework": "Pi-Extension",
@@ -20,40 +20,24 @@
     ],
     "gitBranch": "main"
   },
-  "updatedAt": 1788676812098,
+  "updatedAt": 1790515122392,
   "extensions": [
     {
-      "id": "pi-tui-status-beautifier",
-      "name": "pi-tui-status-beautifier",
+      "id": "input-history",
+      "name": "input-history",
       "kind": "extension",
-      "layer": "L1_UTILITY",
-      "description": "动态识别组件 [pi-tui-status-beautifier]",
-      "tokenImpact": "low",
-      "triggerWhen": "根据任务需求动态调度 pi-tui-status-beautifier",
-      "summary": "动态识别组件 [pi-tui-status-beautifier]",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Cross-session input history navigati",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 input-history",
+      "summary": "Cross-session input history navigati",
       "tags": [
         "#extension",
-        "#pi-tui-status-beautifier"
+        "#input-history",
+        "#orchestration"
       ],
-      "costLevel": "$1",
-      "bindingReason": "基础通用能力"
-    },
-    {
-      "id": "pi-computer-use",
-      "name": "pi-computer-use",
-      "kind": "extension",
-      "layer": "L2_PERCEPTION",
-      "description": "Cross-platform computer-use tools fo",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 pi-computer-use",
-      "summary": "Cross-platform computer-use tools fo",
-      "tags": [
-        "#extension",
-        "#pi-computer-use",
-        "#perception"
-      ],
-      "costLevel": "$2",
-      "bindingReason": "精准信息检索、浏览器控制与外部数据源接入"
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
     },
     {
       "id": "ponytail",
@@ -105,123 +89,6 @@
       "bindingReason": "基础通用能力"
     },
     {
-      "id": "pi-btw",
-      "name": "pi-btw",
-      "kind": "extension",
-      "layer": "L1_UTILITY",
-      "description": "Pi extension that adds a /btw side-q",
-      "tokenImpact": "low",
-      "triggerWhen": "根据任务需求动态调度 pi-btw",
-      "summary": "Pi extension that adds a /btw side-q",
-      "tags": [
-        "#extension",
-        "#pi-btw"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "基础通用能力"
-    },
-    {
-      "id": "pi-goal",
-      "name": "pi-goal",
-      "kind": "extension",
-      "layer": "L1_UTILITY",
-      "description": "Pi extension for autonomous single-o",
-      "tokenImpact": "low",
-      "triggerWhen": "根据任务需求动态调度 pi-goal",
-      "summary": "Pi extension for autonomous single-o",
-      "tags": [
-        "#extension",
-        "#pi-goal"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "基础通用能力"
-    },
-    {
-      "id": "input-history",
-      "name": "input-history",
-      "kind": "extension",
-      "layer": "L3_ORCHESTRATION",
-      "description": "Cross-session input history navigati",
-      "tokenImpact": "high",
-      "triggerWhen": "根据任务需求动态调度 input-history",
-      "summary": "Cross-session input history navigati",
-      "tags": [
-        "#extension",
-        "#input-history",
-        "#orchestration"
-      ],
-      "costLevel": "$3",
-      "bindingReason": "多任务并发分发与子流程编排调度"
-    },
-    {
-      "id": "pi-extension",
-      "name": "pi-extension",
-      "kind": "extension",
-      "layer": "L4_REVIEW_GUARD",
-      "description": "Plannotator Pi extension - interacti",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 pi-extension",
-      "summary": "Plannotator Pi extension - interacti",
-      "tags": [
-        "#extension",
-        "#pi-extension",
-        "#quality-guard"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
-    },
-    {
-      "id": "pi-dynamic-workflows",
-      "name": "pi-dynamic-workflows",
-      "kind": "extension",
-      "layer": "L3_ORCHESTRATION",
-      "description": "Claude-Code-style dynamic workflows ",
-      "tokenImpact": "high",
-      "triggerWhen": "根据任务需求动态调度 pi-dynamic-workflows",
-      "summary": "Claude-Code-style dynamic workflows ",
-      "tags": [
-        "#extension",
-        "#pi-dynamic-workflows",
-        "#orchestration"
-      ],
-      "costLevel": "$3",
-      "bindingReason": "多任务并发分发与子流程编排调度"
-    },
-    {
-      "id": "billion-context-pi",
-      "name": "billion-context-pi",
-      "kind": "extension",
-      "layer": "L3_ORCHESTRATION",
-      "description": "One billion, not one million. Model-",
-      "tokenImpact": "high",
-      "triggerWhen": "根据任务需求动态调度 billion-context-pi",
-      "summary": "One billion, not one million. Model-",
-      "tags": [
-        "#extension",
-        "#billion-context-pi",
-        "#orchestration"
-      ],
-      "costLevel": "$3",
-      "bindingReason": "多任务并发分发与子流程编排调度"
-    },
-    {
-      "id": "pi-background-tasks",
-      "name": "pi-background-tasks",
-      "kind": "extension",
-      "layer": "L4_REVIEW_GUARD",
-      "description": "Pi extension for durable background ",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 pi-background-tasks",
-      "summary": "Pi extension for durable background ",
-      "tags": [
-        "#extension",
-        "#pi-background-tasks",
-        "#quality-guard"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
-    },
-    {
       "id": "pi-control-chrome",
       "name": "pi-control-chrome",
       "kind": "extension",
@@ -237,23 +104,6 @@
       ],
       "costLevel": "$2",
       "bindingReason": "精准信息检索、浏览器控制与外部数据源接入"
-    },
-    {
-      "id": "pi-mcp-adapter",
-      "name": "pi-mcp-adapter",
-      "kind": "extension",
-      "layer": "L3_ORCHESTRATION",
-      "description": "MCP (Model Context Protocol) adapter",
-      "tokenImpact": "high",
-      "triggerWhen": "根据任务需求动态调度 pi-mcp-adapter",
-      "summary": "MCP (Model Context Protocol) adapter",
-      "tags": [
-        "#extension",
-        "#pi-mcp-adapter",
-        "#orchestration"
-      ],
-      "costLevel": "$3",
-      "bindingReason": "多任务并发分发与子流程编排调度"
     },
     {
       "id": "pi-paste-image-to-model",
@@ -283,23 +133,6 @@
       "tags": [
         "#extension",
         "#pi-rewind",
-        "#quality-guard"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
-    },
-    {
-      "id": "pi-simplify",
-      "name": "pi-simplify",
-      "kind": "extension",
-      "layer": "L4_REVIEW_GUARD",
-      "description": "A Pi extension that reviews recently",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 pi-simplify",
-      "summary": "A Pi extension that reviews recently",
-      "tags": [
-        "#extension",
-        "#pi-simplify",
         "#quality-guard"
       ],
       "costLevel": "$1",
@@ -440,23 +273,6 @@
       "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
     },
     {
-      "id": "plannotator",
-      "name": "plannotator",
-      "kind": "skill",
-      "layer": "L4_REVIEW_GUARD",
-      "description": "\"Reference for using the Plannotator",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 plannotator",
-      "summary": "\"Reference for using the Plannotator",
-      "tags": [
-        "#skill",
-        "#plannotator",
-        "#quality-guard"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
-    },
-    {
       "id": "workflow-authoring",
       "name": "workflow-authoring",
       "kind": "skill",
@@ -589,6 +405,96 @@
       "tags": [
         "#prompt",
         "#plugin-probe"
+      ],
+      "costLevel": "$0"
+    },
+    {
+      "id": "/子-审查",
+      "name": "/子-审查",
+      "kind": "prompt",
+      "layer": "L1_UTILITY",
+      "description": "全局提示词 [/子-审查]",
+      "tokenImpact": "minimal",
+      "triggerWhen": "调用 /子-审查",
+      "summary": "触发 /子-审查 快捷动作",
+      "tags": [
+        "#prompt",
+        "#子-审查"
+      ],
+      "costLevel": "$0"
+    },
+    {
+      "id": "/子-对照",
+      "name": "/子-对照",
+      "kind": "prompt",
+      "layer": "L1_UTILITY",
+      "description": "全局提示词 [/子-对照]",
+      "tokenImpact": "minimal",
+      "triggerWhen": "调用 /子-对照",
+      "summary": "触发 /子-对照 快捷动作",
+      "tags": [
+        "#prompt",
+        "#子-对照"
+      ],
+      "costLevel": "$0"
+    },
+    {
+      "id": "/子-提炼",
+      "name": "/子-提炼",
+      "kind": "prompt",
+      "layer": "L1_UTILITY",
+      "description": "全局提示词 [/子-提炼]",
+      "tokenImpact": "minimal",
+      "triggerWhen": "调用 /子-提炼",
+      "summary": "触发 /子-提炼 快捷动作",
+      "tags": [
+        "#prompt",
+        "#子-提炼"
+      ],
+      "costLevel": "$0"
+    },
+    {
+      "id": "/瘦身",
+      "name": "/瘦身",
+      "kind": "prompt",
+      "layer": "L1_UTILITY",
+      "description": "全局提示词 [/瘦身]",
+      "tokenImpact": "minimal",
+      "triggerWhen": "调用 /瘦身",
+      "summary": "触发 /瘦身 快捷动作",
+      "tags": [
+        "#prompt",
+        "#瘦身"
+      ],
+      "costLevel": "$0"
+    },
+    {
+      "id": "/脱水",
+      "name": "/脱水",
+      "kind": "prompt",
+      "layer": "L1_UTILITY",
+      "description": "全局提示词 [/脱水]",
+      "tokenImpact": "minimal",
+      "triggerWhen": "调用 /脱水",
+      "summary": "触发 /脱水 快捷动作",
+      "tags": [
+        "#prompt",
+        "#脱水"
+      ],
+      "costLevel": "$0"
+    },
+    {
+      "id": "/透视",
+      "name": "/透视",
+      "kind": "prompt",
+      "layer": "L1_UTILITY",
+      "description": "全局提示词 [/透视]",
+      "tokenImpact": "minimal",
+      "triggerWhen": "调用 /透视",
+      "summary": "触发 /透视 快捷动作",
+      "tags": [
+        "#prompt",
+        "#透视"
       ],
       "costLevel": "$0"
     },
@@ -795,9 +701,9 @@
     "write"
   ],
   "summaryByLayer": {
-    "L1_UTILITY": 14,
-    "L2_PERCEPTION": 4,
-    "L3_ORCHESTRATION": 15,
-    "L4_REVIEW_GUARD": 13
+    "L1_UTILITY": 17,
+    "L2_PERCEPTION": 3,
+    "L3_ORCHESTRATION": 12,
+    "L4_REVIEW_GUARD": 9
   }
 }

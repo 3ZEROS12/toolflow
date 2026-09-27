@@ -34,8 +34,13 @@
 
 ## 安装方式
 
-通过 git 直接安装：
+使用 Pi 官方包管理器一键安装：
 
+```bash
+pi install npm:toolflow
+```
+
+或通过 git 直接安装：
 ```bash
 pi install git:github.com/3ZEROS12/toolflow
 ```

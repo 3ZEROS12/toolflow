@@ -34,8 +34,13 @@
 
 ## Installation
 
-Install directly via git:
+Install directly via the Pi package manager:
 
+```bash
+pi install npm:toolflow
+```
+
+Or install from git:
 ```bash
 pi install git:github.com/3ZEROS12/toolflow
 ```
