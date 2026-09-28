@@ -354,7 +354,7 @@ export function openArchitectNavigator(
         | "add_prompt_name"
         | "add_prompt_desc"
         | "add_prompt_content" =
-        slots && slots.length > 0 ? "deciding" : "input";
+        slots && slots.length > 0 ? "deciding" : initialTask ? "input" : "overview";
       let inputTask = initialTask;
       let customRequirementsText = "";
       let newOptionTitle = "";
@@ -565,26 +565,37 @@ export function openArchitectNavigator(
           lines.push(theme.fg("accent", "─".repeat(renderWidth)));
 
           if (state === "overview") {
-            const mainTabTask = theme.fg("muted", " ○ New Task (Tab) ");
-            const mainTabTpl = theme.bg("selectedBg", theme.fg("text", " ● Templates "));
-            addWrappedWithPrefix(" ", `${titleColor("⌬ ToolFlow")}  ${mainTabTask} ${mainTabTpl}`);
+            addWrappedWithPrefix(" ", titleColor("⌬ ToolFlow"));
+            addWrappedWithPrefix(
+              " ",
+              `${theme.fg("success", theme.bold("▶ [Enter / i] Start New Task"))}   ${theme.fg(
+                "dim",
+                "(or run /toolflow <your task> directly)"
+              )}`
+            );
             lines.push("");
 
             const currentFiltered = getFilteredPrompts();
-            const catRecent =
-              promptTab === "recent" ? theme.fg("accent", theme.bold("[Recent]")) : theme.fg("dim", "Recent");
-            const catUser =
-              promptTab === "user" ? theme.fg("accent", theme.bold("[Custom]")) : theme.fg("dim", "Custom");
-            const catSystem =
-              promptTab === "system" ? theme.fg("accent", theme.bold("[Built-in]")) : theme.fg("dim", "Built-in");
+            const tabRecent =
+              promptTab === "recent"
+                ? theme.bg("selectedBg", theme.fg("text", " ● Recent "))
+                : theme.fg("muted", " ○ Recent ");
+            const tabUser =
+              promptTab === "user"
+                ? theme.bg("selectedBg", theme.fg("text", " ● Custom "))
+                : theme.fg("muted", " ○ Custom ");
+            const tabSystem =
+              promptTab === "system"
+                ? theme.bg("selectedBg", theme.fg("text", " ● Built-in "))
+                : theme.fg("muted", " ○ Built-in ");
             addWrappedWithPrefix(
               " ",
-              `${theme.fg("dim", "Category (←/→):")} ${catRecent} · ${catUser} · ${catSystem}`
+              `${tabRecent} ${tabUser} ${tabSystem} ${theme.fg("dim", "(Tab)")}`
             );
             lines.push("");
 
             if (!currentFiltered || currentFiltered.length === 0) {
-              addWrappedWithPrefix("   ", theme.fg("dim", "(empty — press ←/→ or + to create)"));
+              addWrappedWithPrefix("   ", theme.fg("dim", "(empty — press Tab or +)"));
             } else {
               const windowSize = 5;
               let startIdx = 0;
@@ -645,7 +656,7 @@ export function openArchitectNavigator(
             lines.push("");
             addWrappedWithPrefix(
               " ",
-              theme.fg("dim", "Enter/p load template • ←/→ category • + new • d delete • Tab new task • Esc exit")
+              theme.fg("dim", "Enter/i new task • p load template • + new template • d delete • Esc exit")
             );
           } else if (state === "add_prompt_content") {
             addWrappedWithPrefix(" ", titleColor("New Template (1/3): Content"));
@@ -666,22 +677,19 @@ export function openArchitectNavigator(
             lines.push("");
             addWrappedWithPrefix(" ", theme.fg("dim", "Enter save • Esc back"));
           } else if (state === "input") {
-            const mainTabTask = theme.bg("selectedBg", theme.fg("text", " ● New Task "));
-            const mainTabTpl = theme.fg("muted", " ○ Templates (Tab) ");
-            addWrappedWithPrefix(" ", `${titleColor("⌬ ToolFlow")}  ${mainTabTask} ${mainTabTpl}`);
+            addWrappedWithPrefix(" ", titleColor("⌬ Task Objective"));
             lines.push("");
-            addWrappedWithPrefix(" ", theme.fg("muted", "Enter your task objective:"));
             renderEditorBlock();
             lines.push("");
 
             const taskRoute = diagnoseTaskExecutionMode(inputTask);
             const isFast = taskRoute.mode === "FAST_TRACK";
             const routeBadge = isFast
-              ? theme.fg("success", "⚡ Fast-Track (1-step direct)")
-              : theme.fg("accent", "⌬ Staged Blueprint (Design → Build → Verify)");
+              ? theme.fg("success", "⚡ Fast-Track (1-step)")
+              : theme.fg("accent", "⌬ Staged Blueprint");
 
-            addWrappedWithPrefix(" ", `${theme.fg("dim", "Route:")} ${routeBadge}`);
-            addWrappedWithPrefix(" ", theme.fg("dim", "Enter start task • Tab browse templates • Esc exit"));
+            addWrappedWithPrefix(" ", `${theme.fg("dim", "Mode:")} ${routeBadge}`);
+            addWrappedWithPrefix(" ", theme.fg("dim", "Enter start • Esc back"));
           } else if (state === "deciding") {
             const currentSlot = safeSlots[currentSlotIndex];
             if (!currentSlot) return [];
@@ -811,17 +819,8 @@ export function openArchitectNavigator(
         },
         handleInput: (data: string) => {
           if (isEditorActiveState()) {
-            // In "input" (New Task tab), Tab switches to the Templates tab ("overview")
-            if (state === "input" && (matchesKey(data, Key.tab) || data === "\t")) {
-              state = "overview";
-              rerender();
-              return;
-            }
             if (matchesKey(data, Key.escape)) {
-              if (state === "input") {
-                done(null);
-                return;
-              } else if (state === "add_prompt_content") {
+              if (state === "input" || state === "add_prompt_content") {
                 state = "overview";
               } else if (state === "add_prompt_name") {
                 enterEditorState("add_prompt_content", newPromptContent);
@@ -853,8 +852,6 @@ export function openArchitectNavigator(
           const parsed = parseKey(data);
           const isUp = matchesKey(data, Key.up) || parsed === "up";
           const isDown = matchesKey(data, Key.down) || parsed === "down";
-          const isLeft = matchesKey(data, Key.left) || parsed === "left";
-          const isRight = matchesKey(data, Key.right) || parsed === "right";
           const isEnter =
             matchesKey(data, Key.enter) || parsed === "enter" || data === "\r" || data === "\n";
           const isEscape = matchesKey(data, Key.escape) || parsed === "escape";
@@ -863,17 +860,9 @@ export function openArchitectNavigator(
 
           if (state === "overview") {
             const currentFiltered = getFilteredPrompts();
-            if (isTab || key === "i") {
-              enterEditorState("input", inputTask);
-            } else if (isRight) {
+            if (isTab) {
               if (promptTab === "recent") promptTab = "user";
               else if (promptTab === "user") promptTab = "system";
-              else promptTab = "recent";
-              selectedPromptIdx = 0;
-              rerender();
-            } else if (isLeft) {
-              if (promptTab === "recent") promptTab = "system";
-              else if (promptTab === "system") promptTab = "user";
               else promptTab = "recent";
               selectedPromptIdx = 0;
               rerender();
@@ -900,7 +889,7 @@ export function openArchitectNavigator(
                   rerender();
                 }
               }
-            } else if (isEnter || key === "p") {
+            } else if (key === "p") {
               const sel = currentFiltered[selectedPromptIdx];
               if (sel) {
                 if (typeof (PromptsManager as any).recordPromptUsage === "function") {
@@ -908,6 +897,8 @@ export function openArchitectNavigator(
                 }
                 done({ kind: "prompt_invoke", command: sel.command, filePath: sel.filePath });
               }
+            } else if (isEnter || key === "i" || key === " ") {
+              enterEditorState("input", inputTask);
             } else if (key === "+" || key === "a") {
               newPromptContent = "";
               newPromptName = "";
