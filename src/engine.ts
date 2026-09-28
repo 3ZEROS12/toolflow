@@ -787,8 +787,25 @@ export async function diagnoseTaskRequirements(
   const availablePromptList = (taxonomy.prompts || []).map(p => `prompt:${p.name}`).join(", ");
   const registeredToolList = (taxonomy.availableToolNames || []).join(", ");
 
+  // Ecosystem Handshake: sniff active project anchors from ~/.anchor/
+  let anchorHint = "";
+  try {
+    const home = process.env.HOME || process.env.USERPROFILE || "";
+    const anchorStatePath = path.join(home, ".anchor", "state.json");
+    if (fs.existsSync(anchorStatePath)) {
+      const data = JSON.parse(fs.readFileSync(anchorStatePath, "utf-8"));
+      const cwd = ctx?.cwd || process.cwd();
+      const currentAnchors = (data.anchors || []).filter((a: any) =>
+        a.status === "active" && (!a.cwd || a.cwd === cwd || cwd.startsWith(a.cwd))
+      );
+      if (currentAnchors.length > 0) {
+        anchorHint = `\nActive Anchors: ${currentAnchors.map((a: any) => `[#${a.id}] "${a.title}" (Files: ${a.files.join(", ") || "all"})`).join("; ")}`;
+      }
+    }
+  } catch (_) {}
+
   const prompt = `[ROLE: Senior Architect & Product Lead]
-User Task: "${task}"
+User Task: "${task}"${anchorHint}
 Local Environment: Project Type=${fp.projectType}, Framework=${fp.mainFramework || "none"}, PackageManager=${fp.packageManager}
 Available Tools: Extensions=[${availableExtList}], Skills=[${availableSkillList}], MCP=[${availableMcpList}], Prompts=[${availablePromptList}], RegisteredTools=[${registeredToolList}]
 

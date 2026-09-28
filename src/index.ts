@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import { Type } from "@sinclair/typebox";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 import { loadOrRefreshTaxonomy, reflectEnvironmentContext } from "./taxonomy.js";
 import { diagnoseTaskRequirements, diagnoseTaskExecutionMode, synthesizeBlueprint, synthesizeBlueprintPlanWithLLM, generateStageActionPrompt } from "./engine.js";
@@ -109,6 +110,133 @@ export default function (pi: ExtensionAPI) {
       const savedTokens = typeof event?.tokensSaved === "number" ? event.tokensSaved : undefined;
       if (ctx?.ui?.notify) {
         ctx.ui.notify(t.compactNotice(savedTokens), "info");
+      }
+    });
+
+    // ⚡ 零配置日常静默修剪 (Zero-Config Auto-Pruning via before_provider_request)
+    (pi as any).on("before_provider_request", async (event: any) => {
+      const state = getSessionState();
+      // If we are actively running a blueprint, let stage-gated applyToolScoping handle it
+      if (state.currentBlueprint && state.status === "in_progress") {
+        return;
+      }
+
+      const payload = event?.payload;
+      if (!payload || !Array.isArray(payload.tools) || payload.tools.length <= 10) {
+        return;
+      }
+
+      const messages = payload.messages;
+      if (!Array.isArray(messages) || messages.length === 0) return;
+      const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
+      let promptText = "";
+      if (typeof lastUserMsg?.content === "string") {
+        promptText = lastUserMsg.content;
+      } else if (Array.isArray(lastUserMsg?.content)) {
+        promptText = lastUserMsg.content.map((c: any) => c.text || "").join(" ");
+      }
+
+      // If user prompt mentions web, browser, subagents, or links, preserve all tools!
+      const needsHeavy = /(https?:\/\/|www\.|chrome|browser|web_search|search|crawl|subagent|delegate|supervisor|advisor|council|image_describe|screenshot)/i.test(promptText);
+      if (needsHeavy) {
+        return;
+      }
+
+      const HEAVY_TOOL_NAMES = new Set([
+        "browser_probe_interaction",
+        "browser_target_lease",
+        "browser_reload_extension",
+        "subagent",
+        "subagent_supervisor",
+        "bg_wait",
+        "web_search",
+        "source_check",
+        "fetch_content",
+        "image_describe"
+      ]);
+
+      const initialCount = payload.tools.length;
+      payload.tools = payload.tools.filter((t: any) => {
+        const name = t.name || t.function?.name || "";
+        return !HEAVY_TOOL_NAMES.has(name);
+      });
+
+      const prunedCount = initialCount - payload.tools.length;
+      if (prunedCount > 0) {
+        const stats = new StatsManager(process.cwd());
+        stats.recordSavings(prunedCount * 380, "log");
+      }
+    });
+  }
+
+  // 🔍 脱水切片按需检视工具 (toolflow_inspect)
+  if (typeof pi.registerTool === "function") {
+    pi.registerTool({
+      name: "toolflow_inspect",
+      label: "ToolFlow Log Inspector",
+      description: "Inspect or search dehydrated tool output files stored by ToolFlow without blowing up the context window. Returns bounded line slices or matching grep passages.",
+      parameters: Type.Object({
+        id: Type.Optional(Type.String({ description: "Log ID or partial file path returned by ToolFlow dehydration notice" })),
+        findText: Type.Optional(Type.String({ description: "Optional search query to locate matching lines" })),
+        offset: Type.Optional(Type.Number({ description: "Starting line number (1-indexed, default 1)" })),
+        limit: Type.Optional(Type.Number({ description: "Maximum lines to return (default 50, max 200)" }))
+      }),
+      execute: async (_toolCallId, params: any, _signal, _onUpdate, ctx) => {
+        const baseDir = path.join(ctx?.cwd || process.cwd(), ".pi", "toolflow");
+        let targetFile = ContextDehydrator.getLatestLogPath();
+
+        if (params.id) {
+          if (fs.existsSync(params.id)) {
+            targetFile = params.id;
+          } else {
+            const candidate = path.join(baseDir, params.id);
+            if (fs.existsSync(candidate)) {
+              targetFile = candidate;
+            }
+          }
+        }
+
+        if (!targetFile || !fs.existsSync(targetFile)) {
+          return {
+            content: [{ type: "text", text: `No dehydrated log found matching "${params.id || 'latest'}".` }],
+            isError: true
+          };
+        }
+
+        const raw = fs.readFileSync(targetFile, "utf-8");
+        const lines = raw.split("\n");
+
+        if (params.findText) {
+          const query = params.findText.toLowerCase();
+          const matches: string[] = [];
+          for (let i = 0; i < lines.length; i++) {
+            if (lines[i].toLowerCase().includes(query)) {
+              matches.push(`[Line ${i + 1}] ${lines[i]}`);
+              if (matches.length >= (params.limit || 50)) break;
+            }
+          }
+          return {
+            content: [{
+              type: "text",
+              text: matches.length > 0
+                ? `Found ${matches.length} matching lines in ${path.basename(targetFile)}:\n\n${matches.join("\n")}`
+                : `No lines matching "${params.findText}" found in ${path.basename(targetFile)}.`
+            }],
+            isError: false
+          };
+        }
+
+        const offset = Math.max(1, params.offset || 1);
+        const limit = Math.min(200, Math.max(1, params.limit || 50));
+        const slice = lines.slice(offset - 1, offset - 1 + limit);
+
+        return {
+          content: [{
+            type: "text",
+            text: `[${path.basename(targetFile)} Lines ${offset}-${offset + slice.length - 1} of ${lines.length}]\n\n${slice.join("\n")}`
+          }],
+          isError: false
+        };
       }
     });
   }

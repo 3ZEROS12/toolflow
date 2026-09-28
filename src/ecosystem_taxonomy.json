@@ -12,15 +12,16 @@
       "tests"
     ],
     "coreDependencies": [
-      "@types/node",
+      "@sinclair/typebox",
       "@earendil-works/pi-coding-agent",
       "@earendil-works/pi-tui",
+      "@types/node",
       "tsx",
       "typescript"
     ],
     "gitBranch": "main"
   },
-  "updatedAt": 1790565824473,
+  "updatedAt": 1790583806666,
   "extensions": [
     {
       "id": "input-history",
