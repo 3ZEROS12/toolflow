@@ -1,6 +1,6 @@
 {
   "name": "toolflow",
-  "version": "3.2.6",
+  "version": "3.2.7",
   "description": "Dynamic tool sandboxing & context dehydrator for Pi: stage-gated tool pruning, 95% token dehydration, physical blast radius guard, and native prompt workbench.",
   "type": "module",
   "main": "src/index.ts",
@@ -8,8 +8,7 @@
     "src",
     "README.md",
     "README_zh.md",
-    "LICENSE",
-    "ecosystem_taxonomy.json"
+    "LICENSE"
   ],
   "pi": {
     "extensions": [

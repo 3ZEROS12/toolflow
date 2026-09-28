@@ -123,7 +123,7 @@ async function run() {
       extensions: [],
       skills: [],
       prompts: []
-    }, "想要完全检查一下我现在 D:\\Workspace");
+    } as any, "想要完全检查一下我现在 D:\\Workspace");
 
     assert(capturedComp, "30.1 成功挂载自定义 TUI 组件");
     capturedComp.handleInput("文件还");
@@ -148,7 +148,7 @@ async function run() {
     const { diagnoseTaskRequirements, synthesizeBlueprintPlanWithLLM, synthesizeBlueprint } = await import("../src/engine.js");
     const { renderBlueprintSummary } = await import("../src/ui.js");
 
-    const tax = {
+    const tax: any = {
       updatedAt: new Date().toISOString(),
       extensions: [],
       skills: [],
