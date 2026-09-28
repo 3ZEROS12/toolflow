@@ -285,10 +285,10 @@ export default function (pi: ExtensionAPI) {
 
     // 极简自然的阶段指引（消除生硬契约与长指令，给开发者顺畅的编码心流）
     const actionGuidance = generateStageActionPrompt(firstStage, 0, blueprint.stages.length);
-    const guidancePrompt = `[阶段 1/${blueprint.stages.length}: ${firstStage.title}]\n` +
-      `目标产物: ${firstStage.expectedArtifact}\n` +
-      `核心目标: ${firstStage.coreObjective}\n` +
-      `执行建议: ${actionGuidance} (随时自由读写/运行测试；如需回滚可执行 /toolflow rollback)`;
+    const guidancePrompt = `[Stage 1/${blueprint.stages.length}: ${firstStage.title}]\n` +
+      `Target Artifact: ${firstStage.expectedArtifact}\n` +
+      `Core Objective: ${firstStage.coreObjective}\n` +
+      `Action Guidance: ${actionGuidance} (Run /toolflow rollback anytime to revert stage changes)`;
 
     // 🎯 核心省 Token 机制：会话过短时 ctx.compact 会抛出 "Nothing to compact" 报错打扰用户
     // 因此开工初期无需强制 compact，依靠后续阶段递进与脱水即可
@@ -467,11 +467,11 @@ export default function (pi: ExtensionAPI) {
 
       if (ctx?.ui?.select) {
         const choice = await ctx.ui.select(
-          `📌 检测到正在进行中的蓝图「${bp.task}」(当前: 阶段 ${stageNum} - ${currentStage?.title})，请选择：`,
+          `📌 Active blueprint "${bp.task}" (Stage ${stageNum}: ${currentStage?.title}):`,
           [
-            `▶ [继续推进] 阶段 ${stageNum}: ${currentStage?.title}`,
-            `↺ [回滚本阶段] 恢复至「${currentStage?.title}」开工前快照`,
-            `✚ [新建蓝图] 覆盖并启动新任务`
+            `▶ [Resume] Stage ${stageNum}: ${currentStage?.title}`,
+            `↺ [Rollback] Revert to Stage ${stageNum} snapshot`,
+            `✚ [New Task] Discard active blueprint & start fresh`
           ]
         );
 
@@ -977,10 +977,10 @@ export default function (pi: ExtensionAPI) {
               updatedState.currentStageIndex,
               updatedState.currentBlueprint.stages.length
             );
-            const promptMsg = `[阶段 ${updatedState.currentStageIndex + 1}/${updatedState.currentBlueprint.stages.length}: ${nextStage.title}]\n` +
-              `目标产物: ${nextStage.expectedArtifact}${previewHint}\n` +
-              `核心目标: ${nextStage.coreObjective}${gateCmd}\n` +
-              `执行建议: ${actionGuidance} (自由调优/测试验证；如需回滚可执行 /toolflow rollback)`;
+            const promptMsg = `[Stage ${updatedState.currentStageIndex + 1}/${updatedState.currentBlueprint.stages.length}: ${nextStage.title}]\n` +
+              `Target Artifact: ${nextStage.expectedArtifact}${previewHint}\n` +
+              `Core Objective: ${nextStage.coreObjective}${gateCmd}\n` +
+              `Action Guidance: ${actionGuidance} (Run /toolflow rollback anytime to revert stage changes)`;
 
             // 同步渲染或刷新阶段看板
             const pipelineCard = renderExecutionPipelineCard({
