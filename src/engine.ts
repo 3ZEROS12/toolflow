@@ -57,7 +57,18 @@ export function diagnoseTaskExecutionMode(
     return { mode: "BLUEPRINT", reason: "检测到系统级重构或全局架构诉求", suggestedTools: [] };
   }
 
-  // 2. 判定极速通道特征：具体文件、行号符号、微操作动词
+  // 2. Casual greetings, short chat, or read-only queries route directly to FAST_TRACK
+  const hasBuildVerb = /(开发|构建|实现|设计|编写|做一个|写一个|创建|生成|搭建|重构|build|create|implement|develop|design|make|write|scaffold|architect|refactor)/i.test(lower);
+  const isGreetingOrQuery = /^(hi|hello|hey|yo|你好|您好|在吗|test|测试|看看|检查|查看|分析|解释|什么是|why|what|how|where|who|ls|status|help)\b/i.test(lower);
+  if ((trimmed.length <= 12 && !hasBuildVerb) || (isGreetingOrQuery && !hasBuildVerb)) {
+    return {
+      mode: "FAST_TRACK",
+      reason: `Conversational or lightweight query (${trimmed.length} chars)`,
+      suggestedTools: ["read", "edit", "write", "bash", "powershell", "grep", "find"]
+    };
+  }
+
+  // 3. 判定极速通道特征：具体文件、行号符号、微操作动词
   const hasSingleFileTarget = /\b[\w-]+\.(ts|tsx|js|jsx|py|rs|go|json|css|scss|html|vue|md)\b/i.test(lower);
   const hasSpecificLineOrSymbol = /(第\s*\d+\s*行|line\s*\d+|函数|function\s+\w+|class\s+\w+|方法|变量)/i.test(lower);
   const hasMicroActionVerb = /(修复|fix|修改|改一下|微调|format|加个注释|添加注释|加注释|补充类型|类型修复|换个颜色|改个文案|改文案|加个字段|加字段|增加字段|输出日志|加log|加打印|优化排版)/i.test(lower);
@@ -65,7 +76,7 @@ export function diagnoseTaskExecutionMode(
   if (trimmed.length <= 80 && (hasMicroActionVerb || hasSingleFileTarget || hasSpecificLineOrSymbol)) {
     return {
       mode: "FAST_TRACK",
-      reason: `单点日常微任务 (${trimmed.length} 字, 具备局部修改意图)`,
+      reason: `Targeted single-step task (${trimmed.length} chars)`,
       suggestedTools: ["read", "edit", "write", "bash", "powershell", "grep", "find"]
     };
   }
@@ -876,6 +887,7 @@ Return ONLY valid raw JSON matching this structure:
         const res = await mr.complete(
           model,
           {
+            systemPrompt: "You are a concise software architect. Output valid JSON only.",
             messages: [
               {
                 role: "user",
@@ -884,11 +896,7 @@ Return ONLY valid raw JSON matching this structure:
               }
             ]
           },
-          {
-            maxTokens: 2000,
-            temperature: 0.3,
-            ...(signal ? { signal } : {})
-          }
+          signal ? { signal } : undefined
         );
         if ((res as any)?.stopReason === "aborted") return null;
         return (res.content || [])
