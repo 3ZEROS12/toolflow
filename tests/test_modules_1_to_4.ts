@@ -137,7 +137,7 @@ async function run() {
       assert(!cleanLine.endsWith("│"), "30.3 严禁使用会导致 CJK 终端折行错位的右侧竖线边框");
     }
     const joined = lines.join("\n");
-    assert(joined.includes("Task Objective"), "30.4 界面外壳采用极简通用英文标签");
+    assert(joined.includes("New Task"), "30.4 默认直达主功能 ● New Task 输入界面");
     assert(joined.includes("想要完全检查一下我现在 D:\\Workspace文"), "30.5 中文追加与连续退格精确无误");
 
     console.log("  [OK] 30.1 - 30.5 官方 Editor 输入组件与英文无边框布局 100% 验证通过！");
