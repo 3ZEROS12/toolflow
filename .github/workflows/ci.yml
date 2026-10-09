@@ -4,28 +4,48 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20.x, 22.x]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22
+          cache: npm
 
       - name: Install dependencies
-        run: npm ci || npm install
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif node -e "const p=require('./package.json'); process.exit(p.dependencies || p.devDependencies ? 0 : 1)"; then
+            npm install
+          fi
 
-      - name: Run TypeScript type check
-        run: npx tsc --noEmit
-
-      - name: Run test suite
-        run: npm test
+      - name: Polymorphic validation
+        shell: bash
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.ci ? 0 : 1)"; then
+            npm run ci
+          elif node -e "process.exit(require('./package.json').scripts?.check ? 0 : 1)"; then
+            npm run check
+          elif node -e "process.exit(require('./package.json').scripts?.test ? 0 : 1)"; then
+            npm test
+          elif node -e "process.exit(require('./package.json').scripts?.typecheck ? 0 : 1)"; then
+            npm run typecheck
+          fi

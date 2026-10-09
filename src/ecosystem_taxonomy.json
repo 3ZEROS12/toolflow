@@ -1,5 +1,5 @@
 {
-  "installedFingerprint": "43e01e44dff93647",
+  "installedFingerprint": "7efaf9c8ede28503",
   "projectFingerprint": {
     "projectType": "node",
     "mainFramework": "Pi-Extension",
@@ -12,16 +12,16 @@
       "tests"
     ],
     "coreDependencies": [
-      "@sinclair/typebox",
       "@earendil-works/pi-coding-agent",
       "@earendil-works/pi-tui",
+      "@sinclair/typebox",
       "@types/node",
       "tsx",
       "typescript"
     ],
     "gitBranch": "main"
   },
-  "updatedAt": 1790583806666,
+  "updatedAt": 1791552902295,
   "extensions": [
     {
       "id": "input-history",
@@ -41,21 +41,20 @@
       "bindingReason": "多任务并发分发与子流程编排调度"
     },
     {
-      "id": "ponytail",
-      "name": "ponytail",
+      "id": "D:\\Workspace\\projects\\pi-lingua",
+      "name": "D:\\Workspace\\projects\\pi-lingua",
       "kind": "extension",
-      "layer": "L3_ORCHESTRATION",
-      "description": "Lazy senior dev mode for AI agents. ",
-      "tokenImpact": "high",
-      "triggerWhen": "根据任务需求动态调度 ponytail",
-      "summary": "Lazy senior dev mode for AI agents. ",
+      "layer": "L1_UTILITY",
+      "description": "动态识别组件 [D:\\Workspace\\projects\\pi-lingua]",
+      "tokenImpact": "low",
+      "triggerWhen": "根据任务需求动态调度 D:\\Workspace\\projects\\pi-lingua",
+      "summary": "动态识别组件 [D:\\Workspace\\projects\\pi-lingua]",
       "tags": [
         "#extension",
-        "#ponytail",
-        "#orchestration"
+        "#D:\\Workspace\\projects\\pi-lingua"
       ],
-      "costLevel": "$3",
-      "bindingReason": "多任务并发分发与子流程编排调度"
+      "costLevel": "$1",
+      "bindingReason": "基础通用能力"
     },
     {
       "id": "rpiv-ask-user-question",
@@ -176,138 +175,6 @@
   ],
   "skills": [
     {
-      "id": "ponytail",
-      "name": "ponytail",
-      "kind": "skill",
-      "layer": "L1_UTILITY",
-      "description": ">",
-      "tokenImpact": "low",
-      "triggerWhen": "根据任务需求动态调度 ponytail",
-      "summary": ">",
-      "tags": [
-        "#skill",
-        "#ponytail"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "基础通用能力"
-    },
-    {
-      "id": "ponytail-audit",
-      "name": "ponytail-audit",
-      "kind": "skill",
-      "layer": "L4_REVIEW_GUARD",
-      "description": ">",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 ponytail-audit",
-      "summary": ">",
-      "tags": [
-        "#skill",
-        "#ponytail-audit",
-        "#quality-guard"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
-    },
-    {
-      "id": "ponytail-debt",
-      "name": "ponytail-debt",
-      "kind": "skill",
-      "layer": "L1_UTILITY",
-      "description": ">",
-      "tokenImpact": "low",
-      "triggerWhen": "根据任务需求动态调度 ponytail-debt",
-      "summary": ">",
-      "tags": [
-        "#skill",
-        "#ponytail-debt"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "基础通用能力"
-    },
-    {
-      "id": "ponytail-gain",
-      "name": "ponytail-gain",
-      "kind": "skill",
-      "layer": "L1_UTILITY",
-      "description": ">",
-      "tokenImpact": "low",
-      "triggerWhen": "根据任务需求动态调度 ponytail-gain",
-      "summary": ">",
-      "tags": [
-        "#skill",
-        "#ponytail-gain"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "基础通用能力"
-    },
-    {
-      "id": "ponytail-help",
-      "name": "ponytail-help",
-      "kind": "skill",
-      "layer": "L1_UTILITY",
-      "description": ">",
-      "tokenImpact": "low",
-      "triggerWhen": "根据任务需求动态调度 ponytail-help",
-      "summary": ">",
-      "tags": [
-        "#skill",
-        "#ponytail-help"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "基础通用能力"
-    },
-    {
-      "id": "ponytail-review",
-      "name": "ponytail-review",
-      "kind": "skill",
-      "layer": "L4_REVIEW_GUARD",
-      "description": ">",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 ponytail-review",
-      "summary": ">",
-      "tags": [
-        "#skill",
-        "#ponytail-review",
-        "#quality-guard"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
-    },
-    {
-      "id": "workflow-authoring",
-      "name": "workflow-authoring",
-      "kind": "skill",
-      "layer": "L4_REVIEW_GUARD",
-      "description": "Guidance for writing, editing, revie",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 workflow-authoring",
-      "summary": "Guidance for writing, editing, revie",
-      "tags": [
-        "#skill",
-        "#workflow-authoring",
-        "#quality-guard"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
-    },
-    {
-      "id": "workflow-patterns",
-      "name": "workflow-patterns",
-      "kind": "skill",
-      "layer": "L4_REVIEW_GUARD",
-      "description": "Argument shapes for the 5 built-in w",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 workflow-patterns",
-      "summary": "Argument shapes for the 5 built-in w",
-      "tags": [
-        "#skill",
-        "#workflow-patterns",
-        "#quality-guard"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
-    },
-    {
       "id": "pi-control-chrome",
       "name": "pi-control-chrome",
       "kind": "skill",
@@ -336,23 +203,6 @@
       "tags": [
         "#skill",
         "#pi-control-chrome-release",
-        "#quality-guard"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "代码审查走查、断言比对与质量门禁强拦截"
-    },
-    {
-      "id": "mcp-scripting",
-      "name": "mcp-scripting",
-      "kind": "skill",
-      "layer": "L4_REVIEW_GUARD",
-      "description": "Write mcpScript JavaScript for disco",
-      "tokenImpact": "medium",
-      "triggerWhen": "根据任务需求动态调度 mcp-scripting",
-      "summary": "Write mcpScript JavaScript for disco",
-      "tags": [
-        "#skill",
-        "#mcp-scripting",
         "#quality-guard"
       ],
       "costLevel": "$1",
@@ -395,17 +245,17 @@
   ],
   "prompts": [
     {
-      "id": "/plugin-probe",
-      "name": "/plugin-probe",
+      "id": "/flow",
+      "name": "/flow",
       "kind": "prompt",
       "layer": "L1_UTILITY",
-      "description": "全局提示词 [/plugin-probe]",
+      "description": "全局提示词 [/flow]",
       "tokenImpact": "minimal",
-      "triggerWhen": "调用 /plugin-probe",
-      "summary": "触发 /plugin-probe 快捷动作",
+      "triggerWhen": "调用 /flow",
+      "summary": "触发 /flow 快捷动作",
       "tags": [
         "#prompt",
-        "#plugin-probe"
+        "#flow"
       ],
       "costLevel": "$0"
     },
@@ -451,6 +301,21 @@
       "tags": [
         "#prompt",
         "#子-提炼"
+      ],
+      "costLevel": "$0"
+    },
+    {
+      "id": "/智课资料获取",
+      "name": "/智课资料获取",
+      "kind": "prompt",
+      "layer": "L1_UTILITY",
+      "description": "全局提示词 [/智课资料获取]",
+      "tokenImpact": "minimal",
+      "triggerWhen": "调用 /智课资料获取",
+      "summary": "触发 /智课资料获取 快捷动作",
+      "tags": [
+        "#prompt",
+        "#智课资料获取"
       ],
       "costLevel": "$0"
     },
@@ -702,9 +567,9 @@
     "write"
   ],
   "summaryByLayer": {
-    "L1_UTILITY": 17,
+    "L1_UTILITY": 15,
     "L2_PERCEPTION": 3,
-    "L3_ORCHESTRATION": 12,
-    "L4_REVIEW_GUARD": 9
+    "L3_ORCHESTRATION": 11,
+    "L4_REVIEW_GUARD": 4
   }
 }

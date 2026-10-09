@@ -38,18 +38,17 @@
     "blast-radius-guard"
   ],
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": ">=0.80.0"
+    "@earendil-works/pi-coding-agent": ">=0.80.0",
+    "@sinclair/typebox": "*"
   },
   "author": "Jason",
   "license": "MIT",
   "devDependencies": {
     "@earendil-works/pi-coding-agent": ">=0.80.0",
     "@earendil-works/pi-tui": ">=0.80.0",
+    "@sinclair/typebox": "^0.34.52",
     "@types/node": "^20.17.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
-  },
-  "dependencies": {
-    "@sinclair/typebox": "^0.34.52"
   }
 }
