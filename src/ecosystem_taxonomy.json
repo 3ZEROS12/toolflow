@@ -1,5 +1,5 @@
 {
-  "installedFingerprint": "7efaf9c8ede28503",
+  "installedFingerprint": "89e39d6d85dbed9a",
   "projectFingerprint": {
     "projectType": "node",
     "mainFramework": "Pi-Extension",
@@ -21,7 +21,7 @@
     ],
     "gitBranch": "main"
   },
-  "updatedAt": 1791552902295,
+  "updatedAt": 1791562469918,
   "extensions": [
     {
       "id": "input-history",
@@ -39,22 +39,6 @@
       ],
       "costLevel": "$3",
       "bindingReason": "多任务并发分发与子流程编排调度"
-    },
-    {
-      "id": "D:\\Workspace\\projects\\pi-lingua",
-      "name": "D:\\Workspace\\projects\\pi-lingua",
-      "kind": "extension",
-      "layer": "L1_UTILITY",
-      "description": "动态识别组件 [D:\\Workspace\\projects\\pi-lingua]",
-      "tokenImpact": "low",
-      "triggerWhen": "根据任务需求动态调度 D:\\Workspace\\projects\\pi-lingua",
-      "summary": "动态识别组件 [D:\\Workspace\\projects\\pi-lingua]",
-      "tags": [
-        "#extension",
-        "#D:\\Workspace\\projects\\pi-lingua"
-      ],
-      "costLevel": "$1",
-      "bindingReason": "基础通用能力"
     },
     {
       "id": "rpiv-ask-user-question",
@@ -104,6 +88,23 @@
       ],
       "costLevel": "$2",
       "bindingReason": "精准信息检索、浏览器控制与外部数据源接入"
+    },
+    {
+      "id": "pi-lingual",
+      "name": "pi-lingual",
+      "kind": "extension",
+      "layer": "L3_ORCHESTRATION",
+      "description": "Zero-friction developer translator &",
+      "tokenImpact": "high",
+      "triggerWhen": "根据任务需求动态调度 pi-lingual",
+      "summary": "Zero-friction developer translator &",
+      "tags": [
+        "#extension",
+        "#pi-lingual",
+        "#orchestration"
+      ],
+      "costLevel": "$3",
+      "bindingReason": "多任务并发分发与子流程编排调度"
     },
     {
       "id": "pi-paste-image-to-model",
@@ -567,9 +568,9 @@
     "write"
   ],
   "summaryByLayer": {
-    "L1_UTILITY": 15,
+    "L1_UTILITY": 14,
     "L2_PERCEPTION": 3,
-    "L3_ORCHESTRATION": 11,
+    "L3_ORCHESTRATION": 12,
     "L4_REVIEW_GUARD": 4
   }
 }

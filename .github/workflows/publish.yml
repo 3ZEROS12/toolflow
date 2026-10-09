@@ -43,6 +43,12 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
+      - name: Ensure npm CLI supports OIDC trusted publishing
+        shell: bash
+        run: |
+          npm install -g npm@^11.5.1
+          npm --version
+
       - name: Install dependencies
         shell: bash
         run: |
