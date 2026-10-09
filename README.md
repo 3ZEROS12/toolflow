@@ -103,6 +103,22 @@ Don't need a heavy multi-stage workflow for a small task? ToolFlow doubles as yo
 
 ---
 
+## Author's Note
+
+The idea for ToolFlow came from a recurring moment of frustration: watching an agent lose its mind because its toolbox was too crowded.
+
+When terminal coding agents added support for arbitrary MCP servers and subagent extensions, I installed everything: browser controllers, database connectors, search engines, and multi-agent harnesses. But within days, a subtle degradation emerged: asking the model for a straightforward TypeScript helper function prompted it to spin up Chrome or run a heavy subagent workflow. The tool selection entropy was simply too high.
+
+Then came the second pain point: verbose compiler outputs and test logs. Running a build or an end-to-end test suite often dumped 500+ lines of raw stack traces straight into the context window. Within three turns, the session's context window was completely saturated, triggering premature conversation compaction and wiping out working memory.
+
+ToolFlow is the physical defense against this tool and token bloat:
+1. Stage-gated capability mounting: core tools (`read`, `write`, `edit`, `bash`) remain available at all times, while heavy external tools mount only when strictly required;
+2. Real-time log dehydration: verbose outputs (>40 lines) are automatically archived to disk, leaving only the exit code, root failure summary, and on-disk file path in context.
+
+I hope ToolFlow keeps your agent focused on the code and protects your context window from wasteful noise.
+
+---
+
 ## License
 
 MIT © [Jason](https://github.com/3ZEROS12)
