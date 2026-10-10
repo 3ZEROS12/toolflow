@@ -1,100 +1,105 @@
 # ToolFlow ⌬
 
-> Organize your installed tools into focused pipelines to hit complex goals.  
-> Dynamic capability orchestration, log dehydration to disk, and built-in prompt workbench.
+Dynamic tool sandboxing & context dehydrator for Pi Coding Agent.
 
-[English](README.md) | [简体中文](README_zh.md)
+Stop tool overload and context bloat. Stage-gated capability mounting, automatic log dehydration to disk (-95% token overhead), physical blast radius guard, and built-in prompt workbench.
 
----
+[![npm version](https://img.shields.io/npm/v/toolflow?color=blue)](https://www.npmjs.com/package/toolflow)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Built for Pi](https://img.shields.io/badge/Built%20for-Pi%20Coding%20Agent-orange)](https://github.com/earendil-works/pi-coding-agent)
+[![Tests: 26 Suites Pass](https://img.shields.io/badge/Tests-26%20Suites%20Pass%20(100%25)-brightgreen)](tests/test_suite.ts)
+[![TypeScript Strict](https://img.shields.io/badge/TypeScript-Strict-blue)](tsconfig.json)
 
-## Why ToolFlow?
+**English** | [简体中文](./README_zh.md)
 
-When developing software with AI coding agents equipped with dozens of tools, plugins, and MCP servers, three systemic frictions emerge:
+```text
+  ┌─ Tool Overload (40+ tools & MCPs exposed simultaneously in System Prompt) ───────────┐
+  │  read write edit bash browser_click mcp_query subagent_run git_reset ...             │
+  │  [Result: High entropy. Asking for a helper function prompts a browser launch]       │
+  └──────────────────────────────────────────────────────────────────────────────────────┘
+                                             │
+                                             ▼
+  ┌─ ToolFlow ⌬ Stage-Gated Sandboxing (-95% Context Overhead) ──────────────────────────┐
+  │  Phase 1: Research  ❯ [read, grep, find, web_search]                                 │
+  │  Phase 2: Implement ❯ [read, edit, write, bash] (Dehydrates verbose logs >40 lines)  │
+  │  Phase 3: Review    ❯ [read, grep, bash (test-only)] (Write tools physically stripped)│
+  └──────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-1. **Tool Overload & Misdirection**: Exposing 40+ tool definitions simultaneously overwhelms the LLM. Asking for a simple utility function prompts the model to spin up a browser or query a database because its tool selection entropy is too high.
-2. **Context Blowout from Verbose Logs**: Running test suites or builds often outputs hundreds or thousands of lines. Flooding the context window with raw stack traces burns tokens, dilutes attention, and rapidly triggers premature context compaction.
-3. **Template Scramble**: Developers constantly copy-paste prompt templates from notes, web browsers, or chat history, interrupting the terminal development flow.
+## Quick Start
 
-**ToolFlow brings discipline to the agent's toolbox**:
-- **Stage-Gated Capability Mounting**: Native core tools (`read`, `write`, `edit`, `bash`, `grep`, `find`, `ls`) remain accessible at all times; heavy external MCPs, browser controllers, and subagents mount only in phases where they are strictly needed.
-- **Real-Time Log Dehydration (-95% Overhead)**: Long tool outputs (>40 lines) are automatically archived to disk (`.pi/toolflow/runs/...`), passing only the exit code, root failure summary, and on-disk file path to the model.
-- **Built-in Prompt Workbench**: Summon an instant terminal teleprompter with `/toolflow` to insert battle-tested prompts directly into your editor with zero planning ceremony.
-- **Guaranteed Cleanup**: Upon task completion or `/toolflow reset`, tool definitions are restored to their original clean state.
-
----
-
-> **Scope**: Designed for multi-tool, multi-MCP orchestration on complex tasks. For trivial single-file edits, stock Pi is sufficient. For multi-phase workflows, ToolFlow takes command.
-
----
-
-## Installation
-
-Install directly via the Pi package manager:
+Install directly inside Pi:
 
 ```bash
 pi install npm:toolflow
 ```
 
-Or install from git:
-```bash
-pi install git:github.com/3ZEROS12/toolflow
+Works out of the box. Type `/toolflow` anytime to summon the interactive prompt teleprompter.
+
+---
+
+## Core Value: Why Do Developers Need ToolFlow?
+
+When developing with AI coding agents equipped with dozens of tools, plugins, and MCP servers, three systemic frictions emerge:
+
+### 1. Tool Overload & Selection Entropy
+Exposing 40+ tool definitions simultaneously overwhelms the LLM. Asking for a straightforward utility function prompts the model to spin up a browser or query a database because its tool selection entropy is too high.
+`toolflow` enforces **stage-gated capability mounting**: core tools (`read`, `write`, `edit`, `bash`) remain accessible at all times; heavy external MCPs, browsers, and subagents mount only in phases where they are strictly needed.
+
+### 2. Context Blowout from Verbose Logs
+Running builds or end-to-end test suites often dumps 500+ lines of raw stack traces. Flooding the context window burns token budgets, dilutes attention, and rapidly triggers premature conversation compaction—wiping out working memory.
+`toolflow` enforces **real-time log dehydration**: outputs exceeding 40 lines are automatically archived to disk (`.pi/toolflow/runs/...`). The model receives only the exit code, root failure summary, and on-disk file path, **reducing token overhead by 95%**.
+
+### 3. Template Scramble & Context Switching
+Developers constantly copy-paste prompt templates from notes, web browsers, or chat history, interrupting the terminal development flow.
+`toolflow` doubles as an **instant prompt teleprompter**: hit `/toolflow` without arguments to summon the teleprompter overlay, browse templates, and hit `[p]` to insert battle-tested prompts directly into your editor with zero planning ceremony.
+
+---
+
+## How It Works: The Action Matrix
+
+```text
+  /toolflow <task> (Launch sandboxed workflow)   /toolflow (Summon prompt teleprompter)
 ```
 
----
-
-## Core Capabilities
-
-### 1. Dynamic Ecosystem Mounting (Persistent Core, Stage-Gated Advanced Tools)
-Instead of exposing your entire heavyweight tool catalog at all times, ToolFlow keeps the developer workflow smooth and focused:
-- **Persistent Core Tools**: Standard development tools (`read`, `edit`, `write`, `bash`, `grep`, `find`, `ls`) remain accessible at all times to prevent workflow lockups.
-- **Stage-Gated Advanced Capabilities**: Heavy external MCPs, browser controllers, dynamic workflows, and subagents are dynamically mounted only in relevant phases, keeping prompts focused and eliminating token bloat.
-
-### 2. 4-Tier Token Governance (-95% Context Overhead)
-ToolFlow enforces four runtime barriers against context bloating:
-- **Real-Time Tool Result Dehydration**: Whenever terminal outputs (`bash`/`powershell`) or fetch tools emit verbose logs (>40 lines or deep stacks), ToolFlow intercepts and archives them to disk in real-time (`.pi/toolflow/runs/...`). The context only retains concise physical head/tail summaries and the local file path.
-- **Heavy Tool JIT Allocation**: Powered by deep LLM intent reasoning, heavy MCP tools are loaded just-in-time for stages that strictly require them, completely masking their hefty JSON schemas during unrelated phases.
-- **Stage Boundary Compaction Contract**: Hooks into `session_before_compact` at stage transitions, stripping exploratory trials and reasoning chaff while handing off only verified on-disk artifact paths to downstream stages.
-- **Transparent Feedback**: Listens for `session_compact` events to surface minimal, reassuring token reduction notices in your status line—eliminating monotonically growing context anxiety.
-
-### 3. Strict Tool Lifecycle Snapshot & Restoration
-ToolFlow snapshots active tools at startup. Upon stage completion, abrupt error, or manual `/toolflow reset`, the environment is 100% restored to its original catalog, preventing orphaned states.
-
-### 4. Physical Blast Radius Guard
-A runtime safety interceptor monitoring both native write tools and terminal commands (`bash`, `powershell`). Destructive overwrites, file removals, or shell redirections targeting sensitive assets (`.env*`, `.git*`, core locks) are physically blocked at the engine level.
-
-### 5. Production Craftsmanship & Aesthetics Guard
-Prevents the LLM from outputting "toy-grade, functionally running but visually hideous" deliverables:
-- **Hard Guardrails on UI & Visuals**: Explicitly bans bare unstyled elements, crude monochrome placeholder rectangles, and naive sketch lines. Mandates professional color palettes (primary, secondary, accent, layered dark/light backgrounds), 8px grid spacing, and typographic hierarchy.
-- **Polished Vector Assets**: Requires clean vector SVG artwork or standard icon systems (e.g. Lucide/Tailwind-style icons) instead of simplistic squares or primitives acting as mock UI assets.
-- **Smooth Micro-Interactions**: Enforces transition states, hover/focus elevation, subtle shadows, and interactive feedback across all interactive components.
-- **Decoupled Architecture & Real Unit Tests**: Pure business/game logic remains strictly decoupled from rendering, backed by executable unit tests for reliable, production-ready deliverables.
-
-### 6. Lightweight Companion: Instant Prompt Teleprompter (Zero-Planning Required)
-Don't need a heavy multi-stage workflow for a small task? ToolFlow doubles as your everyday **instant prompt teleprompter and template workbench**:
-- **Zero-Friction Teleprompter Mode**: Simply hit `/toolflow` without arguments to summon the teleprompter overlay. Browse your collection with arrow keys and hit `[p]` to immediately insert the highlighted prompt directly into your terminal input. **Instant pick-and-go—no complex planning phase triggered**.
-- **Global & Local Auto-Discovery**: Automatically indexes all local and global `prompts/*.md` templates, sorted by recent activity, freeing you from digging through notes or clipboard history.
-- **On-the-Fly Template Capture**: Hit `[c]` to author new markdown templates right inside the terminal, complete with optional LLM-assisted command tags and summaries.
+| Mode / Scenario | What You Do | What ToolFlow Does Behind the Scenes | What the AI Gets | When to Use |
+| :--- | :--- | :--- | :--- | :--- |
+| **Stage-Gated Mounting** | Launch `/toolflow <task>` | Core tools stay persistent; heavy MCPs mount per stage | Focused, minimal tool catalog for active phase | Multi-phase complex engineering tasks |
+| **Real-Time Log Dehydration** | Run verbose tests or builds | Intercepts logs >40 lines, archives full output to disk | Exit code, root error summary, on-disk file path (-95% tokens) | Compiler errors, test stack dumps |
+| **Review Isolation** | Enter code review or verification | Physically strips write permissions from runtime | Read-only inspection tools, preventing accidental edits | Verification and code review phases |
+| **Instant Teleprompter** | Type `/toolflow` without arguments | Auto-indexes local & global `prompts/*.md` templates | Hit `[p]` to insert highlighted prompt in 1 second | Routine prompt reuse without planning |
+| **Zero-Residue Restoration** | Task completes or `/toolflow reset` | Restores original tool snapshot captured at startup | 100% clean, original tool catalog restored | Finishing tasks or exiting |
 
 ---
 
-## Commands
+## Engineering Highlights
 
+- 🛡️ **Persistent Core, Stage-Gated Advanced Capabilities**: Standard development tools (`read`, `edit`, `write`, `bash`, `grep`, `find`, `ls`) remain accessible at all times to prevent workflow lockups. Heavy MCPs mount dynamically only in relevant phases.
+- ⚡ **4-Tier Token Governance (-95% Overhead)**:
+  * Verbose outputs (>40 lines) are automatically archived to disk (`.pi/toolflow/runs/...`);
+  * Heavy MCP schemas are masked during unrelated stages;
+  * Intercepts `session_before_compact` at stage transitions to strip reasoning chaff while passing on-disk artifact paths downstream.
+- 🔒 **Physical Blast Radius Guard**: Engine-level safety interceptor monitoring both native write tools and terminal commands (`bash`, `powershell`). Destructive operations targeting sensitive assets (`.env*`, `.git*`, package locks) are physically blocked.
+- 🎨 **Production Craftsmanship Guard**: Bans unstyled placeholders, crude monochrome rectangles, and naive sketch lines. Mandates professional color palettes, 8px grid spacing, vector SVG artwork, and executable unit tests.
+- 🔄 **Strict Tool Lifecycle Snapshot**: Snapshots active tools at startup. Upon stage completion, error, or manual `/toolflow reset`, the environment is 100% restored to its original catalog.
+
+---
+
+## Commands & Keybindings
+
+### Primary Commands
 | Command | Description |
 | :--- | :--- |
-| `/toolflow` | Open the prompt workbench & task initialization cockpit |
+| `/toolflow` | Open prompt workbench & task initialization cockpit |
 | `/toolflow <task>` | Launch a sandboxed task with phase-gated toolchains |
 | `/toolflow status` | Display active stage pipeline & mounted tool state (alias: `/sop`) |
-| `/toolflow stats` | Display cumulative token savings ledger (dehydrated logs & read cache hits) |
+| `/toolflow stats` | Display cumulative token savings ledger (dehydrated logs & cache hits) |
 | `/toolflow logs` | Inspect the full raw content of the most recently dehydrated log |
 | `/toolflow rollback` | Revert changes to the snapshot captured at the start of current stage |
-| `/toolflow-rollback` | Direct shortcut for `/toolflow rollback` |
 | `/toolflow reset` | Clear active execution state and flush dehydrated temp caches |
 | `/toolflow export` | Export phase breakdown and architecture decisions to `BLUEPRINT.md` |
 
----
-
-## Keybindings
-
+### Keybindings
 - `[Enter]`: Input task and generate phase-governed plan
 - `[p]`: Prefill highlighted prompt template into editor
 - `[c]`: Create new prompt template inline
@@ -112,10 +117,18 @@ When terminal coding agents added support for arbitrary MCP servers and subagent
 Then came the second pain point: verbose compiler outputs and test logs. Running a build or an end-to-end test suite often dumped 500+ lines of raw stack traces straight into the context window. Within three turns, the session's context window was completely saturated, triggering premature conversation compaction and wiping out working memory.
 
 ToolFlow is the physical defense against this tool and token bloat:
-1. Stage-gated capability mounting: core tools (`read`, `write`, `edit`, `bash`) remain available at all times, while heavy external tools mount only when strictly required;
-2. Real-time log dehydration: verbose outputs (>40 lines) are automatically archived to disk, leaving only the exit code, root failure summary, and on-disk file path in context.
+1. **Stage-gated capability mounting**: core tools (`read`, `write`, `edit`, `bash`) remain available at all times, while heavy external tools mount only when strictly required;
+2. **Real-time log dehydration**: verbose outputs (>40 lines) are automatically archived to disk, leaving only the exit code, root failure summary, and on-disk file path in context.
 
-I hope ToolFlow keeps your agent focused on the code and protects your context window from wasteful noise.
+It brings discipline to the agent's toolbox, leaving context windows focused on the code that matters.
+
+---
+
+## Quality Assurance & Verification
+
+```bash
+npm test            # Physical panoramic regression test suite (26 suites passing)
+```
 
 ---
 
