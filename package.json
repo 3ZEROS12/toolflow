@@ -1,7 +1,7 @@
 {
   "name": "toolflow",
-  "version": "3.3.2",
-  "description": "Dynamic tool sandboxing & context dehydrator for Pi: stage-gated tool pruning, 95% token dehydration, physical blast radius guard, and native prompt workbench.",
+  "version": "3.3.3",
+  "description": "Save 80%+ context tokens in Pi — automatically compresses huge bash/grep logs, caches duplicate file reads, prunes unused tools, and blocks accidental .env/git deletions.",
   "type": "module",
   "main": "src/index.ts",
   "files": [
