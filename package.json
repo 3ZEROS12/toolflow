@@ -1,11 +1,12 @@
 {
   "name": "toolflow",
-  "version": "3.3.3",
+  "version": "3.3.4",
   "description": "Save 80%+ context tokens in Pi — automatically compresses huge bash/grep logs, caches duplicate file reads, prunes unused tools, and blocks accidental .env/git deletions.",
   "type": "module",
   "main": "src/index.ts",
   "files": [
     "src",
+    "assets",
     "README.md",
     "README_zh.md",
     "LICENSE"
@@ -13,11 +14,12 @@
   "pi": {
     "extensions": [
       "src/index.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/3ZEROS12/toolflow/main/assets/hero-en.svg"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/3ZEROS12/toolflow.git"
+    "url": "git+https://github.com/3ZEROS12/toolflow.git"
   },
   "homepage": "https://github.com/3ZEROS12/toolflow#readme",
   "bugs": {
@@ -29,13 +31,21 @@
   "keywords": [
     "pi-package",
     "pi-extension",
+    "toolflow",
+    "token-saver",
+    "compression",
+    "context-compression",
+    "dehydration",
+    "sandbox",
+    "security",
+    "guardrails",
     "workflow",
     "blueprint",
-    "toolflow",
     "tool-pruning",
     "interactive-sop",
-    "dehydration",
-    "blast-radius-guard"
+    "blast-radius-guard",
+    "cache",
+    "coding-agent"
   ],
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": ">=0.80.0",

@@ -12,6 +12,10 @@
 
 [English](./README.md) | **简体中文**
 
+<p align="center">
+  <img src="assets/hero-en.svg" alt="ToolFlow 动态工具沙箱与上下文脱水" width="820">
+</p>
+
 ```text
   ┌─ 工具过载与熵值失控 (40+ 工具与 MCP 同时塞入 System Prompt) ─────────────────────────┐
   │  read write edit bash browser_click mcp_query subagent_run git_reset ...             │

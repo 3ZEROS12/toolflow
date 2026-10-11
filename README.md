@@ -12,6 +12,10 @@ Stop tool overload and context bloat. Stage-gated capability mounting, automatic
 
 **English** | [简体中文](./README_zh.md)
 
+<p align="center">
+  <img src="assets/hero-en.svg" alt="ToolFlow Context Dehydrator &amp; Tool Sandboxing" width="820">
+</p>
+
 ```text
   ┌─ Tool Overload (40+ tools & MCPs exposed simultaneously in System Prompt) ───────────┐
   │  read write edit bash browser_click mcp_query subagent_run git_reset ...             │

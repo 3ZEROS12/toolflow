@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 430" width="840" height="430">
+  <defs>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45" />
+    </filter>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2b3339" />
+      <stop offset="100%" stop-color="#232a2e" />
+    </linearGradient>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="20" y="15" width="800" height="390" rx="12" fill="#1e2326" stroke="#343f44" stroke-width="1.2" />
+    <path d="M 20,27 A 12,12 0 0,1 32,15 L 808,15 A 12,12 0 0,1 820,27 L 820,52 L 20,52 Z" fill="url(#headerGrad)" stroke="#343f44" stroke-width="1" />
+    <line x1="20" y1="52" x2="820" y2="52" stroke="#2d353b" stroke-width="1" />
+    <circle cx="42" cy="33.5" r="5.5" fill="#e67e80" />
+    <circle cx="60" cy="33.5" r="5.5" fill="#dbbc7f" />
+    <circle cx="78" cy="33.5" r="5.5" fill="#a7c080" />
+    <text x="420" y="38" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="500" fill="#859289">
+      ⌬ toolflow · Context Dehydration &amp; Tool Sandboxing
+    </text>
+  </g>
+
+  <g font-family="'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve">
+    <text x="45" y="88">
+      <tspan fill="#7fbbb3" font-weight="bold">⌬ Toolflow Active</tspan>
+      <tspan fill="#859289"> · Stage: </tspan>
+      <tspan fill="#a7c080" font-weight="bold">Implementation (9/34 tools mounted)</tspan>
+    </text>
+
+    <rect x="45" y="108" width="750" height="86" rx="8" fill="#232a2e" stroke="#3a464c" stroke-width="1" />
+    <text x="65" y="134" fill="#dbbc7f" font-weight="bold">⚡ Context Dehydrator (Saved 94.2% tokens on bash output)</text>
+    <text x="65" y="158" fill="#d3c6aa">  Raw stdout: 48,920 chars (1,420 lines) ➔ Compressed to 28 key diagnostic lines</text>
+    <text x="65" y="179" fill="#859289">  Full output cached locally · Call `toolflow_inspect` for exact line ranges</text>
+
+    <rect x="45" y="210" width="750" height="78" rx="8" fill="#232a2e" stroke="#3a464c" stroke-width="1" />
+    <text x="65" y="236" fill="#a7c080" font-weight="bold">✔ Read Cache Hit (0 tokens re-sent)</text>
+    <text x="65" y="260" fill="#d3c6aa">  `src/engine.ts` unchanged since Turn 2 (SHA-256 verified) ➔ 3-line pointer returned</text>
+
+    <rect x="45" y="304" width="750" height="76" rx="8" fill="#292224" stroke="#e67e80" stroke-width="1" />
+    <text x="65" y="330" fill="#e67e80" font-weight="bold">🛡️ Blast Radius Guard · Intercepted Destructive Command</text>
+    <text x="65" y="354" fill="#d3c6aa">  Blocked unconfirmed `git reset --hard` &amp; `.env` secret read · Prompting operator</text>
+  </g>
+</svg>
