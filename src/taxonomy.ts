@@ -15,6 +15,7 @@ const ROOT_TAXONOMY_PATH = path.resolve(__dirname, "..", "ecosystem_taxonomy.jso
 const TAXONOMY_PATH = fs.existsSync(LOCAL_TAXONOMY_PATH)
   ? LOCAL_TAXONOMY_PATH
   : (fs.existsSync(ROOT_TAXONOMY_PATH) ? ROOT_TAXONOMY_PATH : LOCAL_TAXONOMY_PATH);
+const RUNTIME_TAXONOMY_CACHE_PATH = path.join(PI_AGENT_BASE, "toolflow_taxonomy_cache.json");
 const SETTINGS_PATH = path.join(PI_AGENT_BASE, "settings.json");
 const NPM_MODULES_PATH = path.join(PI_AGENT_BASE, "npm", "node_modules");
 const PROMPTS_PATH = path.join(PI_AGENT_BASE, "prompts");
@@ -415,23 +416,25 @@ export function loadOrRefreshTaxonomy(
   const rawKey = JSON.stringify({ pkgs: pkgNames.sort(), tools: toolNames });
   const currentFingerprint = computeHash(rawKey);
 
-  if (fs.existsSync(TAXONOMY_PATH)) {
-    try {
-      const cached = JSON.parse(fs.readFileSync(TAXONOMY_PATH, "utf-8")) as EcosystemTaxonomy;
-      // 在纯净 CI/无预装包或命中指纹时，直接复用随包分发的静态分类库
-      if (
-        (cached.installedFingerprint === currentFingerprint || (pkgNames.length === 0 && toolNames.length === 0)) &&
-        cached.skills &&
-        cached.prompts &&
-        cached.mcps
-      ) {
-        return {
-          ...cached,
-          projectFingerprint,
-          availableToolNames: toolNames.length > 0 ? toolNames : cached.availableToolNames
-        };
-      }
-    } catch (_) {}
+  for (const candidatePath of [RUNTIME_TAXONOMY_CACHE_PATH, TAXONOMY_PATH]) {
+    if (fs.existsSync(candidatePath)) {
+      try {
+        const cached = JSON.parse(fs.readFileSync(candidatePath, "utf-8")) as EcosystemTaxonomy;
+        // 在纯净 CI/无预装包或命中指纹时，直接复用随包分发的静态分类库或缓存
+        if (
+          (cached.installedFingerprint === currentFingerprint || (pkgNames.length === 0 && toolNames.length === 0)) &&
+          cached.skills &&
+          cached.prompts &&
+          cached.mcps
+        ) {
+          return {
+            ...cached,
+            projectFingerprint,
+            availableToolNames: toolNames.length > 0 ? toolNames : cached.availableToolNames
+          };
+        }
+      } catch (_) {}
+    }
   }
 
   const extensions = scanExtensions(pkgNames);
@@ -467,15 +470,15 @@ export function loadOrRefreshTaxonomy(
   };
 
   try {
-    const parentDir = path.dirname(TAXONOMY_PATH);
+    const parentDir = path.dirname(RUNTIME_TAXONOMY_CACHE_PATH);
     if (!fs.existsSync(parentDir)) {
       fs.mkdirSync(parentDir, { recursive: true });
     }
-    // 比较内容，若无实质变动则不刷新 updatedAt 覆写文件，杜绝 git 伪脏数据
+    // 比较内容，若无实质变动则不刷新 updatedAt 覆写文件，且绝不污染源码树中的 src/ecosystem_taxonomy.json
     let shouldWrite = true;
-    if (fs.existsSync(TAXONOMY_PATH)) {
+    if (fs.existsSync(RUNTIME_TAXONOMY_CACHE_PATH)) {
       try {
-        const raw = fs.readFileSync(TAXONOMY_PATH, "utf-8");
+        const raw = fs.readFileSync(RUNTIME_TAXONOMY_CACHE_PATH, "utf-8");
         const parsed = JSON.parse(raw);
         const { updatedAt: _o, ...oldRest } = parsed;
         const { updatedAt: _n, ...newRest } = taxonomy;
@@ -486,7 +489,7 @@ export function loadOrRefreshTaxonomy(
     }
     if (shouldWrite) {
       try {
-        fs.writeFileSync(TAXONOMY_PATH, JSON.stringify(taxonomy, null, 2), "utf-8");
+        fs.writeFileSync(RUNTIME_TAXONOMY_CACHE_PATH, JSON.stringify(taxonomy, null, 2), "utf-8");
       } catch (_) {}
     }
   } catch (_) {}

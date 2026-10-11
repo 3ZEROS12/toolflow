@@ -298,10 +298,10 @@ export class ContextDehydrator {
    */
   private sanitizeTerminalOutput(rawText: string): string {
     if (!rawText) return "";
-    // 1. 去除 ANSI 转义控制字符 (色彩代码、光标跳跃等 \x1b[...m)
-    let text = rawText.replace(ANSI_ESCAPE_REGEX, "");
+    // 1. 去除 ANSI 转义控制字符，并将 Windows CRLF (\r\n) 统一归一化为 \n
+    let text = rawText.replace(ANSI_ESCAPE_REGEX, "").replace(/\r\n/g, "\n");
 
-    // 2. 压缩 \r 产生的刷屏进度条（例如 npm install / wget / docker 下载进度）
+    // 2. 压缩独立 \r 产生的刷屏进度条（例如 npm install / wget / docker 下载进度）
     // 仅保留由 \r 覆盖的最后一行
     if (text.includes("\r")) {
       const parts = text.split("\n").map(line => {
@@ -378,11 +378,11 @@ export class ContextDehydrator {
       headCount = 8;
       tailCount = 4;
     } else if (toolName === "read") {
-      // 读取工具：超 30 行或 2000 字符脱水，保留前 15 行和后 10 行
-      thresholdLines = 30;
-      thresholdBytes = 2000;
-      headCount = 15;
-      tailCount = 10;
+      // 读取工具：正常源码读取绝不拦腰截断；仅当单次超过 600 行且超过 25KB 时做超长归档保护
+      thresholdLines = 600;
+      thresholdBytes = 25000;
+      headCount = 150;
+      tailCount = 50;
     } else if (toolName === "bash" || toolName === "powershell") {
       // 终端工具：超 35 行或 2200 字符脱水，保留前 12 行和后 12 行错误/尾部
       thresholdLines = 35;
@@ -473,14 +473,19 @@ export class ReadCacheManager {
     this.lastCommandTimestamp = Date.now();
   }
 
+  private normalizeKey(filePath: string): string {
+    const resolved = path.resolve(filePath).replace(/\\/g, "/");
+    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+  }
+
   /**
    * 记录 edit/write 失败，用于下一次强制穿透供给完整源码
    */
   public recordEditFailure(filePath: string, currentTurn: number): void {
     if (!filePath) return;
-    const normPath = path.resolve(filePath).replace(/\\/g, "/");
+    const normPath = this.normalizeKey(filePath);
     this.editFailures.set(normPath, { failedTurn: currentTurn, timestamp: Date.now() });
-    this.invalidate(normPath);
+    this.invalidate(filePath);
   }
 
   /**
@@ -488,7 +493,7 @@ export class ReadCacheManager {
    */
   public hasRecentEditFailure(filePath: string, currentTurn: number): boolean {
     if (!filePath) return false;
-    const normPath = path.resolve(filePath).replace(/\\/g, "/");
+    const normPath = this.normalizeKey(filePath);
     const record = this.editFailures.get(normPath);
     if (!record) return false;
     // 3 轮内或 60 秒内只要发生过编辑失败，强制允许穿透读取供大模型纠错
@@ -521,10 +526,10 @@ export class ReadCacheManager {
       return { isDuplicate: false };
     }
 
-    const normPath = path.resolve(filePath).replace(/\\/g, "/");
+    const normPath = this.normalizeKey(filePath);
 
     // 门禁 G2: 最近发生过 edit/write 失败，强制穿透供给完整文本供大模型纠错
-    if (this.hasRecentEditFailure(normPath, currentTurn)) {
+    if (this.hasRecentEditFailure(filePath, currentTurn)) {
       return { isDuplicate: false, bypassReason: "recent_edit_failure" };
     }
 
@@ -597,7 +602,8 @@ export class ReadCacheManager {
    * 清除特定路径缓存（当发现该文件被 write / edit 时调用，保证缓存不发霉）
    */
   public invalidate(filePath: string): void {
-    const normPath = path.resolve(filePath).replace(/\\/g, "/");
+    if (!filePath) return;
+    const normPath = this.normalizeKey(filePath);
     this.cache.delete(normPath);
   }
 
@@ -606,6 +612,8 @@ export class ReadCacheManager {
    */
   public clear(): void {
     this.cache.clear();
+    this.editFailures.clear();
+    this.lastCommandTimestamp = 0;
   }
 }
 

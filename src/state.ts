@@ -765,7 +765,8 @@ export const BASELINE_TOOLS = [
   "bash",
   "powershell",
   "todo",
-  "ask_user_question"
+  "ask_user_question",
+  "toolflow_inspect"
 ];
 
 // 记录任务流启动前的原始激活工具快照，用于任务结束或重置时无损还原

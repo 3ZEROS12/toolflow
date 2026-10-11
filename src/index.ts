@@ -65,10 +65,12 @@ export default function (pi: ExtensionAPI) {
   // 监听全新会话启动 (session_start): 彻底阻断跨会话旧蓝图自愈干扰
   if (typeof pi.on === "function") {
     pi.on("session_start", async (event: any, ctx: any) => {
+      readCache.clear();
+      globalTurnCounter = 0;
       updateToolFlowStatusBar(ctx);
       // 当开启全新会话时，不仅重置内存状态，还物理清理残余持久化文件，彻底消灭幽灵自愈唤醒
       if (event?.reason === "new" || event?.reason === "clear") {
-        resetState(process.cwd());
+        resetState(ctx?.cwd || process.cwd());
         reviewGuard.deactivate();
         blastGuard.clearAllowedScope();
         applyToolScoping(BASELINE_TOOLS, pi);
@@ -182,17 +184,19 @@ export default function (pi: ExtensionAPI) {
         limit: Type.Optional(Type.Number({ description: "Maximum lines to return (default 50, max 200)" }))
       }),
       execute: async (_toolCallId, params: any, _signal, _onUpdate, ctx) => {
-        const baseDir = path.join(ctx?.cwd || process.cwd(), ".pi", "toolflow");
+        const workDir = ctx?.cwd || process.cwd();
+        const baseDir = path.join(workDir, ".pi", "toolflow");
         let targetFile = ContextDehydrator.getLatestLogPath();
 
         if (params.id) {
-          if (fs.existsSync(params.id)) {
-            targetFile = params.id;
-          } else {
-            const candidate = path.join(baseDir, params.id);
-            if (fs.existsSync(candidate)) {
-              targetFile = candidate;
-            }
+          const candidates = [
+            path.resolve(workDir, params.id),
+            path.join(baseDir, params.id),
+            path.join(baseDir, "runs", "default", path.basename(params.id))
+          ];
+          const found = candidates.find(c => fs.existsSync(c) && fs.statSync(c).isFile());
+          if (found) {
+            targetFile = found;
           }
         }
 
@@ -739,9 +743,17 @@ export default function (pi: ExtensionAPI) {
     (pi as any).on("tool_call", async (event: any) => {
       const state = getSessionState();
       if (state.status === "in_progress" && state.currentBlueprint) {
+        if (reviewGuard.isActive() && !reviewGuard.isToolAllowedInReview(event.toolName)) {
+          return {
+            block: true,
+            reason: `[ToolFlow Review Isolation] Tool "${event.toolName}" is blocked during read-only review stage.`,
+            terminate: false
+          };
+        }
         // 核心敏感文件与系统防线拦截 (杜绝 AI 误操作 .env、.git、lock 文件及系统设备)
-        const check = blastGuard.verifyToolCall(event);
+        const check = blastGuard.verifyToolCall(event, ctx?.cwd || process.cwd());
         if (check.block) {
+          new StatsManager(ctx?.cwd || process.cwd()).recordSavings(50, "blast");
           return {
             block: true,
             reason: check.reason,
@@ -785,7 +797,7 @@ export default function (pi: ExtensionAPI) {
         }
       }
 
-      // 3. 如果是 read 工具，检查是否命中重复读取缓存与 6 级穿透门禁
+      // 3. 如果是 read 工具，检查是否命中重复读取缓存与 6 级穿透门禁（不再进入通用截断管道，保证源码读取完整供 edit 使用）
       if (toolName === "read") {
         const filePath = event.input?.path;
         for (const block of event.content) {
@@ -803,6 +815,7 @@ export default function (pi: ExtensionAPI) {
             }
           }
         }
+        return;
       }
 
       // 3. 通用海量输出脱水管道
@@ -895,20 +908,28 @@ export default function (pi: ExtensionAPI) {
               for (const tc of toolCalls) {
                 const fnName = (tc?.function?.name || tc?.name || "").toLowerCase();
                 if (["write", "edit"].includes(fnName)) {
-                  // 针对写入内容执行无损物理折叠
+                  // 针对写入与编辑内容执行无损物理折叠
                   if (tc.function && typeof tc.function.arguments === "string" && tc.function.arguments.length > 600) {
                     try {
                       const parsed = JSON.parse(tc.function.arguments);
-                      if (parsed.content && typeof parsed.content === "string" && parsed.content.length > 400) {
-                        const originalLines = parsed.content.split("\n").length;
-                        parsed.content = `[⚡ ToolFlow Slimmer: ${originalLines} lines already written to ${parsed.path || "disk"}]`;
+                      let mutated = false;
+                      for (const key of ["content", "oldText", "newText"] as const) {
+                        if (typeof parsed[key] === "string" && parsed[key].length > 400) {
+                          const originalLines = parsed[key].split("\n").length;
+                          parsed[key] = `[⚡ ToolFlow Slimmer: ${originalLines} lines (${key}) already written to ${parsed.path || "disk"}]`;
+                          mutated = true;
+                        }
+                      }
+                      if (mutated) {
                         tc.function.arguments = JSON.stringify(parsed);
                       }
                     } catch (_) {}
                   } else if (tc.input && typeof tc.input === "object") {
-                    if (tc.input.content && typeof tc.input.content === "string" && tc.input.content.length > 400) {
-                      const originalLines = tc.input.content.split("\n").length;
-                      tc.input.content = `[⚡ ToolFlow Slimmer: ${originalLines} lines already written to ${tc.input.path || "disk"}]`;
+                    for (const key of ["content", "oldText", "newText"] as const) {
+                      if (typeof tc.input[key] === "string" && tc.input[key].length > 400) {
+                        const originalLines = tc.input[key].split("\n").length;
+                        tc.input[key] = `[⚡ ToolFlow Slimmer: ${originalLines} lines (${key}) already written to ${tc.input.path || "disk"}]`;
+                      }
                     }
                   }
                 }
@@ -1075,6 +1096,7 @@ export default function (pi: ExtensionAPI) {
 
         const turnCwd = ctx.cwd || process.cwd();
         const hasNext = advanceStage(turnCwd);
+        updateToolFlowStatusBar(ctx);
         const updatedState = getSessionState();
         if (hasNext && updatedState.currentBlueprint) {
           const nextStage = updatedState.currentBlueprint.stages[updatedState.currentStageIndex];

@@ -791,15 +791,27 @@ export async function diagnoseTaskRequirements(
   let anchorHint = "";
   try {
     const home = process.env.HOME || process.env.USERPROFILE || "";
-    const anchorStatePath = path.join(home, ".anchor", "state.json");
+    const anchorDir = process.env.ANCHOR_DIR
+      ? path.resolve(process.env.ANCHOR_DIR)
+      : path.join(home, ".anchor");
+    const anchorStatePath = path.join(anchorDir, "state.json");
     if (fs.existsSync(anchorStatePath)) {
       const data = JSON.parse(fs.readFileSync(anchorStatePath, "utf-8"));
-      const cwd = ctx?.cwd || process.cwd();
-      const currentAnchors = (data.anchors || []).filter((a: any) =>
-        a.status === "active" && (!a.cwd || a.cwd === cwd || cwd.startsWith(a.cwd))
-      );
+      const normPath = (p: string) => {
+        const n = path.resolve(p).replace(/\\/g, "/").replace(/\/+$/, "");
+        return process.platform === "win32" ? n.toLowerCase() : n;
+      };
+      const normCwd = normPath(ctx?.cwd || process.cwd());
+      const currentAnchors = (Array.isArray(data?.anchors) ? data.anchors : []).filter((a: any) => {
+        if (!a || a.status !== "active") return false;
+        if (!a.cwd) return true;
+        const normAnchorCwd = normPath(String(a.cwd));
+        return normCwd === normAnchorCwd || normCwd.startsWith(normAnchorCwd + "/");
+      });
       if (currentAnchors.length > 0) {
-        anchorHint = `\nActive Anchors: ${currentAnchors.map((a: any) => `[#${a.id}] "${a.title}" (Files: ${a.files.join(", ") || "all"})`).join("; ")}`;
+        anchorHint = `\nActive Anchors: ${currentAnchors
+          .map((a: any) => `[#${a.id}] "${a.title}" (Files: ${Array.isArray(a.files) && a.files.length > 0 ? a.files.join(", ") : "all"})`)
+          .join("; ")}`;
       }
     }
   } catch (_) {}
