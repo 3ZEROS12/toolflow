@@ -281,14 +281,24 @@ export class BlastRadiusGuard {
     if (tool === "bash" || tool === "powershell" || tool === "exec") {
       const command = (event.input?.command || event.input?.cmd || "").toString();
       if (command) {
-        // 匹配输出重定向（> / >>）、删除指令（rm, del, Remove-Item）或写入流操作
-        const isDestructiveOrWrite = /(?:>|>>|\brm\b|\bdel\b|\bRemove-Item\b|\bset-content\b|\bout-file\b)/i.test(command);
+        if (/\bgit\s+(?:checkout\s+(?:--\s+)?\.|restore\s+(?:--staged\s+)?\.|reset\s+--hard|clean\s+-[a-z]*f)/i.test(command)) {
+          return {
+            block: true,
+            reason: `[ToolFlow 保护红线] 拦截高危 Git 毁灭性回滚/清理指令！`
+          };
+        }
+        const isDestructiveOrWrite =
+          /(?:>|>>|\b(?:rm|del|erase|ri|rd|rmdir|mv|cp|Remove-Item|Move-Item|Copy-Item|Set-Content|Add-Content|Clear-Content|sc|ac|clc|Out-File|tee|truncate)\b|\bsed\s+-i)/i.test(command);
         if (isDestructiveOrWrite) {
-          for (const pattern of this.criticalConfigPatterns) {
-            if (pattern.test(command)) {
+          const tokens = command
+            .split(/[\s;|&><"'`(),=]+/)
+            .map(tok => path.basename(this.normalizePath(tok)))
+            .filter(Boolean);
+          for (const token of tokens) {
+            if (this.criticalConfigPatterns.some(pattern => pattern.test(token))) {
               return {
                 block: true,
-                reason: `[ToolFlow 保护红线] 拦截终端命令：检测到试图通过终端脚本篡改或删除核心敏感文件（匹配受保护目标）！`
+                reason: `[ToolFlow 保护红线] 拦截终端命令：检测到试图篡改或删除核心敏感文件 "${token}"！`
               };
             }
           }

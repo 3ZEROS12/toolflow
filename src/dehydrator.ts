@@ -424,13 +424,25 @@ export class ContextDehydrator {
       this.stats.recordSavings(approxTokens, "log");
     } catch (_) {}
 
-    const head = lines.slice(0, headCount).join("\n");
-    const tail = lines.slice(-tailCount).join("\n");
-    const omittedCount = lines.length - (headCount + tailCount);
     const relPath = path.relative(process.cwd(), fullPath).replace(/\\/g, "/");
+    if (lines.length <= headCount + tailCount) {
+      const charHead = sanitized.slice(0, Math.floor(thresholdBytes * 0.5));
+      const charTail = sanitized.slice(-Math.floor(thresholdBytes * 0.3));
+      const omittedChars = Math.max(0, sanitized.length - (charHead.length + charTail.length));
+      return {
+        dehydrated: true,
+        text: `${charHead}\n\n... [⚡ ToolFlow Token Optimizer: Dehydrated ${omittedChars} chars (~${Math.round(sanitized.length / 4)} tokens) to ${relPath}] ...\n\n${charTail}`,
+        archivePath: fullPath
+      };
+    }
+
+    const clampLine = (l: string) => (l.length > 500 ? l.slice(0, 500) + "... [line clamped]" : l);
+    const head = lines.slice(0, headCount).map(clampLine).join("\n");
+    const tail = lines.slice(-tailCount).map(clampLine).join("\n");
+    const omittedCount = lines.length - (headCount + tailCount);
 
     // 3. 智能抓取中段关键 Error 行，避免关键编译/运行报错被粗暴掐死
-    const keyErrors = this.extractKeyErrorLines(lines.slice(headCount, Math.max(headCount, lines.length - tailCount)));
+    const keyErrors = this.extractKeyErrorLines(lines.slice(headCount, Math.max(headCount, lines.length - tailCount))).map(clampLine);
     const errorSection = keyErrors.length > 0 
       ? ["", "  [⚡ 核心报错摘要提取]:", ...keyErrors.map(e => "  > " + e), ""]
       : [];

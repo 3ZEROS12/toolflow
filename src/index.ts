@@ -186,7 +186,25 @@ export default function (pi: ExtensionAPI) {
       execute: async (_toolCallId, params: any, _signal, _onUpdate, ctx) => {
         const workDir = ctx?.cwd || process.cwd();
         const baseDir = path.join(workDir, ".pi", "toolflow");
-        let targetFile = ContextDehydrator.getLatestLogPath();
+        const runsRoot = path.resolve(baseDir, "runs");
+
+        const isSafeRunLog = (candidate: string | null): candidate is string => {
+          if (!candidate || !fs.existsSync(candidate)) return false;
+          try {
+            const stat = fs.lstatSync(candidate);
+            if (stat.isSymbolicLink() || !stat.isFile()) return false;
+            const real = fs.realpathSync(candidate);
+            const realRunsRoot = fs.existsSync(runsRoot) ? fs.realpathSync(runsRoot) : runsRoot;
+            const rel = path.relative(realRunsRoot, real);
+            return !rel.startsWith("..") && !path.isAbsolute(rel);
+          } catch {
+            return false;
+          }
+        };
+
+        let targetFile = isSafeRunLog(ContextDehydrator.getLatestLogPath())
+          ? ContextDehydrator.getLatestLogPath()
+          : null;
 
         if (params.id) {
           const candidates = [
@@ -194,10 +212,8 @@ export default function (pi: ExtensionAPI) {
             path.join(baseDir, params.id),
             path.join(baseDir, "runs", "default", path.basename(params.id))
           ];
-          const found = candidates.find(c => fs.existsSync(c) && fs.statSync(c).isFile());
-          if (found) {
-            targetFile = found;
-          }
+          const found = candidates.find(isSafeRunLog);
+          targetFile = found || null;
         }
 
         if (!targetFile || !fs.existsSync(targetFile)) {
@@ -740,7 +756,7 @@ export default function (pi: ExtensionAPI) {
 
   // 注册 tool_call 安全拦截钩子 (物理级关键文件保护防线)
   if (typeof (pi as any).on === "function") {
-    (pi as any).on("tool_call", async (event: any) => {
+    (pi as any).on("tool_call", async (event: any, ctx: any) => {
       const state = getSessionState();
       if (state.status === "in_progress" && state.currentBlueprint) {
         if (reviewGuard.isActive() && !reviewGuard.isToolAllowedInReview(event.toolName)) {
