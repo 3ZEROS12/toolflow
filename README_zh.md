@@ -2,24 +2,25 @@
 
 面向 Pi Coding Agent 的动态工具沙箱与上下文脱水引擎。
 
-告别工具过载与海量报错堆栈。按阶段精准挂载生态能力，长日志自动落盘脱水（削减 95% 冗余上下文），物理级爆炸半径防线，内置随身提示词工作台。
+告别工具过载与海量报错堆栈。按阶段精准挂载生态能力，长日志自动落盘脱水（削减 95% 冗余上下文），敏感配置防误删守卫，内置随身提示词工作台。
 
 [![npm version](https://img.shields.io/npm/v/toolflow?color=blue)](https://www.npmjs.com/package/toolflow)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![npm downloads](https://img.shields.io/npm/dm/toolflow?color=22c55e&label=downloads)](https://www.npmjs.com/package/toolflow)
+[![GitHub stars](https://img.shields.io/github/stars/3ZEROS12/toolflow?style=flat&color=f59e0b)](https://github.com/3ZEROS12/toolflow/stargazers)
 [![Built for Pi](https://img.shields.io/badge/Built%20for-Pi%20Coding%20Agent-orange)](https://github.com/earendil-works/pi-coding-agent)
 [![Tests: 26 Suites Pass](https://img.shields.io/badge/Tests-26%20Suites%20Pass%20(100%25)-brightgreen)](tests/test_suite.ts)
-[![TypeScript Strict](https://img.shields.io/badge/TypeScript-Strict-blue)](tsconfig.json)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[English](./README.md) | **简体中文**
+[English](./README.md) | [日本語](./README_ja.md) | **简体中文**
 
 <p align="center">
   <img src="assets/hero-en.svg" alt="ToolFlow 动态工具沙箱与上下文脱水" width="820">
 </p>
 
 ```text
-  ┌─ 工具过载与熵值失控 (40+ 工具与 MCP 同时塞入 System Prompt) ─────────────────────────┐
+  ┌─ 工具定义过载 (40+ 工具与 MCP 同时塞入 System Prompt) ───────────────────────────────┐
   │  read write edit bash browser_click mcp_query subagent_run git_reset ...             │
-  │  [后果: 工具选择熵剧增，让它写个纯函数，它去调浏览器或连接数据库]                     │
+  │  [后果: 无关工具定义过多，让它写个纯函数，它去调浏览器或连接数据库]                   │
   └───────────────────────────────────────────────────────────────────────────────────────┘
                                              │
                                              ▼
@@ -46,10 +47,10 @@ pi install npm:toolflow
 
 在终端使用 AI 编程助手并接入大量 MCP 与扩展时，开发者普遍面临三重阻力：
 
-### 1. 工具过载与选择熵失控
-当环境里装了数十个工具和 MCP 时，大模型的工具选择熵剧增。
+### 1. 工具定义过载与工具误调用
+当环境里装了数十个工具和 MCP 时，大量无关的工具 Schema 同时暴露在系统提示词中，极易分散模型注意力。
 让它写个简单的 TypeScript 工具函数，它偶尔会尝试启动无头浏览器；查个语法报错，它可能去连接数据库。
-`toolflow` 实行**阶段化精准挂载**：原生核心工具（`read`、`edit`、`write`、`bash`）全程可用；重型外部 MCP、浏览器与子代理仅在需要它们的阶段按需挂载。
+`toolflow` 实行**阶段化按需挂载**：原生核心工具（`read`、`edit`、`write`、`bash`）全程可用；重型外部 MCP、浏览器与子代理仅在需要它们的阶段按需挂载。
 
 ### 2. 冗长报错日志撑爆上下文
 跑一次测试或构建常常打印数百行堆栈日志。海量日志直接灌入上下文，往往三轮对话过去，上下文就达到了上限，触发过早的会话压缩，冲垮正在编写的代码记忆。
@@ -84,7 +85,7 @@ pi install npm:toolflow
   * 超过 40 行的终端输出毫秒级全量落盘归档（`.pi/toolflow/runs/...`）；
   * 阶段交接时监听 `session_before_compact`，自动剔除历史试错代码，向后仅传递物理产物路径；
   * 重型 MCP 仅在需要时 JIT 挂载，其余阶段屏蔽其庞大的 JSON Schema。
-- 🔒 **物理级爆炸半径防线（Blast Radius Guard）**：引擎底层监控原生写工具与终端执行指令。对核心敏感文件（`.env*`、`.git*`、包管理器锁文件）的越权篡改与删除操作，在引擎层直接物理拦截。
+- 🔒 **敏感配置防误删守卫**：引擎底层监控原生写工具与终端执行指令。对核心敏感文件（`.env*`、`.git*`、包管理器锁文件）的越权篡改与删除操作，在引擎层直接物理拦截。
 - 🎨 **交付品质与工匠标准门禁**：拦截纯单调色块、粗制滥造的简笔线等敷衍产物。强制现代调色盘、8px 间距网格、高质感矢量 SVG 图标与平滑微动效。
 - 🔄 **工具生命周期严格还原**：首秒自动捕获会话初始工具快照。无论是正常竣工、意外崩溃，还是执行 `/toolflow reset`，100% 将工具箱恢复到原生面貌。
 
@@ -117,7 +118,7 @@ pi install npm:toolflow
 
 写 ToolFlow 的最初冲动，来自于我看着大模型在满载的工具箱里迷失方向时的无力感。
 
-在终端 AI 编程助手引入 MCP 协议与多 Agent 扩展后，我陆续安装了浏览器控制、数据库连接、多引擎搜索和多 Agent 流水线。然而几天后，一个隐蔽的问题浮出水面：当我向 AI 请教一个简单的 TypeScript 工具函数时，它偶尔会尝试启动 Chrome 或者拉起多 Agent 流程。暴露在模型面前的工具定义太多，工具选择的熵值过高，导致推理出现偏差。
+在终端 AI 编程助手引入 MCP 协议与多 Agent 扩展后，我陆续安装了浏览器控制、数据库连接、多引擎搜索和多 Agent 流水线。然而几天后，一个隐蔽的问题浮出水面：当我向 AI 请教一个简单的 TypeScript 工具函数时，它偶尔会尝试启动 Chrome 或者拉起多 Agent 流程。暴露在模型面前的工具定义太多，干扰了模型的工具决策。
 
 另一个痛点是冗长的终端输出。跑一次编译测试或端到端验证，终端常常打印出大几百行的报错堆栈。这些原始日志直接塞满上下文窗口，往往三轮对话过去，上下文就达到了上限，触发过早的会话压缩，冲垮了正在编写的代码记忆。
 
@@ -134,6 +135,19 @@ ToolFlow 针对这两个痛点做了两道物理防线：
 ```bash
 npm test            # 物理全景回归测试套件 (26 大模块全部通过)
 ```
+
+---
+
+## 配套生态套件 (Pi Terminal Suite)
+
+四款扩展分别挂载于终端的不同物理槽位（`aboveEditor`、`belowEditor`、`status-only` 底栏与运行时工具钩子），独立运行或组合安装均不产生小部件重叠：
+
+| 插件仓库 | 终端挂载槽位与核心机制 | 一键安装 |
+| :--- | :--- | :--- |
+| **[`pi-lingual`](https://github.com/3ZEROS12/pi-lingual)** | `二 ⇄ two` `aboveEditor` 双语伴学视窗（≤9 行 UAX #11 树状排版）与母语提示词转写（0 会话历史 Token 注入） | `pi install npm:pi-lingual` |
+| **[`toolflow`](https://github.com/3ZEROS12/toolflow)** *(当前)* | `⌬` 运行时工具钩子 —— 按阶段动态挂载重型 MCP，>40 行终端长日志自动落盘脱水（削减 95% 日志 Token） | `pi install npm:toolflow` |
+| **[`pi-tui-status-beautifier`](https://github.com/3ZEROS12/pi-tui-status-beautifier)** | `status-only` 底栏微钩子 —— 6 套徽章预设、`<80` 列窄屏折叠 `(+N idle)`、重绘循环 0 磁盘读取 | `pi install npm:pi-tui-status-beautifier` |
+| **[`pi-anchor`](https://github.com/3ZEROS12/anchor)** | `⌖` `belowEditor` 1 行常驻便签条、0ms `pin:` 输入拦截、迷你进度条 `[■■□□]` 与原会话跳转 `↪` | `pi install npm:pi-anchor` |
 
 ---
 

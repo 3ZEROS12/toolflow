@@ -2,15 +2,16 @@
 
 Dynamic tool sandboxing & context dehydrator for Pi Coding Agent.
 
-Stop tool overload and context bloat. Stage-gated capability mounting, automatic log dehydration to disk (-95% token overhead), physical blast radius guard, and built-in prompt workbench.
+Stop tool overload and context bloat. Stage-gated capability mounting, automatic log dehydration to disk (-95% token overhead), protected-file write guard, and built-in prompt workbench.
 
 [![npm version](https://img.shields.io/npm/v/toolflow?color=blue)](https://www.npmjs.com/package/toolflow)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![npm downloads](https://img.shields.io/npm/dm/toolflow?color=22c55e&label=downloads)](https://www.npmjs.com/package/toolflow)
+[![GitHub stars](https://img.shields.io/github/stars/3ZEROS12/toolflow?style=flat&color=f59e0b)](https://github.com/3ZEROS12/toolflow/stargazers)
 [![Built for Pi](https://img.shields.io/badge/Built%20for-Pi%20Coding%20Agent-orange)](https://github.com/earendil-works/pi-coding-agent)
 [![Tests: 26 Suites Pass](https://img.shields.io/badge/Tests-26%20Suites%20Pass%20(100%25)-brightgreen)](tests/test_suite.ts)
-[![TypeScript Strict](https://img.shields.io/badge/TypeScript-Strict-blue)](tsconfig.json)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**English** | [简体中文](./README_zh.md)
+**English** | [日本語](./README_ja.md) | [简体中文](./README_zh.md)
 
 <p align="center">
   <img src="assets/hero-en.svg" alt="ToolFlow Context Dehydrator &amp; Tool Sandboxing" width="820">
@@ -19,7 +20,7 @@ Stop tool overload and context bloat. Stage-gated capability mounting, automatic
 ```text
   ┌─ Tool Overload (40+ tools & MCPs exposed simultaneously in System Prompt) ───────────┐
   │  read write edit bash browser_click mcp_query subagent_run git_reset ...             │
-  │  [Result: High entropy. Asking for a helper function prompts a browser launch]       │
+  │  [Result: Schema noise. Asking for a helper function prompts a browser launch]       │
   └──────────────────────────────────────────────────────────────────────────────────────┘
                                              │
                                              ▼
@@ -46,8 +47,8 @@ Works out of the box. Type `/toolflow` anytime to summon the interactive prompt 
 
 When developing with AI coding agents equipped with dozens of tools, plugins, and MCP servers, three systemic frictions emerge:
 
-### 1. Tool Overload & Selection Entropy
-Exposing 40+ tool definitions simultaneously overwhelms the LLM. Asking for a straightforward utility function prompts the model to spin up a browser or query a database because its tool selection entropy is too high.
+### 1. Tool Overload & Schema Noise
+Exposing 40+ tool definitions simultaneously overwhelms the LLM. Asking for a straightforward utility function prompts the model to spin up a browser or query a database because unrelated schemas crowd the system prompt.
 `toolflow` enforces **stage-gated capability mounting**: core tools (`read`, `write`, `edit`, `bash`) remain accessible at all times; heavy external MCPs, browsers, and subagents mount only in phases where they are strictly needed.
 
 ### 2. Context Blowout from Verbose Logs
@@ -83,7 +84,7 @@ Developers constantly copy-paste prompt templates from notes, web browsers, or c
   * Verbose outputs (>40 lines) are automatically archived to disk (`.pi/toolflow/runs/...`);
   * Heavy MCP schemas are masked during unrelated stages;
   * Intercepts `session_before_compact` at stage transitions to strip reasoning chaff while passing on-disk artifact paths downstream.
-- 🔒 **Physical Blast Radius Guard**: Engine-level safety interceptor monitoring both native write tools and terminal commands (`bash`, `powershell`). Destructive operations targeting sensitive assets (`.env*`, `.git*`, package locks) are physically blocked.
+- 🔒 **Protected-File Write Guard**: Engine-level safety interceptor monitoring both native write tools and terminal commands (`bash`, `powershell`). Destructive operations targeting sensitive assets (`.env*`, `.git*`, package locks) are physically blocked.
 - 🎨 **Production Craftsmanship Guard**: Bans unstyled placeholders, crude monochrome rectangles, and naive sketch lines. Mandates professional color palettes, 8px grid spacing, vector SVG artwork, and executable unit tests.
 - 🔄 **Strict Tool Lifecycle Snapshot**: Snapshots active tools at startup. Upon stage completion, error, or manual `/toolflow reset`, the environment is 100% restored to its original catalog.
 
@@ -116,7 +117,7 @@ Developers constantly copy-paste prompt templates from notes, web browsers, or c
 
 The idea for ToolFlow came from a recurring moment of frustration: watching an agent lose its mind because its toolbox was too crowded.
 
-When terminal coding agents added support for arbitrary MCP servers and subagent extensions, I installed everything: browser controllers, database connectors, search engines, and multi-agent harnesses. But within days, a subtle degradation emerged: asking the model for a straightforward TypeScript helper function prompted it to spin up Chrome or run a heavy subagent workflow. The tool selection entropy was simply too high.
+When terminal coding agents added support for arbitrary MCP servers and subagent extensions, I installed everything: browser controllers, database connectors, search engines, and multi-agent harnesses. Within days, a subtle degradation emerged: asking the model for a straightforward TypeScript helper function prompted it to spin up Chrome or run a heavy subagent workflow because 40+ tool schemas were competing in the prompt.
 
 Then came the second pain point: verbose compiler outputs and test logs. Running a build or an end-to-end test suite often dumped 500+ lines of raw stack traces straight into the context window. Within three turns, the session's context window was completely saturated, triggering premature conversation compaction and wiping out working memory.
 
@@ -133,6 +134,19 @@ It brings discipline to the agent's toolbox, leaving context windows focused on 
 ```bash
 npm test            # Physical panoramic regression test suite (26 suites passing)
 ```
+
+---
+
+## Ecosystem: Pi Terminal Suite
+
+Each extension occupies a distinct terminal slot (`aboveEditor`, `belowEditor`, `status-only` footer, and runtime tool hooks) so all four run together with zero widget overlap:
+
+| Package | Terminal Slot & Mechanism | Install |
+| :--- | :--- | :--- |
+| **[`pi-lingual`](https://github.com/3ZEROS12/pi-lingual)** | `二 ⇄ two` `aboveEditor` HUD (≤9 lines, UAX #11 tree layout) & prompt-to-English transformer (0 chat history tokens) | `pi install npm:pi-lingual` |
+| **[`toolflow`](https://github.com/3ZEROS12/toolflow)** *(Current)* | `⌬` Runtime tool hooks — stage-gated MCP mounting & >40-line log dehydration to disk (-95% log tokens) | `pi install npm:toolflow` |
+| **[`pi-tui-status-beautifier`](https://github.com/3ZEROS12/pi-tui-status-beautifier)** | `status-only` footer hook — 6 badge presets, `<80`-col idle folding `(+N idle)`, 0 render-loop disk reads | `pi install npm:pi-tui-status-beautifier` |
+| **[`pi-anchor`](https://github.com/3ZEROS12/anchor)** | `⌖` `belowEditor` 1-line sticky strip, 0ms `pin:` intercept, `[■■□□]` step bar & `↪` session jump | `pi install npm:pi-anchor` |
 
 ---
 
