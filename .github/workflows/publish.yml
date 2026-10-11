@@ -4,12 +4,11 @@ on:
   push:
     branches:
       - main
+      - master
     paths:
       - package.json
       - package-lock.json
       - .github/workflows/publish.yml
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       ref:
