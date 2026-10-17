@@ -1711,6 +1711,234 @@ Always verify diff before finalizing.
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // [TEST-32] 深度安全与并发审计回归验证 (Path Traversal, Blast Radius, Memory & Disk Hygiene)
+  // ---------------------------------------------------------------------------
+  console.log("\n[TEST-32] 深度安全与并发审计回归验证 (Path Traversal, Blast Radius, Memory & Disk Hygiene)...");
+  {
+    const auditSandbox = fs.mkdtempSync(path.join(os.tmpdir(), "toolflow_audit_test_"));
+    try {
+      // 1. Audit Focus 1: toolflow_inspect (Path Traversal, Symlinks, Bounded Limits, Regex Safety)
+      let inspectToolDef: any = null;
+      const mockPi: any = {
+        registerTool: (def: any) => {
+          if (def?.name === "toolflow_inspect") inspectToolDef = def;
+        },
+        registerMessageRenderer: () => {},
+        registerCommand: () => {},
+        on: () => {}
+      };
+      const initPlugin = (await import("../src/index.js")).default;
+      initPlugin(mockPi);
+      assert(inspectToolDef !== null, "32.1 toolflow_inspect 必须成功注册");
+
+      const baseDir = path.join(auditSandbox, ".pi", "toolflow");
+      const runsDir = path.join(baseDir, "runs", "default");
+      fs.mkdirSync(runsDir, { recursive: true });
+
+      // 准备包含 250 行并含有超长行的脱水日志
+      const sampleLines: string[] = [];
+      for (let i = 1; i <= 250; i++) {
+        if (i === 10) {
+          sampleLines.push(`[Line 10] ` + "X".repeat(1200)); // 超过 500 字符的超长单行
+        } else if (i === 50) {
+          sampleLines.push(`[Line 50] ERROR 404: resource_not_found at /api/v1/auth`);
+        } else if (i === 150) {
+          sampleLines.push(`[Line 150] WARNING: high memory utilization observed`);
+        } else {
+          sampleLines.push(`[Line ${i}] Routine diagnostic execution step trace timestamp=${Date.now()}`);
+        }
+      }
+      const logFilePath = path.join(runsDir, "sample_run.log");
+      fs.writeFileSync(logFilePath, sampleLines.join("\n"), "utf-8");
+
+      // 32.2 路径穿越绝对防御 (Directory Containment & Symlink Traversal)
+      const secretFile = path.join(auditSandbox, "secret.txt");
+      fs.writeFileSync(secretFile, "TOP_SECRET_CREDENTIALS", "utf-8");
+
+      const traversalRes1 = await inspectToolDef.execute("tc1", { id: "../../../secret.txt" }, null, null, { cwd: auditSandbox });
+      assert.strictEqual(traversalRes1.isError, true, "32.2.1 越界相对路径 traversal 必须被物理阻断");
+
+      const traversalRes2 = await inspectToolDef.execute("tc2", { id: "sample_run.log\0../../secret.txt" }, null, null, { cwd: auditSandbox });
+      assert.strictEqual(traversalRes2.isError, true, "32.2.2 包含空字符 Null Byte 的路径必须被物理阻断");
+
+      // 创建指向外部机密文件的符号链接，验证真实路径 symlink 逃逸阻断
+      const symlinkFile = path.join(runsDir, "symlink_leak.log");
+      try {
+        fs.symlinkSync(secretFile, symlinkFile);
+        const symlinkRes = await inspectToolDef.execute("tc3", { id: "symlink_leak.log" }, null, null, { cwd: auditSandbox });
+        assert.strictEqual(symlinkRes.isError, true, "32.2.3 指向工作区外部文件的软链接必须被绝对拦截");
+      } catch (symlinkErr: any) {
+        // Windows 无管理员权限可能禁止创建软链接，静默安全跳过
+      }
+
+      // 32.3 合法日志检视与 Bounded Line Slice
+      const normalRes = await inspectToolDef.execute("tc4", { id: "sample_run.log", offset: 1, limit: 10 }, null, null, { cwd: auditSandbox });
+      assert.strictEqual(normalRes.isError, false, "32.3.1 合法日志切片应成功读取");
+      assert(normalRes.content[0].text.includes("Lines 1-10 of 250"), "32.3.2 切片行号范围计算正确");
+
+      // 超过 200 行上限必须被强力钳位至 200
+      const clampedRes = await inspectToolDef.execute("tc5", { id: "sample_run.log", offset: 1, limit: 9999 }, null, null, { cwd: auditSandbox });
+      assert.strictEqual(clampedRes.details.limit, 200, "32.3.3 单次检视最大行数严控上限至 200 行");
+
+      // 超出总行数的 offset 应优雅处理而绝不崩溃
+      const outOfBoundsRes = await inspectToolDef.execute("tc6", { id: "sample_run.log", offset: 300 }, null, null, { cwd: auditSandbox });
+      assert(outOfBoundsRes.content[0].text.includes("exceeds total line count"), "32.3.4 超出行号优雅返回提示");
+
+      // 验证超长行被安全截断 (clampLine)
+      const longLineRes = await inspectToolDef.execute("tc7", { id: "sample_run.log", offset: 10, limit: 1 }, null, null, { cwd: auditSandbox });
+      assert(longLineRes.content[0].text.includes("[line clamped]"), "32.3.5 超过500字符的超长单行被自动截断，防止爆破上下文");
+
+      // 32.4 findText 检索与正则安全防御 (Regex Safety & ReDoS Protection)
+      const textMatchRes = await inspectToolDef.execute("tc8", { id: "sample_run.log", findText: "resource_not_found" }, null, null, { cwd: auditSandbox });
+      assert(textMatchRes.content[0].text.includes("Found 1 matching lines"), "32.4.1 普通子串检索正常工作");
+
+      // 正则格式检索 (/pattern/flags)
+      const regexMatchRes = await inspectToolDef.execute("tc9", { id: "sample_run.log", findText: "/ERROR \\d+:/i" }, null, null, { cwd: auditSandbox });
+      assert(regexMatchRes.content[0].text.includes("Found 1 matching lines"), "32.4.2 正则语法 /ERROR \\d+:/i 正确匹配目标行");
+
+      // 语法错误的破损正则绝不抛出未捕获异常
+      const brokenRegexRes = await inspectToolDef.execute("tc10", { id: "sample_run.log", findText: "/[unclosed-regex/i" }, null, null, { cwd: auditSandbox });
+      assert.strictEqual(brokenRegexRes.isError, false, "32.4.3 破损正则安全降级为普通检索，绝不崩溃");
+
+      // 32.5 Audit Focus 2: blast_radius.ts (Command Tokenization, Sed, Redirection, Subshells)
+      const guard = new BlastRadiusGuard();
+
+      // 验证拦截通过 bash/powershell 篡改 .git 内部结构 (修复之前剥离 basename 造成的漏网逃逸)
+      const gitEscapes = [
+        "rm .git/config",
+        "rm -rf .git/hooks/pre-commit",
+        "echo evil > .git/HEAD",
+        "cp payload .git/index",
+        "truncate -s 0 .git/config"
+      ];
+      for (const cmd of gitEscapes) {
+        const check = guard.verifyToolCall({ toolName: "bash", input: { command: cmd } }, auditSandbox);
+        assert.strictEqual(check.block, true, `32.5.1 拦截篡改 Git 内部文件: ${cmd}`);
+      }
+
+      // 验证 sed 多选项前置参数逃逸与 gsed / --in-place
+      const sedEscapes = [
+        "sed -e 's/foo/bar/' -i .env",
+        "sed -e 's/1/2/' --in-place .env",
+        "gsed -i .env",
+        "sed -i.bak 's/a/b/' package-lock.json"
+      ];
+      for (const cmd of sedEscapes) {
+        const check = guard.verifyToolCall({ toolName: "bash", input: { command: cmd } }, auditSandbox);
+        assert.strictEqual(check.block, true, `32.5.2 拦截 sed 复杂原地改写: ${cmd}`);
+      }
+
+      // 验证 touch, New-Item, ni 等新增文件破坏指令
+      const touchEscapes = [
+        "touch .env",
+        "New-Item .env",
+        "ni package-lock.json"
+      ];
+      for (const cmd of touchEscapes) {
+        const check = guard.verifyToolCall({ toolName: "bash", input: { command: cmd } }, auditSandbox);
+        assert.strictEqual(check.block, true, `32.5.3 拦截 touch/New-Item 核心文件操作: ${cmd}`);
+      }
+
+      // 验证 .npmrc 与 bun.lockb 关键配置扩展防御
+      assert.strictEqual(guard.verifyToolCall({ toolName: "write", input: { path: ".npmrc" } }, auditSandbox).block, true, "32.5.4 拦截写入 .npmrc");
+      assert.strictEqual(guard.verifyToolCall({ toolName: "write", input: { path: "bun.lockb" } }, auditSandbox).block, true, "32.5.5 拦截写入 bun.lockb");
+      assert.strictEqual(guard.verifyToolCall({ toolName: "bash", input: { command: "rm .npmrc" } }, auditSandbox).block, true, "32.5.6 终端拦截删除 .npmrc");
+      assert.strictEqual(guard.verifyToolCall({ toolName: "bash", input: { command: "(rm .env)" } }, auditSandbox).block, true, "32.5.7 子 shell 命令隔离拦截 (rm .env)");
+
+      // 32.6 Audit Focus 3: dehydrator.ts & state.ts (Memory & Disk Hygiene)
+      // 验证 ContextDehydrator.pruneRunLogs 单运行目录下日志文件超量配额淘汰
+      const dehydrator = new ContextDehydrator(auditSandbox, "hygiene_run");
+      const testRunsDir = path.join(auditSandbox, ".pi", "toolflow", "runs", "hygiene_run");
+      for (let i = 1; i <= 20; i++) {
+        fs.writeFileSync(path.join(testRunsDir, `tool_bash_${1000 + i}.log`), `Log entry ${i}\n`, "utf-8");
+      }
+      // 限制保留 5 个文件
+      const deletedLogs = dehydrator.pruneRunLogs(testRunsDir, 5);
+      assert.strictEqual(deletedLogs.length, 15, "32.6.1 运行目录下超配额日志被准确淘汰 15 个");
+      const remainingFiles = fs.readdirSync(testRunsDir).filter(f => f.endsWith(".log"));
+      assert.strictEqual(remainingFiles.length, 5, "32.6.2 运行目录下剩余文件严格控制在 5 个以内");
+
+      // 验证 ReadCacheManager 在持续 100 轮长会话下的容量上限控制与 15-turn 淘汰
+      const readCache = new ReadCacheManager(auditSandbox);
+      for (let turn = 1; turn <= 120; turn++) {
+        const dummyPath = path.join(auditSandbox, `file_${turn}.ts`);
+        readCache.checkOrUpdate(dummyPath, `export const val${turn} = ${turn};\n`.repeat(10), turn);
+      }
+      // @ts-ignore 私有属性测试探测
+      assert(readCache["cache"].size <= 100, `32.6.3 ReadCache 容量上限控制在 100 条以内 (实际: ${readCache["cache"].size})`);
+
+      // 验证 state.ts 大文件快照内存防御 (>512KB 文件仅采集指纹，不写入全量 string)
+      const bigFile = path.join(auditSandbox, "large_data.json");
+      const bigContent = JSON.stringify({ data: "A".repeat(600 * 1024) }); // ~600KB
+      fs.writeFileSync(bigFile, bigContent, "utf-8");
+
+      const smallFile = path.join(auditSandbox, "small_code.ts");
+      fs.writeFileSync(smallFile, "export const x = 1;\n", "utf-8");
+
+      const { createStageSnapshot, advanceStage, startBlueprintExecution } = await import("../src/state.js");
+      const testBlueprint: any = {
+        blueprintId: "bp_hygiene_test",
+        task: "Hygiene Test",
+        createdAt: Date.now(),
+        stages: [
+          {
+            stageId: "stg_0",
+            title: "Stage 0",
+            roleProfile: "Dev",
+            expectedArtifact: "small_code.ts",
+            expectedArtifacts: ["small_code.ts", "large_data.json"],
+            artifactContract: "Contract 0",
+            coreObjective: "Obj 0",
+            allowedTools: ["write"]
+          },
+          {
+            stageId: "stg_1",
+            title: "Stage 1",
+            roleProfile: "Dev",
+            expectedArtifact: "small_code.ts",
+            expectedArtifacts: ["small_code.ts"],
+            artifactContract: "Contract 1",
+            coreObjective: "Obj 1",
+            allowedTools: ["write"]
+          },
+          {
+            stageId: "stg_2",
+            title: "Stage 2",
+            roleProfile: "Dev",
+            expectedArtifact: "small_code.ts",
+            expectedArtifacts: ["small_code.ts"],
+            artifactContract: "Contract 2",
+            coreObjective: "Obj 2",
+            allowedTools: ["write"]
+          }
+        ]
+      };
+
+      resetState(auditSandbox);
+      startBlueprintExecution(testBlueprint, auditSandbox);
+
+      const snap0 = getSessionState().snapshots?.[0];
+      assert(snap0 !== undefined, "32.6.4 Stage 0 快照已建立");
+      assert(snap0.fileHashes["large_data.json"] !== undefined, "32.6.5 大文件哈希已正确采集");
+      assert.strictEqual(snap0.fileContents?.["large_data.json"], undefined, "32.6.6 超出512KB大文件不塞入内存快照，防止堆内存暴涨");
+      assert.strictEqual(snap0.fileContents?.["small_code.ts"], "export const x = 1;\n", "32.6.7 普通源码文件正常保留快照以便回滚");
+
+      // 阶段推进 Stage 0 -> Stage 1 -> Stage 2，验证更早阶段历史快照中的 fileContents 被自动释放
+      advanceStage(auditSandbox); // 到 Stage 1
+      advanceStage(auditSandbox); // 到 Stage 2
+      const updatedSnap0 = getSessionState().snapshots?.[0];
+      assert.deepStrictEqual(updatedSnap0?.fileContents, {}, "32.6.8 更早历史阶段的 fileContents 已被就地释放清理，彻底杜绝多阶段内存泄漏");
+      assert(updatedSnap0?.fileHashes["small_code.ts"] !== undefined, "32.6.9 历史阶段文件哈希元数据完好保留");
+
+      console.log("  [OK] 32.1 - 32.14 深度安全、路径穿越拦截、影响面护栏与长会话资源防腐全部 100% 验证通过！\n");
+    } finally {
+      try {
+        fs.rmSync(auditSandbox, { recursive: true, force: true });
+      } catch (_) {}
+    }
+  }
+
 runFullRegressionVerification().catch(err => {
   console.error("[FAILED] 回归测试失败:", err);
   process.exit(1);

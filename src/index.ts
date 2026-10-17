@@ -188,15 +188,37 @@ export default function (pi: ExtensionAPI) {
         const baseDir = path.join(workDir, ".pi", "toolflow");
         const runsRoot = path.resolve(baseDir, "runs");
 
+        const clampLine = (l: string, maxLen: number = 500) =>
+          l.length > maxLen ? l.slice(0, maxLen) + "... [line clamped]" : l;
+
         const isSafeRunLog = (candidate: string | null): candidate is string => {
-          if (!candidate || !fs.existsSync(candidate)) return false;
+          if (!candidate || typeof candidate !== "string" || !fs.existsSync(candidate)) return false;
+          if (!fs.existsSync(runsRoot)) return false;
           try {
+            const statRuns = fs.lstatSync(runsRoot);
+            if (statRuns.isSymbolicLink() || !statRuns.isDirectory()) return false;
+
             const stat = fs.lstatSync(candidate);
             if (stat.isSymbolicLink() || !stat.isFile()) return false;
+
             const real = fs.realpathSync(candidate);
-            const realRunsRoot = fs.existsSync(runsRoot) ? fs.realpathSync(runsRoot) : runsRoot;
+            const realRunsRoot = fs.realpathSync(runsRoot);
+
+            // 确保 runsRoot 自身不越界跳出工作区
+            const realWorkDir = fs.existsSync(workDir) ? fs.realpathSync(workDir) : path.resolve(workDir);
+            const relRunsToWork = path.relative(realWorkDir, realRunsRoot);
+            if (relRunsToWork.startsWith("..") || path.isAbsolute(relRunsToWork)) return false;
+
             const rel = path.relative(realRunsRoot, real);
-            return !rel.startsWith("..") && !path.isAbsolute(rel);
+            if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return false;
+
+            // 规范化跨平台反斜杠与大小写判断
+            const normReal = real.replace(/\\/g, "/");
+            const normRoot = realRunsRoot.replace(/\\/g, "/");
+            const isMatch = process.platform === "win32"
+              ? normReal.toLowerCase().startsWith(normRoot.toLowerCase() + "/")
+              : normReal.startsWith(normRoot + "/");
+            return isMatch;
           } catch {
             return false;
           }
@@ -206,14 +228,30 @@ export default function (pi: ExtensionAPI) {
           ? ContextDehydrator.getLatestLogPath()
           : null;
 
-        if (params.id) {
-          const candidates = [
-            path.resolve(workDir, params.id),
-            path.join(baseDir, params.id),
-            path.join(baseDir, "runs", "default", path.basename(params.id))
-          ];
-          const found = candidates.find(isSafeRunLog);
-          targetFile = found || null;
+        if (params.id && typeof params.id === "string") {
+          const rawId = params.id.trim();
+          // 彻底拒绝空字节与显式上卷越界符
+          if (!rawId.includes("\0") && !rawId.includes("..")) {
+            const candidates = [
+              path.resolve(workDir, rawId),
+              path.join(baseDir, rawId),
+              path.resolve(runsRoot, rawId),
+              path.join(runsRoot, "default", path.basename(rawId))
+            ];
+            // 若在 runsRoot 其他子目录下存在同名文件，安全嗅探
+            if (fs.existsSync(runsRoot)) {
+              try {
+                const subDirs = fs.readdirSync(runsRoot, { withFileTypes: true });
+                for (const sub of subDirs) {
+                  if (sub.isDirectory()) {
+                    candidates.push(path.join(runsRoot, sub.name, path.basename(rawId)));
+                  }
+                }
+              } catch (_) {}
+            }
+            const found = candidates.find(isSafeRunLog);
+            targetFile = found || null;
+          }
         }
 
         if (!targetFile || !fs.existsSync(targetFile)) {
@@ -227,15 +265,44 @@ export default function (pi: ExtensionAPI) {
         const raw = fs.readFileSync(targetFile, "utf-8");
         const lines = raw.split("\n");
 
-        if (params.findText) {
-          const query = params.findText.toLowerCase();
+        if (params.findText && typeof params.findText === "string") {
+          const limit = Math.min(200, Math.max(1, typeof params.limit === "number" && !isNaN(params.limit) ? Math.floor(params.limit) : 50));
           const matches: string[] = [];
-          for (let i = 0; i < lines.length; i++) {
-            if (lines[i].toLowerCase().includes(query)) {
-              matches.push(`[Line ${i + 1}] ${lines[i]}`);
-              if (matches.length >= (params.limit || 50)) break;
+          
+          let regex: RegExp | null = null;
+          const trimmedFind = params.findText.trim();
+          const regexMatch = trimmedFind.match(/^\/(.+)\/([gimsuy]*)$/);
+          if (regexMatch && regexMatch[1].length <= 200) {
+            try {
+              const flags = regexMatch[2] ? regexMatch[2].replace(/g/g, "") : "i";
+              regex = new RegExp(regexMatch[1], flags);
+            } catch {
+              regex = null;
             }
           }
+
+          const queryLower = params.findText.toLowerCase();
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const testLine = line.length > 2000 ? line.slice(0, 2000) : line;
+            let matched = false;
+            if (regex) {
+              try {
+                regex.lastIndex = 0;
+                matched = regex.test(testLine);
+              } catch {
+                matched = false;
+              }
+            } else {
+              matched = testLine.toLowerCase().includes(queryLower);
+            }
+
+            if (matched) {
+              matches.push(`[Line ${i + 1}] ${clampLine(line, 500)}`);
+              if (matches.length >= limit) break;
+            }
+          }
+
           return {
             content: [{
               type: "text",
@@ -248,9 +315,21 @@ export default function (pi: ExtensionAPI) {
           };
         }
 
-        const offset = Math.max(1, params.offset || 1);
-        const limit = Math.min(200, Math.max(1, params.limit || 50));
-        const slice = lines.slice(offset - 1, offset - 1 + limit);
+        const offset = Math.max(1, typeof params.offset === "number" && !isNaN(params.offset) ? Math.floor(params.offset) : 1);
+        const limit = Math.min(200, Math.max(1, typeof params.limit === "number" && !isNaN(params.limit) ? Math.floor(params.limit) : 50));
+
+        if (offset > lines.length) {
+          return {
+            content: [{
+              type: "text",
+              text: `[${path.basename(targetFile)}] Offset ${offset} exceeds total line count (${lines.length}).`
+            }],
+            details: { offset, limit, totalLines: lines.length, targetFile },
+            isError: false
+          };
+        }
+
+        const slice = lines.slice(offset - 1, offset - 1 + limit).map(l => clampLine(l, 500));
 
         return {
           content: [{
@@ -463,9 +542,18 @@ export default function (pi: ExtensionAPI) {
     const rawArg = args ? args.trim() : "";
     const cwd = ctx.cwd || process.cwd();
 
-    // 1. 处理回滚子命令: /toolflow rollback 或 -r
-    if (rawArg === "rollback" || rawArg === "-r" || rawArg === "revert") {
-      const res = rollbackStage(undefined, cwd);
+    // 1. 处理回滚子命令: /toolflow rollback [stage] 或 -r
+    const lowerArg = rawArg.toLowerCase();
+    if (lowerArg === "rollback" || lowerArg === "-r" || lowerArg === "revert" || lowerArg.startsWith("rollback ") || lowerArg.startsWith("-r ")) {
+      const tokens = rawArg.split(/\s+/).filter(Boolean);
+      let targetStageIndex: number | undefined;
+      if (tokens.length > 1) {
+        const num = parseInt(tokens[1].replace(/^[sS]/, ""), 10);
+        if (!isNaN(num) && num >= 1) {
+          targetStageIndex = num - 1;
+        }
+      }
+      const res = rollbackStage(targetStageIndex, cwd);
       reviewGuard.deactivate();
       applyToolScoping(BASELINE_TOOLS, pi);
       if (ctx?.ui?.notify) {
@@ -1043,15 +1131,11 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      // 严防死锁死循环：自愈失败超过 3 次时，直接标记挂起，绝不再发送 followUp 消息
-      if ((state.retryCount || 0) >= 3) {
-        return;
-      }
-
       const currentStage = state.currentBlueprint.stages[state.currentStageIndex];
       if (!currentStage) return;
 
-      // 智能双重路径容错：优先查找 expectedArtifact 相对路径与项目根目录直出路径
+      const turnCwd = ctx.cwd || process.cwd();
+
       // 提取本轮调用的工具名称，排查是否处于普通探索或无产物会话中
       const executedToolNames: string[] = [];
       if (Array.isArray(_event?.toolResults)) {
@@ -1073,7 +1157,13 @@ export default function (pi: ExtensionAPI) {
       const hasActiveWriting = executedToolNames.some(name => ['write', 'edit'].includes(name));
       const isExploring = executedToolNames.length > 0 && !hasActiveWriting;
 
-      const turnCwd = ctx.cwd || process.cwd();
+      // 严防死锁死循环：自愈失败超过 3 次时，如果产物尚未生成，直接挂起不再发重试消息；如果已生成则继续验收
+      if ((state.retryCount || 0) >= 3) {
+        const quickCheck = verifyStageArtifacts(currentStage, turnCwd, true, true);
+        if (!quickCheck.valid) {
+          return;
+        }
+      }
       // 如果本轮没写文件，以只读查询方式校验产物是否存在，绝对不累加错误重试计数！
       const verificationResult = verifyStageArtifacts(currentStage, turnCwd, !hasActiveWriting, isExploring);
 

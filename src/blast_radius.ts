@@ -42,16 +42,18 @@ export class BlastRadiusGuard {
   private criticalConfigPatterns: RegExp[] = [
     /^\.env(\..+)?$/i,
     /^\.git([\\/].+)?$/i,
+    /^\.npmrc$/i,
     /^package-lock\.json$/i,
     /^pnpm-lock\.yaml$/i,
     /^yarn\.lock$/i,
     /^Cargo\.lock$/i,
+    /^bun\.lockb?$/i,
     /^pnpm-workspace\.yaml$/i,
     /^turbo\.json$/i,
     /^lerna\.json$/i,
     /^nx\.json$/i,
     // DOS 8.3 short name protection
-    /^(packag|pnpm-l|pnpm-w|yarn|cargo|turbo|lerna|nx)~\d+(\.(jso|yam|loc|txt))?$/i,
+    /^(packag|pnpm-l|pnpm-w|yarn|cargo|turbo|lerna|nx|npmrc|bun)~\d+(\.(jso|yam|loc|txt|rc))?$/i,
     /^git~\d+([\\/].+)?$/i,
     /^env~\d+(\..*)?$/i
   ];
@@ -279,7 +281,7 @@ export class BlastRadiusGuard {
 
     // 终端命令逃逸审计 (拦截通过 bash/powershell 直接写入、覆盖或删除绝密配置)
     if (tool === "bash" || tool === "powershell" || tool === "exec") {
-      const command = (event.input?.command || event.input?.cmd || "").toString();
+      const command = (event.input?.command || event.input?.cmd || event.input?.script || "").toString();
       if (command) {
         if (/\bgit\s+(?:checkout\s+(?:--\s+)?\.|restore\s+(?:--staged\s+)?\.|reset\s+--hard|clean\s+-[a-z]*f)/i.test(command)) {
           return {
@@ -287,18 +289,34 @@ export class BlastRadiusGuard {
             reason: `[ToolFlow 保护红线] 拦截高危 Git 毁灭性回滚/清理指令！`
           };
         }
+        const hasSedInPlace = /\b(?:sed|gsed)\b[^;\r\n]*(?:\s+-[a-zA-Z0-9]*i[a-zA-Z0-9]*|\s+--in-place)/i.test(command);
         const isDestructiveOrWrite =
-          /(?:>|>>|\b(?:rm|del|erase|ri|rd|rmdir|mv|cp|Remove-Item|Move-Item|Copy-Item|Set-Content|Add-Content|Clear-Content|sc|ac|clc|Out-File|tee|truncate)\b|\bsed\s+-i)/i.test(command);
+          hasSedInPlace ||
+          /(?:>|>>|\b(?:rm|del|erase|ri|rd|rmdir|mv|cp|Remove-Item|Move-Item|Copy-Item|Set-Content|Add-Content|Clear-Content|sc|ac|clc|Out-File|tee|truncate|touch|New-Item|ni)\b)/i.test(command);
         if (isDestructiveOrWrite) {
-          const tokens = command
+          const rawTokens = command
             .split(/[\s;|&><"'`(),=]+/)
-            .map((tok: string) => path.basename(this.normalizePath(tok)))
             .filter(Boolean);
-          for (const token of tokens) {
-            if (this.criticalConfigPatterns.some(pattern => pattern.test(token))) {
+          for (const rawTok of rawTokens) {
+            const rawNorm = this.normalizePath(rawTok).replace(/^\.\//, "");
+            const baseName = path.basename(rawNorm);
+            const segments = rawNorm.split("/");
+
+            if (segments.some(seg => seg === ".git" || /^git~\d+$/i.test(seg))) {
               return {
                 block: true,
-                reason: `[ToolFlow 保护红线] 拦截终端命令：检测到试图篡改或删除核心敏感文件 "${token}"！`
+                reason: `[ToolFlow 保护红线] 拦截终端命令：检测到试图篡改或删除 Git 内部结构 "${rawTok}"！`
+              };
+            }
+
+            if (
+              this.criticalConfigPatterns.some(
+                pattern => pattern.test(baseName) || pattern.test(rawNorm)
+              )
+            ) {
+              return {
+                block: true,
+                reason: `[ToolFlow 保护红线] 拦截终端命令：检测到试图篡改或删除核心敏感文件 "${baseName}"！`
               };
             }
           }

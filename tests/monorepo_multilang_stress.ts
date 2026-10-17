@@ -114,6 +114,7 @@ async function runMonorepoMultiLangStressTesting() {
     // 模拟执行与爆炸半径隔离校验
     const dehydratorTs = new ContextDehydrator(tsMonorepoRoot, "bp_ts_monorepo_001");
     const guardTs = new BlastRadiusGuard();
+    guardTs.setStrictArtifactScope(true);
 
     for (const bundle of bundles) {
       console.log(`    >> 执行 Wave ${bundle.waveIndex} (并行=${bundle.isParallel}, 任务数=${bundle.tasks.length})...`);

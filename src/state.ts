@@ -173,12 +173,12 @@ export function resetState(cwd: string = process.cwd()): void {
     if (fs.existsSync(bakPath)) {
       fs.unlinkSync(bakPath);
     }
-    // 清理残留的原子写入临时文件 (如 blueprint_state.json.tmp.*)
+    // 清理残留的原子写入临时文件 (如 blueprint_state.json.tmp.* 与 stats.json.tmp.*)
     const parentDir = path.dirname(filePath);
     if (fs.existsSync(parentDir)) {
       const entries = fs.readdirSync(parentDir);
       for (const entry of entries) {
-        if (entry.startsWith("blueprint_state.json.tmp.")) {
+        if (entry.startsWith("blueprint_state.json.tmp.") || entry.startsWith("stats.json.tmp.")) {
           try {
             fs.unlinkSync(path.join(parentDir, entry));
           } catch (_) {}
@@ -291,11 +291,15 @@ export function createStageSnapshot(stageIndex: number, cwd: string = process.cw
       if (fs.existsSync(full) && fs.statSync(full).isFile()) {
         try {
           const stats = fs.statSync(full);
-          if (stats.size < 2 * 1024 * 1024) {
+          if (stats.size < 512 * 1024) {
             const content = fs.readFileSync(full, "utf-8");
             const hash = crypto.createHash("sha256").update(content).digest("hex").slice(0, 16);
             fileHashes[rel] = hash;
             fileContents[rel] = content;
+          } else {
+            // 超出 512KB 的大文件仅采集指纹，不将全量庞大文本塞入快照内存
+            const buf = fs.readFileSync(full);
+            fileHashes[rel] = crypto.createHash("sha256").update(buf).digest("hex").slice(0, 16);
           }
         } catch (_) {}
       }
@@ -365,13 +369,13 @@ export function rollbackStage(stageIndex: number = state.currentStageIndex, cwd:
       }
     }
 
-    // 检查并清理快照创建后新生成的孤儿文件
+    // 检查并清理快照创建后新生成的未跟踪孤儿文件，绝不误删既有的跟踪变更文件 (P0 级别防误删修复)
     const currentGit = getGitChangedFiles(cwd);
-    const candidateFiles = new Set([...currentGit.changedFiles, ...currentGit.untrackedFiles]);
-    if (stage?.expectedArtifact) candidateFiles.add(stage.expectedArtifact);
-    if (stage?.expectedArtifacts) stage.expectedArtifacts.forEach(f => candidateFiles.add(f));
+    const untrackedCandidates = new Set([...currentGit.untrackedFiles]);
+    if (stage?.expectedArtifact) untrackedCandidates.add(stage.expectedArtifact);
+    if (stage?.expectedArtifacts) stage.expectedArtifacts.forEach(f => untrackedCandidates.add(f));
 
-    for (const rel of candidateFiles) {
+    for (const rel of untrackedCandidates) {
       const full = path.isAbsolute(rel) ? rel : path.resolve(cwd, rel);
       if (!snapshot.fileHashes?.[rel] && fs.existsSync(full)) {
         try {
@@ -379,6 +383,17 @@ export function rollbackStage(stageIndex: number = state.currentStageIndex, cwd:
             fs.unlinkSync(full);
           }
         } catch (_) {}
+      }
+    }
+
+    // 若有 Git 跟踪但未被快照备份的已变更文件，通过 git checkout 恢复，绝不删除文件
+    if (currentGit.isGit && currentGit.changedFiles.length > 0) {
+      for (const rel of currentGit.changedFiles) {
+        if (!snapshot.fileContents?.[rel]) {
+          try {
+            execSync(`git checkout -- "${rel}"`, { cwd, stdio: ["ignore", "ignore", "ignore"], timeout: 3000 });
+          } catch (_) {}
+        }
       }
     }
 
@@ -418,6 +433,15 @@ export function advanceStage(cwd: string = process.cwd()): boolean {
     state.currentStageIndex++;
     state.status = "in_progress";
     state.retryCount = 0;
+    // 内存卫士：对历史更早阶段的快照裁剪重量级 fileContents，仅保留轻量级 fileHashes 指纹
+    if (state.snapshots) {
+      for (const [idxStr, snap] of Object.entries(state.snapshots)) {
+        const idx = Number(idxStr);
+        if (idx < state.currentStageIndex - 1 && snap.fileContents) {
+          snap.fileContents = {}; // 释放旧阶段内存字符串
+        }
+      }
+    }
     createStageSnapshot(state.currentStageIndex, cwd);
     saveSessionStateToFile(cwd);
     return true;

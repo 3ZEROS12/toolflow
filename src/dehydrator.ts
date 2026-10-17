@@ -74,11 +74,18 @@ export class StatsManager {
     else if (type === "blast") stats.blastRadiusBlocksCount++;
     stats.lastUpdated = Date.now();
 
+    const tempPath = `${this.statsFile}.tmp.${process.pid}.${Date.now()}`;
     try {
-      const tempPath = `${this.statsFile}.tmp.${process.pid}.${Date.now()}`;
       fs.writeFileSync(tempPath, JSON.stringify(stats, null, 2), "utf-8");
       fs.renameSync(tempPath, this.statsFile);
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      try {
+        if (fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
+      } catch (_) {}
+    }
   }
 }
 
@@ -124,6 +131,8 @@ export class ContextDehydrator {
     } catch (_) {}
   }
 
+  private dehydrateCount: number = 0;
+
   public static getLatestLogPath(): string | null {
     return ContextDehydrator.latestLogPath;
   }
@@ -147,6 +156,52 @@ export class ContextDehydrator {
       }
     } catch (_) {}
     return total;
+  }
+
+  /**
+   * 清理单个运行目录下过量或过期的日志切片文件 (默认保留最近 50 个文件，总大小不超过 30MB)
+   */
+  public pruneRunLogs(
+    dirPath: string = this.runsDir,
+    maxFiles: number = 50,
+    maxAgeMs: number = 7 * 24 * 60 * 60 * 1000,
+    maxBytes: number = 30 * 1024 * 1024
+  ): string[] {
+    const deleted: string[] = [];
+    try {
+      if (!fs.existsSync(dirPath)) return deleted;
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      const logFiles = entries
+        .filter(e => e.isFile() && e.name.endsWith(".log"))
+        .map(e => {
+          const fullPath = path.join(dirPath, e.name);
+          const stat = fs.statSync(fullPath);
+          return { name: e.name, fullPath, mtimeMs: stat.mtimeMs, sizeBytes: stat.size };
+        })
+        .filter(f => f.fullPath !== ContextDehydrator.latestLogPath) // 保护当前最新的日志指针
+        .sort((a, b) => a.mtimeMs - b.mtimeMs); // 最旧的排前面
+
+      const now = Date.now();
+      let totalSize = logFiles.reduce((acc, f) => acc + f.sizeBytes, 0);
+      const retained = [...logFiles];
+
+      for (const file of logFiles) {
+        const isTooOld = now - file.mtimeMs > maxAgeMs;
+        const isExceedingCount = retained.length > maxFiles;
+        const isExceedingQuota = totalSize > maxBytes;
+
+        if (isTooOld || isExceedingCount || isExceedingQuota) {
+          try {
+            fs.unlinkSync(file.fullPath);
+            totalSize -= file.sizeBytes;
+            const idx = retained.findIndex(r => r.name === file.name);
+            if (idx >= 0) retained.splice(idx, 1);
+            deleted.push(file.name);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    return deleted;
   }
 
   /**
@@ -191,6 +246,8 @@ export class ContextDehydrator {
           } catch (_) {}
         }
       }
+      // 深度盘点当前运行目录，清理当前 Run 内部积压的旧日志切片
+      this.pruneRunLogs(this.runsDir);
     } catch (_) {}
     return deletedDirs;
   }
@@ -372,11 +429,11 @@ export class ContextDehydrator {
     let tailCount = 10;
 
     if (toolName === "grep" || toolName === "find") {
-      // 搜索工具：结果超 15 行或 1000 字符就脱水，保留前 8 条和后 4 条匹配
-      thresholdLines = 15;
-      thresholdBytes = 1000;
-      headCount = 8;
-      tailCount = 4;
+      // 搜索工具：结果超 60 行或 4000 字符才做脱水，保留前 25 条和后 15 条匹配，保证跨文件调用点完整呈现
+      thresholdLines = 60;
+      thresholdBytes = 4000;
+      headCount = 25;
+      tailCount = 15;
     } else if (toolName === "read") {
       // 读取工具：正常源码读取绝不拦腰截断；仅当单次超过 600 行且超过 25KB 时做超长归档保护
       thresholdLines = 600;
@@ -422,6 +479,9 @@ export class ContextDehydrator {
       ContextDehydrator.latestLogPath = fullPath;
       const approxTokens = Math.max(10, Math.round(sanitized.length / 4));
       this.stats.recordSavings(approxTokens, "log");
+      if (++this.dehydrateCount % 10 === 0) {
+        this.pruneRunLogs(this.runsDir);
+      }
     } catch (_) {}
 
     const relPath = path.relative(process.cwd(), fullPath).replace(/\\/g, "/");
@@ -496,6 +556,14 @@ export class ReadCacheManager {
   public recordEditFailure(filePath: string, currentTurn: number): void {
     if (!filePath) return;
     const normPath = this.normalizeKey(filePath);
+    if (this.editFailures.size >= 50) {
+      const now = Date.now();
+      for (const [k, v] of this.editFailures.entries()) {
+        if (currentTurn - v.failedTurn > 3 || now - v.timestamp >= 60000) {
+          this.editFailures.delete(k);
+        }
+      }
+    }
     this.editFailures.set(normPath, { failedTurn: currentTurn, timestamp: Date.now() });
     this.invalidate(filePath);
   }
@@ -600,6 +668,23 @@ export class ReadCacheManager {
     }
 
     // 记录最新真实物理指纹与内容哈希
+    // 内存卫士：容量上限控制与长会话防腐淘汰 (LRU & 15-turn TTL)
+    if (this.cache.size >= 100) {
+      for (const [key, entry] of this.cache.entries()) {
+        if (currentTurn - entry.lastTurnIndex > 15) {
+          this.cache.delete(key);
+        }
+      }
+      if (this.cache.size >= 100) {
+        const excess = this.cache.size - 90;
+        let pruned = 0;
+        for (const key of this.cache.keys()) {
+          this.cache.delete(key);
+          if (++pruned >= excess) break;
+        }
+      }
+    }
+
     this.cache.set(normPath, {
       mtimeMs: currentMtime,
       hash,

@@ -71,9 +71,10 @@ export function diagnoseTaskExecutionMode(
   // 3. 判定极速通道特征：具体文件、行号符号、微操作动词
   const hasSingleFileTarget = /\b[\w-]+\.(ts|tsx|js|jsx|py|rs|go|json|css|scss|html|vue|md)\b/i.test(lower);
   const hasSpecificLineOrSymbol = /(第\s*\d+\s*行|line\s*\d+|函数|function\s+\w+|class\s+\w+|方法|变量)/i.test(lower);
-  const hasMicroActionVerb = /(修复|fix|修改|改一下|微调|format|加个注释|添加注释|加注释|补充类型|类型修复|换个颜色|改个文案|改文案|加个字段|加字段|增加字段|输出日志|加log|加打印|优化排版)/i.test(lower);
+  const hasMicroActionVerb = /(修复|fix|修改|改一下|微调|format|加个注释|添加注释|加注释|补充类型|类型修复|换个颜色|改个文案|改文案|加个字段|加字段|增加字段|输出日志|加log|加打印|优化排版|refactor|update|clean|cleanup|rename|extract|simplify|inline)\b/i.test(lower);
 
-  if (trimmed.length <= 80 && (hasMicroActionVerb || hasSingleFileTarget || hasSpecificLineOrSymbol)) {
+  const maxFastTrackChars = hasSingleFileTarget ? 160 : 80;
+  if (trimmed.length <= maxFastTrackChars && (hasMicroActionVerb || hasSingleFileTarget || hasSpecificLineOrSymbol)) {
     return {
       mode: "FAST_TRACK",
       reason: `Targeted single-step task (${trimmed.length} chars)`,
