@@ -87,6 +87,14 @@ export class StatsManager {
       } catch (_) {}
     }
   }
+
+  public getFormattedSavings(): string {
+    const stats = this.getStats();
+    const tokens = stats.totalTokensSaved || 0;
+    if (tokens < 1000) return `⌬ ${tokens}t`;
+    if (tokens < 1000000) return `⌬ -${(tokens / 1000).toFixed(1)}k`;
+    return `⌬ -${(tokens / 1000000).toFixed(2)}M`;
+  }
 }
 
 const MAX_LOG_SIZE_BYTES = 10 * 1024 * 1024; // 10MB 单阶段日志截断上限
@@ -121,6 +129,13 @@ export class ContextDehydrator {
   private runsDir: string;
   private baseDir: string;
   private stats: StatsManager;
+  private lastCommandRecord: {
+    command: string;
+    timestamp: number;
+    outputDigest: string;
+    mutationCount: number;
+  } | null = null;
+  private workspaceMutationCount = 0;
 
   constructor(cwd: string = process.cwd(), blueprintId: string = "default") {
     this.baseDir = path.join(cwd, ".pi", "toolflow", "runs");
@@ -129,6 +144,10 @@ export class ContextDehydrator {
     try {
       fs.mkdirSync(this.runsDir, { recursive: true });
     } catch (_) {}
+  }
+
+  public recordWorkspaceMutation(): void {
+    this.workspaceMutationCount++;
   }
 
   private dehydrateCount: number = 0;
@@ -382,6 +401,34 @@ export class ContextDehydrator {
   }
 
   /**
+   * 提取输出中的语义峰值报错行 (Semantic Peak Error Extraction)
+   * 优先自底向上抓取断言失败、Panic、编译错误等核心高信噪比块，防止被前置警告吞噬
+   */
+  private extractSemanticPeakErrors(lines: string[]): string[] {
+    const PEAK_ERROR_PATTERN = /(?:AssertionError|FAIL:|FAILED|panic:|SyntaxError|TypeError|ReferenceError|error\s+TS\d+|Traceback\s+\(most\s+recent\s+call\s+last\)|Exception\s+in\s+thread|fatal\s+error|Uncaught\s+\w+Error)/i;
+    const errorLines: string[] = [];
+
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (PEAK_ERROR_PATTERN.test(lines[i])) {
+        const start = Math.max(0, i - 1);
+        const end = Math.min(lines.length, i + 3);
+        for (let j = start; j < end; j++) {
+          if (!errorLines.includes(lines[j])) {
+            errorLines.push(lines[j]);
+          }
+        }
+        if (errorLines.length >= 8) break;
+      }
+    }
+
+    if (errorLines.length === 0) {
+      return this.extractKeyErrorLines(lines);
+    }
+
+    return errorLines.reverse();
+  }
+
+  /**
    * 提取输出中的关键报错行（保证哪怕脱水中段，编译/运行核心错误也不会被吞噬）
    */
   private extractKeyErrorLines(lines: string[]): string[] {
@@ -407,7 +454,7 @@ export class ContextDehydrator {
    * 当 bash, powershell, fetch_content 或重型 MCP 输出过长时，自动将完整原始输出落盘归档，
    * 仅向下游返回摘要与指纹，彻底阻断数万 Token 垃圾日志污染会话上下文。
    */
-  public dehydrateToolOutput(toolName: string, rawText: string): { dehydrated: boolean; text: string; archivePath?: string } {
+  public dehydrateToolOutput(toolName: string, rawText: string, inputCommand?: string): { dehydrated: boolean; text: string; archivePath?: string } {
     if (!rawText || typeof rawText !== "string") return { dehydrated: false, text: rawText };
 
     // 1. 终端 ANSI 控制字符净化与进度条清洗
@@ -417,6 +464,32 @@ export class ContextDehydrator {
     if (toolName === "bash" || toolName === "powershell") {
       if (this.isInteractiveWait(sanitized)) {
         return { dehydrated: false, text: sanitized };
+      }
+
+      // ⚡ 死循环击碎器 (Loop Buster): 检测 45 秒内无任何文件变动的完全重复命令执行
+      if (inputCommand && inputCommand.trim()) {
+        const cmd = inputCommand.trim();
+        const now = Date.now();
+        const outputDigest = crypto.createHash("sha256").update(sanitized).digest("hex").slice(0, 16);
+        if (
+          this.lastCommandRecord &&
+          this.lastCommandRecord.command === cmd &&
+          (now - this.lastCommandRecord.timestamp) < 45000 &&
+          this.lastCommandRecord.mutationCount === this.workspaceMutationCount &&
+          this.lastCommandRecord.outputDigest === outputDigest
+        ) {
+          const elapsedSec = Math.round((now - this.lastCommandRecord.timestamp) / 1000);
+          return {
+            dehydrated: true,
+            text: `[⚡ ToolFlow Loop Buster: Command "${cmd}" was re-executed within ${elapsedSec}s with zero workspace code changes. Output is identical to previous run. Avoid running repetitive commands without modifying files!]`
+          };
+        }
+        this.lastCommandRecord = {
+          command: cmd,
+          timestamp: now,
+          outputDigest,
+          mutationCount: this.workspaceMutationCount
+        };
       }
     }
 
@@ -501,8 +574,8 @@ export class ContextDehydrator {
     const tail = lines.slice(-tailCount).map(clampLine).join("\n");
     const omittedCount = lines.length - (headCount + tailCount);
 
-    // 3. 智能抓取中段关键 Error 行，避免关键编译/运行报错被粗暴掐死
-    const keyErrors = this.extractKeyErrorLines(lines.slice(headCount, Math.max(headCount, lines.length - tailCount))).map(clampLine);
+    // 3. 智能抓取语义峰值 Error 行，避免关键编译/运行报错被粗暴掐死
+    const keyErrors = this.extractSemanticPeakErrors(lines.slice(headCount, Math.max(headCount, lines.length - tailCount))).map(clampLine);
     const errorSection = keyErrors.length > 0 
       ? ["", "  [⚡ 核心报错摘要提取]:", ...keyErrors.map(e => "  > " + e), ""]
       : [];
@@ -511,7 +584,7 @@ export class ContextDehydrator {
       head,
       ...errorSection,
       "",
-      `... [⚡ ToolFlow Token Optimizer: Dehydrated ${omittedCount} lines (~${Math.round(sanitized.length / 4)} tokens) to ${relPath}] ...`,
+      `... [⚡ ToolFlow Token Optimizer: Dehydrated ${omittedCount} lines (~${Math.round(sanitized.length / 4)} tokens) to ${relPath}] [Hint: Call toolflow_inspect(id="${relPath}", offset=1, limit=50) to inspect details without context bloat] ...`,
       "",
       tail
     ].join("\n");

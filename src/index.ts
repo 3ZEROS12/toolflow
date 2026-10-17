@@ -45,8 +45,12 @@ const reviewGuard = new ReviewIsolationGuard();
 function updateToolFlowStatusBar(ctx: any): void {
   if (!ctx?.ui?.setStatus) return;
   const state = getSessionState();
+  const cwd = ctx?.cwd || process.cwd();
+  const stats = new StatsManager(cwd);
+  const savings = stats.getFormattedSavings();
+
   if (!state.currentBlueprint || state.status === "idle" || state.status === "completed") {
-    ctx.ui.setStatus("toolflow", undefined);
+    ctx.ui.setStatus("toolflow", stats.getStats().totalTokensSaved > 0 ? savings : undefined);
     return;
   }
 
@@ -55,7 +59,7 @@ function updateToolFlowStatusBar(ctx: any): void {
   const totalStages = state.currentBlueprint.stages.length;
   const stageTitle = currentStage?.title || "running";
 
-  ctx.ui.setStatus("toolflow", `⌬ toolflow [${stageNum}/${totalStages} · ${stageTitle}]`);
+  ctx.ui.setStatus("toolflow", `⌬ [${stageNum}/${totalStages} · ${stageTitle}] · ${savings}`);
 }
 
 export default function (pi: ExtensionAPI) {
@@ -886,7 +890,8 @@ export default function (pi: ExtensionAPI) {
       }
 
       // 2. 如果是写/改文件工具，监控失败并作废对应文件的读缓存，保证后续读取能拿到最新内容
-      if (toolName === "write" || toolName === "edit") {
+      if (toolName === "write" || toolName === "edit" || toolName === "patch" || toolName === "create_file") {
+        dehydrator.recordWorkspaceMutation();
         const filePath = event.input?.path;
         const isFailed = event.isError || (Array.isArray(event.content) && event.content.some((b: any) =>
           typeof b?.text === "string" && (
@@ -926,17 +931,19 @@ export default function (pi: ExtensionAPI) {
       }
 
       // 3. 通用海量输出脱水管道
+      const inputCmd = (event.input?.command || event.input?.cmd || "").toString();
       for (const block of event.content) {
         if (block?.type === "text" && typeof block.text === "string") {
           const originalLen = block.text.length;
           const originalLines = block.text.split("\n").length;
-          const res = dehydrator.dehydrateToolOutput(toolName, block.text);
+          const res = dehydrator.dehydrateToolOutput(toolName, block.text, inputCmd);
           if (res.dehydrated) {
             block.text = res.text;
             const approxTokens = Math.max(10, Math.round((originalLen - res.text.length) / 4));
             if (ctx?.ui?.notify) {
               ctx.ui.notify(t.toolOutputDehydrated(toolName, originalLines, approxTokens), "info");
             }
+            updateToolFlowStatusBar(ctx);
           }
         }
       }
