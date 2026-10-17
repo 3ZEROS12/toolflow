@@ -219,6 +219,7 @@ export default function (pi: ExtensionAPI) {
         if (!targetFile || !fs.existsSync(targetFile)) {
           return {
             content: [{ type: "text", text: `No dehydrated log found matching "${params.id || 'latest'}".` }],
+            details: { found: false, id: params.id || 'latest' },
             isError: true
           };
         }
@@ -242,6 +243,7 @@ export default function (pi: ExtensionAPI) {
                 ? `Found ${matches.length} matching lines in ${path.basename(targetFile)}:\n\n${matches.join("\n")}`
                 : `No lines matching "${params.findText}" found in ${path.basename(targetFile)}.`
             }],
+            details: { matches, totalLines: lines.length, targetFile },
             isError: false
           };
         }
@@ -255,6 +257,7 @@ export default function (pi: ExtensionAPI) {
             type: "text",
             text: `[${path.basename(targetFile)} Lines ${offset}-${offset + slice.length - 1} of ${lines.length}]\n\n${slice.join("\n")}`
           }],
+          details: { offset, limit, totalLines: lines.length, targetFile },
           isError: false
         };
       }

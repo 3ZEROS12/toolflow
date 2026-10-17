@@ -292,7 +292,7 @@ export class BlastRadiusGuard {
         if (isDestructiveOrWrite) {
           const tokens = command
             .split(/[\s;|&><"'`(),=]+/)
-            .map(tok => path.basename(this.normalizePath(tok)))
+            .map((tok: string) => path.basename(this.normalizePath(tok)))
             .filter(Boolean);
           for (const token of tokens) {
             if (this.criticalConfigPatterns.some(pattern => pattern.test(token))) {
