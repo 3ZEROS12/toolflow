@@ -5,7 +5,6 @@ import assert from "assert";
 import { sniffProjectFingerprint, discoverEcosystemTaxonomy } from "../src/taxonomy.js";
 import { ContextDehydrator } from "../src/dehydrator.js";
 import { BlastRadiusGuard } from "../src/blast_radius.js";
-import { MultiAgentWorkerOrchestrator } from "../src/worker_orchestrator.js";
 import { CodebaseMemoryManager } from "../src/memory.js";
 import { 
   diagnoseTaskRequirements, 
@@ -102,24 +101,33 @@ async function runMonorepoMultiLangStressTesting() {
       }
     ];
 
-    // 编译 Kahn DAG 波次与多智能体并发调度批次
-    const bundles = MultiAgentWorkerOrchestrator.compileWaveBundles(tsStages, 4);
-    console.log(`  ➔ [Kahn DAG] 编排波次数量: ${bundles.length}`);
-    assert.strictEqual(bundles.length, 3, "1.2 DAG 波次正确推导为 3 波");
-    assert.strictEqual(bundles[0].tasks.length, 1, "1.3 波次 1 包含 1 个基础契约任务");
-    assert.strictEqual(bundles[1].tasks.length, 2, "1.4 波次 2 并行调度 UI 与 API 两个子任务");
-    assert.strictEqual(bundles[1].isParallel, true, "1.5 波次 2 标记为并行");
-    assert.strictEqual(bundles[2].tasks.length, 1, "1.6 波次 3 汇聚为 Web 客户端整合任务");
+    // 编译 Kahn DAG 波次
+    const waves = planDAGWaves(tsStages).waves;
+    console.log(`  ➔ [Kahn DAG] 编排波次数量: ${waves.length}`);
+    assert.strictEqual(waves.length, 3, "1.2 DAG 波次正确推导为 3 波");
+    assert.strictEqual(waves[0].stages.length, 1, "1.3 波次 1 包含 1 个基础契约任务");
+    assert.strictEqual(waves[1].stages.length, 2, "1.4 波次 2 并行调度 UI 与 API 两个子任务");
+    assert.strictEqual(waves[1].isParallel, true, "1.5 波次 2 标记为并行");
+    assert.strictEqual(waves[2].stages.length, 1, "1.6 波次 3 汇聚为 Web 客户端整合任务");
 
     // 模拟执行与爆炸半径隔离校验
     const dehydratorTs = new ContextDehydrator(tsMonorepoRoot, "bp_ts_monorepo_001");
     const guardTs = new BlastRadiusGuard();
     guardTs.setStrictArtifactScope(true);
 
-    for (const bundle of bundles) {
-      console.log(`    >> 执行 Wave ${bundle.waveIndex} (并行=${bundle.isParallel}, 任务数=${bundle.tasks.length})...`);
-      for (const task of bundle.tasks) {
-        const stage = tsStages.find(s => s.stageId === task.stageId)!;
+    for (const wave of waves) {
+      console.log(`    >> 执行 Wave ${wave.waveIndex} (并行=${wave.isParallel}, 任务数=${wave.stages.length})...`);
+      for (const stage of wave.stages) {
+        const task = {
+          stageId: stage.stageId,
+          stageTitle: stage.title,
+          targetArtifacts:
+            stage.expectedArtifacts && stage.expectedArtifacts.length > 0
+              ? stage.expectedArtifacts
+              : stage.expectedArtifact
+                ? [stage.expectedArtifact]
+                : []
+        };
         guardTs.updateAllowedScope(stage, tsMonorepoRoot);
 
         // 渗透拦截测试 1: 拦截试图篡改根目录 .env

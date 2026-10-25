@@ -2,6 +2,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import type { ArtifactRecord } from "./types.js";
+import { StatsManager } from "./stats.js";
+
+export * from "./stats.js";
+export * from "./read_cache.js";
 
 export interface DehydratedStageHandoff {
   stageId: string;
@@ -15,86 +19,6 @@ export interface DehydratedStageHandoff {
     importedModules?: string[];
     exportedSymbols?: string[];
   };
-}
-
-export interface ReadToolInput {
-  path: string;
-  offset?: number;
-  limit?: number;
-}
-
-export interface CacheCheckResult {
-  isDuplicate: boolean;
-  notice?: string;
-  savedLines?: number;
-  savedTokens?: number;
-  bypassReason?: "targeted_window" | "recent_edit_failure" | "small_file" | "command_dirty" | "not_cached";
-}
-
-export interface ToolFlowStats {
-  totalTokensSaved: number;
-  dehydratedLogsCount: number;
-  readCacheHitsCount: number;
-  blastRadiusBlocksCount: number;
-  lastUpdated: number;
-}
-
-export class StatsManager {
-  private statsFile: string;
-
-  constructor(cwd: string = process.cwd()) {
-    const baseDir = path.join(cwd, ".pi", "toolflow");
-    try {
-      fs.mkdirSync(baseDir, { recursive: true });
-    } catch (_) {}
-    this.statsFile = path.join(baseDir, "stats.json");
-  }
-
-  public getStats(): ToolFlowStats {
-    try {
-      if (fs.existsSync(this.statsFile)) {
-        const raw = fs.readFileSync(this.statsFile, "utf-8");
-        return JSON.parse(raw);
-      }
-    } catch (_) {}
-    return {
-      totalTokensSaved: 0,
-      dehydratedLogsCount: 0,
-      readCacheHitsCount: 0,
-      blastRadiusBlocksCount: 0,
-      lastUpdated: Date.now()
-    };
-  }
-
-  public recordSavings(tokens: number, type: "log" | "read_cache" | "blast"): void {
-    const stats = this.getStats();
-    stats.totalTokensSaved += Math.max(0, tokens);
-    if (type === "log") stats.dehydratedLogsCount++;
-    else if (type === "read_cache") stats.readCacheHitsCount++;
-    else if (type === "blast") stats.blastRadiusBlocksCount++;
-    stats.lastUpdated = Date.now();
-
-    const tempPath = `${this.statsFile}.tmp.${process.pid}.${Date.now()}`;
-    try {
-      fs.writeFileSync(tempPath, JSON.stringify(stats, null, 2), "utf-8");
-      fs.renameSync(tempPath, this.statsFile);
-    } catch (_) {
-    } finally {
-      try {
-        if (fs.existsSync(tempPath)) {
-          fs.unlinkSync(tempPath);
-        }
-      } catch (_) {}
-    }
-  }
-
-  public getFormattedSavings(): string {
-    const stats = this.getStats();
-    const tokens = stats.totalTokensSaved || 0;
-    if (tokens < 1000) return `⌬ ${tokens}t`;
-    if (tokens < 1000000) return `⌬ -${(tokens / 1000).toFixed(1)}k`;
-    return `⌬ -${(tokens / 1000000).toFixed(2)}M`;
-  }
 }
 
 const MAX_LOG_SIZE_BYTES = 10 * 1024 * 1024; // 10MB 单阶段日志截断上限
@@ -125,9 +49,15 @@ const ERROR_LINE_PATTERN = /(error[:\s]|fatal[:\s]|failed[:\s]|exception[:\s]|pa
 const ANSI_ESCAPE_REGEX = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\([a-zA-Z]/g;
 
 export class ContextDehydrator {
-  private static latestLogPath: string | null = null;
+  /**
+   * Per-workspace "most recent dehydrated log" pointer. A single static string
+   * leaked across projects: opening a second workspace pointed inspect/logs at
+   * the first workspace's file.
+   */
+  private static latestLogPaths = new Map<string, string>();
   private runsDir: string;
   private baseDir: string;
+  private cwd: string;
   private stats: StatsManager;
   private lastCommandRecord: {
     command: string;
@@ -138,6 +68,7 @@ export class ContextDehydrator {
   private workspaceMutationCount = 0;
 
   constructor(cwd: string = process.cwd(), blueprintId: string = "default") {
+    this.cwd = path.resolve(cwd);
     this.baseDir = path.join(cwd, ".pi", "toolflow", "runs");
     this.runsDir = path.join(this.baseDir, blueprintId);
     this.stats = new StatsManager(cwd);
@@ -152,12 +83,24 @@ export class ContextDehydrator {
 
   private dehydrateCount: number = 0;
 
-  public static getLatestLogPath(): string | null {
-    return ContextDehydrator.latestLogPath;
+  private static workspaceKey(cwd: string): string {
+    // Windows drive letters and separators are case-insensitive.
+    return path.resolve(cwd).replace(/\\/g, "/").toLowerCase();
   }
 
-  public static setLatestLogPath(filePath: string): void {
-    ContextDehydrator.latestLogPath = filePath;
+  public static getLatestLogPath(cwd?: string): string | null {
+    if (cwd) {
+      return ContextDehydrator.latestLogPaths.get(ContextDehydrator.workspaceKey(cwd)) ?? null;
+    }
+    const byProcessCwd = ContextDehydrator.latestLogPaths.get(ContextDehydrator.workspaceKey(process.cwd()));
+    if (byProcessCwd) return byProcessCwd;
+    let last: string | null = null;
+    for (const v of ContextDehydrator.latestLogPaths.values()) last = v;
+    return last;
+  }
+
+  public static setLatestLogPath(filePath: string, cwd: string = process.cwd()): void {
+    ContextDehydrator.latestLogPaths.set(ContextDehydrator.workspaceKey(cwd), filePath);
   }
 
   private getDirectorySizeBytes(dirPath: string): number {
@@ -197,7 +140,7 @@ export class ContextDehydrator {
           const stat = fs.statSync(fullPath);
           return { name: e.name, fullPath, mtimeMs: stat.mtimeMs, sizeBytes: stat.size };
         })
-        .filter(f => f.fullPath !== ContextDehydrator.latestLogPath) // 保护当前最新的日志指针
+        .filter(f => f.fullPath !== ContextDehydrator.getLatestLogPath(this.cwd)) // 保护当前工作区最新的日志指针
         .sort((a, b) => a.mtimeMs - b.mtimeMs); // 最旧的排前面
 
       const now = Date.now();
@@ -548,23 +491,32 @@ export class ContextDehydrator {
     const fullPath = path.join(this.runsDir, filename);
 
     try {
-      fs.writeFileSync(fullPath, rawText, "utf-8");
-      ContextDehydrator.latestLogPath = fullPath;
-      const approxTokens = Math.max(10, Math.round(sanitized.length / 4));
-      this.stats.recordSavings(approxTokens, "log");
+      // Persist the SANITIZED text, not rawText: ANSI escapes and control bytes
+      // are noise in an archive that exists to be grepped later. Cap the file so
+      // a single pathological output cannot exceed the per-stage log budget.
+      const archived =
+        sanitized.length > MAX_LOG_SIZE_BYTES
+          ? sanitized.slice(0, MAX_LOG_SIZE_BYTES) + "\n... [ToolFlow: archive truncated at 10MB]"
+          : sanitized;
+      fs.writeFileSync(fullPath, archived, "utf-8");
+      ContextDehydrator.setLatestLogPath(fullPath, this.cwd);
       if (++this.dehydrateCount % 10 === 0) {
         this.pruneRunLogs(this.runsDir);
       }
     } catch (_) {}
 
-    const relPath = path.relative(process.cwd(), fullPath).replace(/\\/g, "/");
+    const relPath = path.relative(this.cwd, fullPath).replace(/\\/g, "/");
     if (lines.length <= headCount + tailCount) {
       const charHead = sanitized.slice(0, Math.floor(thresholdBytes * 0.5));
       const charTail = sanitized.slice(-Math.floor(thresholdBytes * 0.3));
       const omittedChars = Math.max(0, sanitized.length - (charHead.length + charTail.length));
+      const approxTokens = Math.max(10, Math.round(omittedChars / 4));
+      const summaryText = `${charHead}\n\n... [⚡ ToolFlow Token Optimizer: Dehydrated ${omittedChars} chars (~${approxTokens} tokens) to ${relPath}] ...\n\n${charTail}`;
+      const netTokensSaved = Math.max(10, Math.round(Math.max(0, sanitized.length - summaryText.length) / 4));
+      this.stats.recordSavings(netTokensSaved, "log");
       return {
         dehydrated: true,
-        text: `${charHead}\n\n... [⚡ ToolFlow Token Optimizer: Dehydrated ${omittedChars} chars (~${Math.round(sanitized.length / 4)} tokens) to ${relPath}] ...\n\n${charTail}`,
+        text: summaryText,
         archivePath: fullPath
       };
     }
@@ -580,14 +532,20 @@ export class ContextDehydrator {
       ? ["", "  [⚡ 核心报错摘要提取]:", ...keyErrors.map(e => "  > " + e), ""]
       : [];
 
+    const omittedChars = Math.max(0, sanitized.length - (head.length + tail.length));
+    const approxTokens = Math.max(10, Math.round(omittedChars / 4));
+
     const summaryText = [
       head,
       ...errorSection,
       "",
-      `... [⚡ ToolFlow Token Optimizer: Dehydrated ${omittedCount} lines (~${Math.round(sanitized.length / 4)} tokens) to ${relPath}] [Hint: Call toolflow_inspect(id="${relPath}", offset=1, limit=50) to inspect details without context bloat] ...`,
+      `... [⚡ ToolFlow Token Optimizer: Dehydrated ${omittedCount} lines (~${approxTokens} tokens) to ${relPath}] [Hint: Call toolflow_inspect(id="${relPath}", offset=1, limit=50) to inspect details without context bloat] ...`,
       "",
       tail
     ].join("\n");
+
+    const netTokensSaved = Math.max(10, Math.round(Math.max(0, sanitized.length - summaryText.length) / 4));
+    this.stats.recordSavings(netTokensSaved, "log");
 
     return {
       dehydrated: true,
@@ -597,193 +555,22 @@ export class ContextDehydrator {
   }
 }
 
-/**
- * ⚡ 文件读取去重与短期缓存管理器 (ReadCacheManager)
- * 具备 6 级穿透门禁与极速代码骨架提取 (Symbol Outline)，彻底避免 Agent 致盲与死锁
- */
-export class ReadCacheManager {
-  private cache: Map<string, { mtimeMs: number; hash: string; lastTurnIndex: number; linesCount: number }> = new Map();
-  private lastCommandTimestamp: number = 0;
-  private editFailures: Map<string, { failedTurn: number; timestamp: number }> = new Map();
-  private stats: StatsManager;
+const dehydratorPool = new Map<string, ContextDehydrator>();
 
-  constructor(cwd: string = process.cwd()) {
-    this.stats = new StatsManager(cwd);
-  }
-
-  /**
-   * 记录外部命令（如 bash）执行，作废任何潜在的命令副效应
-   */
-  public recordCommandExecution(): void {
-    this.lastCommandTimestamp = Date.now();
-  }
-
-  private normalizeKey(filePath: string): string {
-    const resolved = path.resolve(filePath).replace(/\\/g, "/");
-    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
-  }
-
-  /**
-   * 记录 edit/write 失败，用于下一次强制穿透供给完整源码
-   */
-  public recordEditFailure(filePath: string, currentTurn: number): void {
-    if (!filePath) return;
-    const normPath = this.normalizeKey(filePath);
-    if (this.editFailures.size >= 50) {
-      const now = Date.now();
-      for (const [k, v] of this.editFailures.entries()) {
-        if (currentTurn - v.failedTurn > 3 || now - v.timestamp >= 60000) {
-          this.editFailures.delete(k);
-        }
-      }
-    }
-    this.editFailures.set(normPath, { failedTurn: currentTurn, timestamp: Date.now() });
-    this.invalidate(filePath);
-  }
-
-  /**
-   * 检查近期是否发生过编辑失败
-   */
-  public hasRecentEditFailure(filePath: string, currentTurn: number): boolean {
-    if (!filePath) return false;
-    const normPath = this.normalizeKey(filePath);
-    const record = this.editFailures.get(normPath);
-    if (!record) return false;
-    // 3 轮内或 60 秒内只要发生过编辑失败，强制允许穿透读取供大模型纠错
-    if (currentTurn - record.failedTurn <= 3 || Date.now() - record.timestamp < 60000) {
-      return true;
-    }
-    this.editFailures.delete(normPath);
-    return false;
-  }
-
-  /**
-   * 检查文件读取是否可以命中去重缓存
-   * @param filePath 读取的目标文件路径
-   * @param fileContent 文件原始内容
-   * @param currentTurn 当前会话轮次
-   * @param input 工具入参（包含 offset / limit）
-   */
-  public checkOrUpdate(
-    filePath: string,
-    fileContent: string,
-    currentTurn: number,
-    input?: ReadToolInput
-  ): CacheCheckResult {
-    // 门禁 G1: 显式指定 offset/limit 的局部切片读取，绝对不拦截（提供精确代码上下文供 edit 匹配）
-    if (input?.offset !== undefined || input?.limit !== undefined) {
-      return { isDuplicate: false, bypassReason: "targeted_window" };
-    }
-
-    if (!filePath || !fileContent) {
-      return { isDuplicate: false };
-    }
-
-    const normPath = this.normalizeKey(filePath);
-
-    // 门禁 G2: 最近发生过 edit/write 失败，强制穿透供给完整文本供大模型纠错
-    if (this.hasRecentEditFailure(filePath, currentTurn)) {
-      return { isDuplicate: false, bypassReason: "recent_edit_failure" };
-    }
-
-    const lines = fileContent.split("\n");
-
-    // 门禁 G3: 极小文件穿透（小于等于 5 行或字符数少于 200 的文件绝对穿透，低成本无拖拽）
-    if (lines.length <= 5 || fileContent.length < 200) {
-      return { isDuplicate: false, bypassReason: "small_file" };
-    }
-
-    // 门禁 G4: 外部命令执行后的副效应保护（15 秒内穿透）
-    if (this.lastCommandTimestamp > 0 && Date.now() - this.lastCommandTimestamp < 15000) {
-      this.invalidate(normPath);
-      return { isDuplicate: false, bypassReason: "command_dirty" };
-    }
-
-    let currentMtime = 0;
-    try {
-      if (fs.existsSync(filePath)) {
-        currentMtime = fs.statSync(filePath).mtimeMs;
-      }
-    } catch (_) {}
-
-    // 1. 全量内容 SHA256 哈希计算（Node 22 原生极速哈希，耗时 <0.1ms）
-    const hash = crypto.createHash("sha256").update(fileContent).digest("hex");
-    const cached = this.cache.get(normPath);
-
-    if (cached) {
-      // 2. 真实物理 mtimeMs 变动检测：若磁盘修改时间发生变动（哪怕 1ms），一票否决
-      const mtimeMatches = currentMtime > 0 ? (cached.mtimeMs === 0 || currentMtime === cached.mtimeMs) : true;
-      const isUnchanged = mtimeMatches && cached.hash === hash;
-      const turnDistance = currentTurn - cached.lastTurnIndex;
-
-      // 仅在确认文件在磁盘和哈希上毫无任何变动，且处于近邻 15 轮次内生效
-      if (isUnchanged && turnDistance >= 1 && turnDistance <= 15) {
-        // 更新最后访问轮次
-        const lastTurn = cached.lastTurnIndex;
-        cached.lastTurnIndex = currentTurn;
-        const relativePath = path.relative(process.cwd(), filePath).replace(/\\/g, "/");
-        const approxSavedTokens = Math.max(20, Math.round(fileContent.length / 4));
-
-        const notice = [
-          `=== [⚡ ToolFlow Read Cache: "${relativePath}" (${lines.length} 行, 与第 ${lastTurn} 轮内容一致, 节约 ~${approxSavedTokens} Tokens) ] ===`,
-          `=== [⚡ 提示: 内容完全一致且未变更。若需查看或精准修改实现，请调用 read 传入 offset=<行号> limit=<行数> 按需读取] ===`
-        ].join("\n");
-
-        this.stats.recordSavings(approxSavedTokens, "read_cache");
-
-        return {
-          isDuplicate: true,
-          savedLines: lines.length,
-          savedTokens: approxSavedTokens,
-          notice
-        };
-      }
-    }
-
-    // 记录最新真实物理指纹与内容哈希
-    // 内存卫士：容量上限控制与长会话防腐淘汰 (LRU & 15-turn TTL)
-    if (this.cache.size >= 100) {
-      for (const [key, entry] of this.cache.entries()) {
-        if (currentTurn - entry.lastTurnIndex > 15) {
-          this.cache.delete(key);
-        }
-      }
-      if (this.cache.size >= 100) {
-        const excess = this.cache.size - 90;
-        let pruned = 0;
-        for (const key of this.cache.keys()) {
-          this.cache.delete(key);
-          if (++pruned >= excess) break;
-        }
-      }
-    }
-
-    this.cache.set(normPath, {
-      mtimeMs: currentMtime,
-      hash,
-      lastTurnIndex: currentTurn,
-      linesCount: lines.length
-    });
-
-    return { isDuplicate: false, bypassReason: "not_cached" };
-  }
-
-  /**
-   * 清除特定路径缓存（当发现该文件被 write / edit 时调用，保证缓存不发霉）
-   */
-  public invalidate(filePath: string): void {
-    if (!filePath) return;
-    const normPath = this.normalizeKey(filePath);
-    this.cache.delete(normPath);
-  }
-
-  /**
-   * 重置所有读缓存
-   */
-  public clear(): void {
-    this.cache.clear();
-    this.editFailures.clear();
-    this.lastCommandTimestamp = 0;
-  }
+function normalizeWorkspaceKey(cwd: string = process.cwd()): string {
+  const resolved = path.resolve(cwd).replace(/\\/g, "/");
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
 }
 
+/**
+ * Returns a memoized ContextDehydrator for the specified workspace cwd.
+ */
+export function getDehydrator(cwd: string = process.cwd()): ContextDehydrator {
+  const key = normalizeWorkspaceKey(cwd);
+  let instance = dehydratorPool.get(key);
+  if (!instance) {
+    instance = new ContextDehydrator(cwd);
+    dehydratorPool.set(key, instance);
+  }
+  return instance;
+}

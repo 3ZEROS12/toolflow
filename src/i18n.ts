@@ -25,6 +25,8 @@ export const t = {
   cmdResetArgDesc: "Reset and clear active workflow state",
   cmdStatusArgDesc: "View current stage pipeline status",
   cmdExportArgDesc: "Export active stage plan to Markdown",
+  cmdStatsArgDesc: "View token savings ledger and metrics",
+  cmdLogsArgDesc: "View latest dehydrated raw log snippet",
   cmdRollbackShortcutDesc: "Rollback changes and restore stage snapshot (shortcut)",
   cmdSopDesc: "View current stage execution status (/toolflow status alias)",
 

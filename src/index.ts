@@ -1,21 +1,19 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { Type } from "@sinclair/typebox";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 import { loadOrRefreshTaxonomy, reflectEnvironmentContext } from "./taxonomy.js";
 import { diagnoseTaskRequirements, diagnoseTaskExecutionMode, synthesizeBlueprint, synthesizeBlueprintPlanWithLLM, generateStageActionPrompt } from "./engine.js";
 import { EcosystemRadar } from "./deep_ecosystem.js";
 import { renderCompactEcosystemOverview, renderBlueprintSummary, openArchitectNavigator, renderValueReceipt, renderExecutionPipelineCard } from "./ui.js";
 import { t } from "./i18n.js";
-import { ContextDehydrator, ReadCacheManager, StatsManager } from "./dehydrator.js";
+import { ContextDehydrator, StatsManager, getDehydrator, getReadCache, clearAllReadCaches } from "./dehydrator.js";
 import { BlastRadiusGuard } from "./blast_radius.js";
 import { GracefulDegradationMatrix } from "./degradation_matrix.js";
 import { CodebaseMemoryManager } from "./memory.js";
 import {
   startBlueprintExecution,
   getSessionState,
-  checkAndRecordArtifact,
   verifyStageArtifacts,
   advanceStage,
   applyToolScoping,
@@ -26,26 +24,22 @@ import {
   recordInitialActiveTools,
   restoreInitialActiveTools
 } from "./state.js";
-
-import {
-  captureReviewDiffSnapshot,
-  buildColdStartReviewContract,
-  ReviewIsolationGuard
-} from "./review_isolation.js";
+import { ReviewIsolationGuard } from "./review_isolation.js";
+import { registerToolFlowInspectTool } from "./inspect_tool.js";
+import { pruneHeavyProviderTools, slimHistoricalContextMessages } from "./context_slimmer.js";
 
 const CUSTOM_MSG_TYPE = "toolflow:blueprint";
 const blastGuard = new BlastRadiusGuard();
 const degradationMatrix = new GracefulDegradationMatrix();
 const memoryManager = new CodebaseMemoryManager();
-const dehydrator = new ContextDehydrator();
-const readCache = new ReadCacheManager();
 let globalTurnCounter = 0;
 const reviewGuard = new ReviewIsolationGuard();
+let activeWorkspaceCwd = process.cwd();
 
 function updateToolFlowStatusBar(ctx: any): void {
   if (!ctx?.ui?.setStatus) return;
   const state = getSessionState();
-  const cwd = ctx?.cwd || process.cwd();
+  const cwd = ctx?.cwd || activeWorkspaceCwd;
   const stats = new StatsManager(cwd);
   const savings = stats.getFormattedSavings();
 
@@ -63,294 +57,15 @@ function updateToolFlowStatusBar(ctx: any): void {
 }
 
 export default function (pi: ExtensionAPI) {
-  // 启动时静默尝试恢复跨会话蓝图状态
+  // Silent cross-session blueprint state recovery
   loadPersistedSessionState();
 
-  // 监听全新会话启动 (session_start): 彻底阻断跨会话旧蓝图自愈干扰
-  if (typeof pi.on === "function") {
-    pi.on("session_start", async (event: any, ctx: any) => {
-      readCache.clear();
-      globalTurnCounter = 0;
-      updateToolFlowStatusBar(ctx);
-      // 当开启全新会话时，不仅重置内存状态，还物理清理残余持久化文件，彻底消灭幽灵自愈唤醒
-      if (event?.reason === "new" || event?.reason === "clear") {
-        resetState(ctx?.cwd || process.cwd());
-        reviewGuard.deactivate();
-        blastGuard.clearAllowedScope();
-        applyToolScoping(BASELINE_TOOLS, pi);
-        ctx?.ui?.setStatus?.("toolflow", undefined);
-      }
-    });
-  }
-  // 🎯 核心省 Token：紧凑化压制 (Compaction Suppression)
-  // 当 Pi 核心触发自动或手动 compact 时，注入 ToolFlow 结构化产物契约指令，物理阻止大模型把已写完的千行代码在 summary 中复述
-  if (typeof (pi as any).on === "function") {
-    (pi as any).on("session_before_compact", async (event: any) => {
-      const state = getSessionState();
-      if (!state.currentBlueprint) return;
+  // Register toolflow_inspect tool
+  registerToolFlowInspectTool(pi, () => activeWorkspaceCwd);
 
-      const currentStage = state.currentBlueprint.stages[state.currentStageIndex];
-      const verifiedFiles = state.currentBlueprint.stages
-        .slice(0, state.currentStageIndex + 1)
-        .map(s => s.expectedArtifact)
-        .filter(Boolean);
-
-      const contractSuppressionPrompt = [
-        `[TOOLFLOW STRICT COMPACTION DIRECTIVE]`,
-        `Active Blueprint Task: "${state.currentBlueprint.task}" (Stage ${state.currentStageIndex + 1}/${state.currentBlueprint.stages.length}: ${currentStage?.title || "Execution"}).`,
-        `Verified Physical Artifacts on Disk: ${verifiedFiles.length > 0 ? verifiedFiles.join(", ") : "None"}.`,
-        `MANDATORY COMPRESSION RULE: Do NOT repeat or echo source code, file contents, terminal logs, or past exploratory chatter in the summary. ONLY preserve the current architecture topology, completed physical artifact paths, and active stage next-step objectives. Maximize dehydration ratio.`
-      ].join("\n");
-
-      if (event?.customInstructions && typeof event.customInstructions === "string") {
-        return {
-          customInstructions: `${event.customInstructions}\n\n${contractSuppressionPrompt}`
-        };
-      }
-      return {
-        customInstructions: contractSuppressionPrompt
-      };
-    });
-
-    (pi as any).on("session_compact", async (event: any, ctx: any) => {
-      const savedTokens = typeof event?.tokensSaved === "number" ? event.tokensSaved : undefined;
-      if (ctx?.ui?.notify) {
-        ctx.ui.notify(t.compactNotice(savedTokens), "info");
-      }
-    });
-
-    // ⚡ 零配置日常静默修剪 (Zero-Config Auto-Pruning via before_provider_request)
-    (pi as any).on("before_provider_request", async (event: any) => {
-      const state = getSessionState();
-      // If we are actively running a blueprint, let stage-gated applyToolScoping handle it
-      if (state.currentBlueprint && state.status === "in_progress") {
-        return;
-      }
-
-      const payload = event?.payload;
-      if (!payload || !Array.isArray(payload.tools) || payload.tools.length <= 10) {
-        return;
-      }
-
-      const messages = payload.messages;
-      if (!Array.isArray(messages) || messages.length === 0) return;
-      const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user");
-      let promptText = "";
-      if (typeof lastUserMsg?.content === "string") {
-        promptText = lastUserMsg.content;
-      } else if (Array.isArray(lastUserMsg?.content)) {
-        promptText = lastUserMsg.content.map((c: any) => c.text || "").join(" ");
-      }
-
-      // If user prompt mentions web, browser, subagents, or links, preserve all tools!
-      const needsHeavy = /(https?:\/\/|www\.|chrome|browser|web_search|search|crawl|subagent|delegate|supervisor|advisor|council|image_describe|screenshot)/i.test(promptText);
-      if (needsHeavy) {
-        return;
-      }
-
-      const HEAVY_TOOL_NAMES = new Set([
-        "browser_probe_interaction",
-        "browser_target_lease",
-        "browser_reload_extension",
-        "subagent",
-        "subagent_supervisor",
-        "bg_wait",
-        "web_search",
-        "source_check",
-        "fetch_content",
-        "image_describe"
-      ]);
-
-      const initialCount = payload.tools.length;
-      payload.tools = payload.tools.filter((t: any) => {
-        const name = t.name || t.function?.name || "";
-        return !HEAVY_TOOL_NAMES.has(name);
-      });
-
-      const prunedCount = initialCount - payload.tools.length;
-      if (prunedCount > 0) {
-        const stats = new StatsManager(process.cwd());
-        stats.recordSavings(prunedCount * 380, "log");
-      }
-    });
-  }
-
-  // 🔍 脱水切片按需检视工具 (toolflow_inspect)
-  if (typeof pi.registerTool === "function") {
-    pi.registerTool({
-      name: "toolflow_inspect",
-      label: "ToolFlow Log Inspector",
-      description: "Inspect or search dehydrated tool output files stored by ToolFlow without blowing up the context window. Returns bounded line slices or matching grep passages.",
-      parameters: Type.Object({
-        id: Type.Optional(Type.String({ description: "Log ID or partial file path returned by ToolFlow dehydration notice" })),
-        findText: Type.Optional(Type.String({ description: "Optional search query to locate matching lines" })),
-        offset: Type.Optional(Type.Number({ description: "Starting line number (1-indexed, default 1)" })),
-        limit: Type.Optional(Type.Number({ description: "Maximum lines to return (default 50, max 200)" }))
-      }),
-      execute: async (_toolCallId, params: any, _signal, _onUpdate, ctx) => {
-        const workDir = ctx?.cwd || process.cwd();
-        const baseDir = path.join(workDir, ".pi", "toolflow");
-        const runsRoot = path.resolve(baseDir, "runs");
-
-        const clampLine = (l: string, maxLen: number = 500) =>
-          l.length > maxLen ? l.slice(0, maxLen) + "... [line clamped]" : l;
-
-        const isSafeRunLog = (candidate: string | null): candidate is string => {
-          if (!candidate || typeof candidate !== "string" || !fs.existsSync(candidate)) return false;
-          if (!fs.existsSync(runsRoot)) return false;
-          try {
-            const statRuns = fs.lstatSync(runsRoot);
-            if (statRuns.isSymbolicLink() || !statRuns.isDirectory()) return false;
-
-            const stat = fs.lstatSync(candidate);
-            if (stat.isSymbolicLink() || !stat.isFile()) return false;
-
-            const real = fs.realpathSync(candidate);
-            const realRunsRoot = fs.realpathSync(runsRoot);
-
-            // 确保 runsRoot 自身不越界跳出工作区
-            const realWorkDir = fs.existsSync(workDir) ? fs.realpathSync(workDir) : path.resolve(workDir);
-            const relRunsToWork = path.relative(realWorkDir, realRunsRoot);
-            if (relRunsToWork.startsWith("..") || path.isAbsolute(relRunsToWork)) return false;
-
-            const rel = path.relative(realRunsRoot, real);
-            if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return false;
-
-            // 规范化跨平台反斜杠与大小写判断
-            const normReal = real.replace(/\\/g, "/");
-            const normRoot = realRunsRoot.replace(/\\/g, "/");
-            const isMatch = process.platform === "win32"
-              ? normReal.toLowerCase().startsWith(normRoot.toLowerCase() + "/")
-              : normReal.startsWith(normRoot + "/");
-            return isMatch;
-          } catch {
-            return false;
-          }
-        };
-
-        let targetFile = isSafeRunLog(ContextDehydrator.getLatestLogPath())
-          ? ContextDehydrator.getLatestLogPath()
-          : null;
-
-        if (params.id && typeof params.id === "string") {
-          const rawId = params.id.trim();
-          // 彻底拒绝空字节与显式上卷越界符
-          if (!rawId.includes("\0") && !rawId.includes("..")) {
-            const candidates = [
-              path.resolve(workDir, rawId),
-              path.join(baseDir, rawId),
-              path.resolve(runsRoot, rawId),
-              path.join(runsRoot, "default", path.basename(rawId))
-            ];
-            // 若在 runsRoot 其他子目录下存在同名文件，安全嗅探
-            if (fs.existsSync(runsRoot)) {
-              try {
-                const subDirs = fs.readdirSync(runsRoot, { withFileTypes: true });
-                for (const sub of subDirs) {
-                  if (sub.isDirectory()) {
-                    candidates.push(path.join(runsRoot, sub.name, path.basename(rawId)));
-                  }
-                }
-              } catch (_) {}
-            }
-            const found = candidates.find(isSafeRunLog);
-            targetFile = found || null;
-          }
-        }
-
-        if (!targetFile || !fs.existsSync(targetFile)) {
-          return {
-            content: [{ type: "text", text: `No dehydrated log found matching "${params.id || 'latest'}".` }],
-            details: { found: false, id: params.id || 'latest' },
-            isError: true
-          };
-        }
-
-        const raw = fs.readFileSync(targetFile, "utf-8");
-        const lines = raw.split("\n");
-
-        if (params.findText && typeof params.findText === "string") {
-          const limit = Math.min(200, Math.max(1, typeof params.limit === "number" && !isNaN(params.limit) ? Math.floor(params.limit) : 50));
-          const matches: string[] = [];
-          
-          let regex: RegExp | null = null;
-          const trimmedFind = params.findText.trim();
-          const regexMatch = trimmedFind.match(/^\/(.+)\/([gimsuy]*)$/);
-          if (regexMatch && regexMatch[1].length <= 200) {
-            try {
-              const flags = regexMatch[2] ? regexMatch[2].replace(/g/g, "") : "i";
-              regex = new RegExp(regexMatch[1], flags);
-            } catch {
-              regex = null;
-            }
-          }
-
-          const queryLower = params.findText.toLowerCase();
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const testLine = line.length > 2000 ? line.slice(0, 2000) : line;
-            let matched = false;
-            if (regex) {
-              try {
-                regex.lastIndex = 0;
-                matched = regex.test(testLine);
-              } catch {
-                matched = false;
-              }
-            } else {
-              matched = testLine.toLowerCase().includes(queryLower);
-            }
-
-            if (matched) {
-              matches.push(`[Line ${i + 1}] ${clampLine(line, 500)}`);
-              if (matches.length >= limit) break;
-            }
-          }
-
-          return {
-            content: [{
-              type: "text",
-              text: matches.length > 0
-                ? `Found ${matches.length} matching lines in ${path.basename(targetFile)}:\n\n${matches.join("\n")}`
-                : `No lines matching "${params.findText}" found in ${path.basename(targetFile)}.`
-            }],
-            details: { matches, totalLines: lines.length, targetFile },
-            isError: false
-          };
-        }
-
-        const offset = Math.max(1, typeof params.offset === "number" && !isNaN(params.offset) ? Math.floor(params.offset) : 1);
-        const limit = Math.min(200, Math.max(1, typeof params.limit === "number" && !isNaN(params.limit) ? Math.floor(params.limit) : 50));
-
-        if (offset > lines.length) {
-          return {
-            content: [{
-              type: "text",
-              text: `[${path.basename(targetFile)}] Offset ${offset} exceeds total line count (${lines.length}).`
-            }],
-            details: { offset, limit, totalLines: lines.length, targetFile },
-            isError: false
-          };
-        }
-
-        const slice = lines.slice(offset - 1, offset - 1 + limit).map(l => clampLine(l, 500));
-
-        return {
-          content: [{
-            type: "text",
-            text: `[${path.basename(targetFile)} Lines ${offset}-${offset + slice.length - 1} of ${lines.length}]\n\n${slice.join("\n")}`
-          }],
-          details: { offset, limit, totalLines: lines.length, targetFile },
-          isError: false
-        };
-      }
-    });
-  }
-
-
-  // 注册轻量卡片渲染器
+  // Register lightweight card renderer
   if (typeof pi.registerMessageRenderer === "function") {
-    pi.registerMessageRenderer(CUSTOM_MSG_TYPE, (msg: any, { expanded }, theme) => {
+    pi.registerMessageRenderer(CUSTOM_MSG_TYPE, (msg: any, _opts, _theme) => {
       const raw = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content, null, 2);
       return {
         render: (width: number) => {
@@ -363,14 +78,15 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function runTaskDecisionPipeline(rawTask: string, taxonomy: any, ctx: ExtensionContext | ExtensionCommandContext, userExplicitMode?: "fast" | "blueprint") {
+    if (ctx?.cwd) activeWorkspaceCwd = ctx.cwd;
     if (ctx?.ui?.notify) {
       ctx.ui.notify(t.analyzingTask(rawTask), "info");
     }
 
-    // ⚡ 任务双模路由研判 (Fast-Track 极速直达通道 vs Blueprint 完整蓝图)
+    // Fast-Track direct route vs Blueprint pipeline
     const route = diagnoseTaskExecutionMode(rawTask, userExplicitMode);
     if (route.mode === "FAST_TRACK") {
-      resetState();
+      resetState(activeWorkspaceCwd);
       restoreInitialActiveTools(pi);
       applyToolScoping(BASELINE_TOOLS, pi);
 
@@ -397,12 +113,11 @@ export default function (pi: ExtensionAPI) {
     const slots = diagnosis.requirementSlots || diagnosis.decisionSlots || [];
     let userDecisions: Record<string, string> | null = null;
 
-    // 优先调用沉浸式弹窗 (ctx.ui.custom)
+    // Prefer interactive UI modal if available
     if (ctx?.ui && "custom" in ctx.ui && typeof (ctx.ui as any).custom === "function") {
       try {
         const res = await openArchitectNavigator(ctx.ui, taxonomy, rawTask, slots, diagnosis, ctx);
         if (!res) {
-          // 用户在第一步主动按 Esc 或 Q 取消了操作，安全退出，不产生幽灵推进
           if (ctx?.ui?.notify) {
             ctx.ui.notify(t.cancelled, "info");
           }
@@ -419,7 +134,7 @@ export default function (pi: ExtensionAPI) {
       }
     }
 
-    // 降级使用基础 select (仅在无 custom 浮层能力的终端环境使用)
+    // Fallback to basic select in environments without custom UI
     if (!userDecisions && ctx?.ui?.select) {
       const collected: Record<string, string> = {};
       let userCancelled = false;
@@ -455,10 +170,9 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    // 处理 Slot 0：生态扩展一键安装提议
+    // Ecosystem bundle installation proposal
     const ecosystemDecision = userDecisions["slot_ecosystem_expansion"];
     if (ecosystemDecision && ecosystemDecision !== "bundle_scratch") {
-      // 找到了选择的扩展包套餐
       const installedNames = [
         ...(taxonomy.extensions || []).map((e: any) => e.name),
         ...(taxonomy.skills || []).map((s: any) => s.name),
@@ -475,7 +189,6 @@ export default function (pi: ExtensionAPI) {
           if (ctx?.ui?.notify) {
             ctx.ui.notify(`Ecosystem bundle installed! Reloaded project environment.`, "info");
           }
-          // 热重载本地生态与拓扑
           taxonomy = await reflectEnvironmentContext(ctx);
         } else {
           if (ctx?.ui?.notify) {
@@ -485,17 +198,13 @@ export default function (pi: ExtensionAPI) {
       }
     }
 
-    // 结合真实 LLM 推理预测最优产物路径与架构类型
     const llmArtifactPlan = await synthesizeBlueprintPlanWithLLM(rawTask, diagnosis, userDecisions, taxonomy, ctx);
-
-    // 合成包含 DAG 拓扑排序的执行蓝图
-    const cwd = ctx.cwd || process.cwd();
+    const cwd = ctx.cwd || activeWorkspaceCwd;
     const blueprint = synthesizeBlueprint(rawTask, diagnosis, userDecisions, taxonomy, undefined, undefined, llmArtifactPlan);
     recordInitialActiveTools(pi);
     startBlueprintExecution(blueprint, cwd);
     updateToolFlowStatusBar(ctx);
 
-    // 动态增强阶段高权重工具与基线工具 (经过 GracefulDegradationMatrix 统一裁剪)
     const firstStage = blueprint.stages[0];
     if (firstStage) {
       if (firstStage.isReviewStage && firstStage.reviewIsolation?.enabled) {
@@ -503,7 +212,7 @@ export default function (pi: ExtensionAPI) {
       } else {
         reviewGuard.deactivate();
       }
-      blastGuard.updateAllowedScope(firstStage);
+      blastGuard.updateAllowedScope(firstStage, cwd);
       const pruned = degradationMatrix.resolvePrunedToolsForStage(firstStage.stageId, firstStage.allowedTools);
       applyToolScoping(pruned.allowedTools, pi);
     }
@@ -517,25 +226,11 @@ export default function (pi: ExtensionAPI) {
       });
     }
 
-    // 极简自然的阶段指引（消除生硬契约与长指令，给开发者顺畅的编码心流）
     const actionGuidance = generateStageActionPrompt(firstStage, 0, blueprint.stages.length);
     const guidancePrompt = `[Stage 1/${blueprint.stages.length}: ${firstStage.title}]\n` +
       `Target Artifact: ${firstStage.expectedArtifact}\n` +
       `Core Objective: ${firstStage.coreObjective}\n` +
       `Action Guidance: ${actionGuidance} (Run /toolflow rollback anytime to revert stage changes)`;
-
-    // 🎯 核心省 Token 机制：会话过短时 ctx.compact 会抛出 "Nothing to compact" 报错打扰用户
-    // 因此开工初期无需强制 compact，依靠后续阶段递进与脱水即可
-    /*
-    if (ctx && typeof (ctx as any).compact === "function") {
-      try {
-        (ctx as any).compact({
-          customInstructions: `Blueprint generated for task "${rawTask}". Transitioning to active execution. Dehydrate preliminary planning dialogues and retain only the execution blueprint contract and primary target: ${firstStage.expectedArtifact}.`,
-          onError: (err: any) => console.warn("[ToolFlow] Blueprint start compact non-fatal:", err?.message)
-        });
-      } catch (_) {}
-    }
-    */
 
     if (typeof pi.sendUserMessage === "function") {
       pi.sendUserMessage(guidancePrompt, { deliverAs: "followUp" });
@@ -543,10 +238,11 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function handleBlueprintFlow(args: string, ctx: ExtensionCommandContext) {
+    if (ctx?.cwd) activeWorkspaceCwd = ctx.cwd;
     const rawArg = args ? args.trim() : "";
-    const cwd = ctx.cwd || process.cwd();
+    const cwd = ctx.cwd || activeWorkspaceCwd;
 
-    // 1. 处理回滚子命令: /toolflow rollback [stage] 或 -r
+    // 1. Rollback subcommand: /toolflow rollback [stage] or -r
     const lowerArg = rawArg.toLowerCase();
     if (lowerArg === "rollback" || lowerArg === "-r" || lowerArg === "revert" || lowerArg.startsWith("rollback ") || lowerArg.startsWith("-r ")) {
       const tokens = rawArg.split(/\s+/).filter(Boolean);
@@ -564,13 +260,12 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify(res.message, res.success ? "info" : "warning");
       }
       if (res.mentalResetPrompt && ctx) {
-        // 向会话中追加系统纠偏提示，清除历史毒化记忆
         (ctx as any).postSystemMessage?.(res.mentalResetPrompt);
       }
       return;
     }
 
-    // 2. 处理重置子命令: /toolflow reset
+    // 2. Reset subcommand: /toolflow reset
     if (rawArg === "reset") {
       restoreInitialActiveTools(pi);
       resetState(cwd);
@@ -583,7 +278,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    // 3. 处理导出子命令: /toolflow export
+    // 3. Export subcommand: /toolflow export
     if (rawArg === "export" || rawArg === "-e") {
       const activeState = getSessionState();
       if (!activeState.currentBlueprint) {
@@ -607,7 +302,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    // 3.5 处理脱水收益战报子命令: /toolflow stats
+    // 3.5 Token savings report: /toolflow stats
     if (rawArg === "stats" || rawArg === "tokens" || rawArg === "metrics") {
       const statsMgr = new StatsManager(cwd);
       const metrics = statsMgr.getStats();
@@ -639,9 +334,9 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    // 3.6 处理最近一次脱水日志提取子命令: /toolflow logs
+    // 3.6 Latest dehydrated log view: /toolflow logs
     if (rawArg === "logs" || rawArg === "log" || rawArg === "lastlog") {
-      const latestPath = ContextDehydrator.getLatestLogPath();
+      const latestPath = ContextDehydrator.getLatestLogPath(cwd);
       if (!latestPath || !fs.existsSync(latestPath)) {
         if (ctx?.ui?.notify) {
           ctx.ui.notify("No dehydrated logs recorded in this session yet.", "info");
@@ -675,7 +370,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    // 4. 处理流水线看板子命令: /toolflow status 或 /sop
+    // 4. Pipeline status card: /toolflow status
     if (rawArg === "status" || rawArg === "pipeline" || rawArg === "sop") {
       const activeState = getSessionState();
       if (!activeState.currentBlueprint) {
@@ -701,7 +396,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    // 5. 检查是否有跨会话未完成的蓝图
+    // 5. Check for active blueprint across sessions
     const activeState = getSessionState();
     if (!rawArg && activeState.currentBlueprint && activeState.status === "in_progress") {
       const bp = activeState.currentBlueprint;
@@ -724,7 +419,7 @@ export default function (pi: ExtensionAPI) {
           }
           return;
         } else if (choice?.startsWith("↺")) {
-          const res = rollbackStage();
+          const res = rollbackStage(undefined, cwd);
           if (ctx?.ui?.notify) {
             ctx.ui.notify(res.message, res.success ? "info" : "warning");
           }
@@ -733,8 +428,7 @@ export default function (pi: ExtensionAPI) {
           }
           return;
         } else if (choice?.startsWith("✚")) {
-          // 用户明确选择新建蓝图，物理重置旧状态与磁盘持久化文件
-          resetState(process.cwd());
+          resetState(cwd);
           blastGuard.clearAllowedScope();
           applyToolScoping(BASELINE_TOOLS, pi);
           if (ctx?.ui?.notify) {
@@ -744,11 +438,10 @@ export default function (pi: ExtensionAPI) {
       }
     }
 
-    // 动态提取宿主环境中所有实际注册的工具 (来自 pi.getAllTools())
     const registeredToolMetas = typeof pi.getAllTools === "function" ? pi.getAllTools() : [];
     const taxonomy = await loadOrRefreshTaxonomy(cwd, registeredToolMetas);
 
-    // 默认仅输入 /toolflow：弹出全屏弹窗能力概览与战术槽位发射台
+    // Bare `/toolflow`: open navigator or render compact overview
     if (!rawArg) {
       if (ctx?.ui && "custom" in ctx.ui && typeof (ctx.ui as any).custom === "function") {
         const res = await openArchitectNavigator(ctx.ui, taxonomy, "", undefined, undefined, ctx);
@@ -784,75 +477,129 @@ export default function (pi: ExtensionAPI) {
     await runTaskDecisionPipeline(rawArg, taxonomy, ctx);
   }
 
-  // 注册 /toolflow 主命令
-  const toolflowCmdHandler = {
+  // Register /toolflow main command
+  pi.registerCommand("toolflow", {
     description: t.cmdMainDesc,
     getArgumentCompletions: (prefix: string) => {
       const subcommands = [
         { label: "rollback", value: "rollback", description: t.cmdRollbackArgDesc },
         { label: "reset", value: "reset", description: t.cmdResetArgDesc },
         { label: "status", value: "status", description: t.cmdStatusArgDesc },
-        { label: "export", value: "export", description: t.cmdExportArgDesc }
+        { label: "export", value: "export", description: t.cmdExportArgDesc },
+        { label: "stats", value: "stats", description: t.cmdStatsArgDesc || "View token savings ledger and metrics" },
+        { label: "logs", value: "logs", description: t.cmdLogsArgDesc || "View latest dehydrated raw log snippet" }
       ];
       return subcommands.filter(cmd => cmd.value.startsWith(prefix.trim().toLowerCase()));
     },
     handler: async (args: string, ctx: ExtensionCommandContext) => {
       await handleBlueprintFlow(args, ctx);
     }
-  };
-
-  pi.registerCommand("toolflow", toolflowCmdHandler);
-
-  // 注册 /toolflow-rollback 快捷命令
-  const rollbackHandler = {
-    description: t.cmdRollbackShortcutDesc,
-    handler: async (_args: string, ctx: ExtensionCommandContext) => {
-      const res = rollbackStage();
-      if (ctx?.ui?.notify) {
-        ctx.ui.notify(res.message, res.success ? "info" : "warning");
-      }
-      if (res.mentalResetPrompt && ctx) {
-        (ctx as any).postSystemMessage?.(res.mentalResetPrompt);
-      }
-    }
-  };
-  pi.registerCommand("toolflow-rollback", rollbackHandler);
-
-  // 注册 /sop 命令
-  pi.registerCommand("sop", {
-    description: t.cmdSopDesc,
-    handler: async (_args: string, ctx: ExtensionCommandContext) => {
-      const state = getSessionState();
-      if (!state.currentBlueprint) {
-        if (ctx?.ui?.notify) {
-          ctx.ui.notify(t.statusNoBlueprint, "info");
-        }
-        return;
-      }
-
-      const verifiedCount = Object.keys(state.artifactLedger).length;
-      const card = renderExecutionPipelineCard({
-        blueprintId: state.currentBlueprint.blueprintId,
-        task: state.currentBlueprint.task,
-        currentStageIndex: state.currentStageIndex,
-        stages: state.currentBlueprint.stages,
-        verifiedArtifactCount: verifiedCount
-      });
-
-      if (typeof pi.sendMessage === "function") {
-        pi.sendMessage({
-          customType: CUSTOM_MSG_TYPE,
-          content: card,
-          display: true
-        });
-      }
-    }
   });
 
-  // 注册 tool_call 安全拦截钩子 (物理级关键文件保护防线)
+  // Consolidated Pi lifecycle and event listeners
   if (typeof (pi as any).on === "function") {
-    (pi as any).on("tool_call", async (event: any, ctx: any) => {
+    // 1. Session start: zero-trace reset and read cache clearing
+    (pi as any).on("session_start", async (event: any, ctx: any) => {
+      if (ctx?.cwd) activeWorkspaceCwd = ctx.cwd;
+      clearAllReadCaches();
+      globalTurnCounter = 0;
+      updateToolFlowStatusBar(ctx);
+
+      if (event?.reason === "new" || event?.reason === "clear") {
+        resetState(ctx?.cwd || activeWorkspaceCwd);
+        reviewGuard.deactivate();
+        blastGuard.clearAllowedScope();
+        applyToolScoping(BASELINE_TOOLS, pi);
+        ctx?.ui?.setStatus?.("toolflow", undefined);
+      }
+    });
+
+    // 2. Compaction suppression: inject artifact directives to prevent code echoing in summaries
+    (pi as any).on("session_before_compact", async (event: any) => {
       const state = getSessionState();
+      if (!state.currentBlueprint) return;
+
+      const currentStage = state.currentBlueprint.stages[state.currentStageIndex];
+      const verifiedFiles = state.currentBlueprint.stages
+        .slice(0, state.currentStageIndex + 1)
+        .map(s => s.expectedArtifact)
+        .filter(Boolean);
+
+      const contractSuppressionPrompt = [
+        `[TOOLFLOW STRICT COMPACTION DIRECTIVE]`,
+        `Active Blueprint Task: "${state.currentBlueprint.task}" (Stage ${state.currentStageIndex + 1}/${state.currentBlueprint.stages.length}: ${currentStage?.title || "Execution"}).`,
+        `Verified Physical Artifacts on Disk: ${verifiedFiles.length > 0 ? verifiedFiles.join(", ") : "None"}.`,
+        `MANDATORY COMPRESSION RULE: Do NOT repeat or echo source code, file contents, terminal logs, or past exploratory chatter in the summary. ONLY preserve the current architecture topology, completed physical artifact paths, and active stage next-step objectives. Maximize dehydration ratio.`
+      ].join("\n");
+
+      if (event?.customInstructions && typeof event.customInstructions === "string") {
+        return {
+          customInstructions: `${event.customInstructions}\n\n${contractSuppressionPrompt}`
+        };
+      }
+      return {
+        customInstructions: contractSuppressionPrompt
+      };
+    });
+
+    // 3. Provider request: zero-config auto-pruning of heavy tool schemas when idle
+    (pi as any).on("before_provider_request", async (event: any) => {
+      pruneHeavyProviderTools(event, () => activeWorkspaceCwd);
+    });
+
+    // 4. Agent start: zero idle prompt bloat; concise English directives when active
+    (pi as any).on("before_agent_start", async (event: any, ctx: any) => {
+      if (ctx?.cwd) activeWorkspaceCwd = ctx.cwd;
+      const currentState = getSessionState();
+
+      if (currentState.status !== "in_progress" || !currentState.currentBlueprint) {
+        const latestLog = ContextDehydrator.getLatestLogPath(activeWorkspaceCwd);
+        if (latestLog && fs.existsSync(latestLog)) {
+          return {
+            systemPrompt: (event?.systemPrompt || "") + "\n[ToolFlow]: Large tool outputs are archived in .pi/toolflow/runs/; use toolflow_inspect to search or slice full logs.\n"
+          };
+        }
+        return undefined;
+      }
+
+      const toolflowGuideline = `\n<toolflow_execution_policy>
+  [CORE PRINCIPLES]
+  1. Mandatory Reuse: Prefer installed skills, extensions, and CLI tools over ad-hoc scripts.
+  2. Production Standards: Deliver robust, modular, and fully tested code with clean interfaces.
+  3. Artifact Verification: Ensure required stage artifacts are written and pass gates before advancing.
+</toolflow_execution_policy>\n`;
+
+      const currentStage = currentState.currentBlueprint.stages[currentState.currentStageIndex];
+      if (currentStage?.skillContract) {
+        const contractXml = [
+          `\n<enforced_skill_contract skill="${currentStage.skillContract.skillName}">`,
+          `  <sop_directives>${currentStage.skillContract.directives.join(" | ")}</sop_directives>`,
+          `  <rules>`,
+          ...currentStage.skillContract.rules.map((r: string) => `    - ${r}`),
+          `  </rules>`,
+          `  <checklist>`,
+          ...(currentStage.skillContract.checkpoints || []).map((c: string) => `    [ ] ${c}`),
+          `  </checklist>`,
+          `</enforced_skill_contract>`
+        ].join("\n");
+
+        return {
+          systemPrompt: (event?.systemPrompt || "") + toolflowGuideline + contractXml
+        };
+      }
+
+      return {
+        systemPrompt: (event?.systemPrompt || "") + toolflowGuideline
+      };
+    });
+
+    // 5. Tool call: physical blast radius security guard (ALWAYS ACTIVE in ALL sessions)
+    (pi as any).on("tool_call", async (event: any, ctx: any) => {
+      if (ctx?.cwd) activeWorkspaceCwd = ctx.cwd;
+      const cwd = ctx?.cwd || activeWorkspaceCwd;
+      const state = getSessionState();
+
+      // Review isolation check: only active during review stages of in-progress blueprints
       if (state.status === "in_progress" && state.currentBlueprint) {
         if (reviewGuard.isActive() && !reviewGuard.isToolAllowedInReview(event.toolName)) {
           return {
@@ -861,35 +608,38 @@ export default function (pi: ExtensionAPI) {
             terminate: false
           };
         }
-        // 核心敏感文件与系统防线拦截 (杜绝 AI 误操作 .env、.git、lock 文件及系统设备)
-        const check = blastGuard.verifyToolCall(event, ctx?.cwd || process.cwd());
-        if (check.block) {
-          new StatsManager(ctx?.cwd || process.cwd()).recordSavings(50, "blast");
-          return {
-            block: true,
-            reason: check.reason,
-            terminate: false
-          };
-        }
+      }
+
+      // Critical sensitive files and blast radius guard (physically blocked in ALL sessions)
+      const check = blastGuard.verifyToolCall(event, cwd);
+      if (check.block) {
+        new StatsManager(cwd).recordSavings(50, "blast");
+        updateToolFlowStatusBar(ctx);
+        return {
+          block: true,
+          reason: check.reason,
+          terminate: false
+        };
       }
     });
-  }
 
-
-  // ⚡ 核心实时节省 Token 机制：tool_result 拦截管道 (Tool Output Dehydration Middleware)
-  // 当任何终端命令 (bash/powershell) 或外部重型工具输出海量报错/日志时，自动归档并截断，防止污染会话
-  if (typeof (pi as any).on === "function") {
+    // 6. Tool result: log dehydration, read cache check, and immediate status bar updates
     (pi as any).on("tool_result", async (event: any, ctx: any) => {
+      if (ctx?.cwd) activeWorkspaceCwd = ctx.cwd;
+      const cwd = ctx?.cwd || activeWorkspaceCwd;
       globalTurnCounter++;
       if (!event?.content || !Array.isArray(event.content)) return;
       const toolName = event.toolName || "tool";
 
-      // 1. 如果是执行外部命令 (bash/powershell 等)，通知 readCache 作废潜在的文件副效应
+      const readCache = getReadCache(cwd);
+      const dehydrator = getDehydrator(cwd);
+
+      // 1. Invalidate read cache on command execution
       if (toolName === "bash" || toolName === "powershell") {
         readCache.recordCommandExecution();
       }
 
-      // 2. 如果是写/改文件工具，监控失败并作废对应文件的读缓存，保证后续读取能拿到最新内容
+      // 2. Track mutations and invalidate file read cache on write/edit
       if (toolName === "write" || toolName === "edit" || toolName === "patch" || toolName === "create_file") {
         dehydrator.recordWorkspaceMutation();
         const filePath = event.input?.path;
@@ -909,7 +659,7 @@ export default function (pi: ExtensionAPI) {
         }
       }
 
-      // 3. 如果是 read 工具，检查是否命中重复读取缓存与 6 级穿透门禁（不再进入通用截断管道，保证源码读取完整供 edit 使用）
+      // 3. Read tool: check duplicate read cache with 6-level penetration gate
       if (toolName === "read") {
         const filePath = event.input?.path;
         for (const block of event.content) {
@@ -923,6 +673,7 @@ export default function (pi: ExtensionAPI) {
                 const baseName = path.basename(filePath || "file");
                 ctx.ui.notify(t.readCacheHitNotice(baseName, approxTokens), "info");
               }
+              updateToolFlowStatusBar(ctx);
               return;
             }
           }
@@ -930,7 +681,7 @@ export default function (pi: ExtensionAPI) {
         return;
       }
 
-      // 3. 通用海量输出脱水管道
+      // 4. Output dehydration pipeline
       const inputCmd = (event.input?.command || event.input?.cmd || "").toString();
       for (const block of event.content) {
         if (block?.type === "text" && typeof block.text === "string") {
@@ -949,389 +700,203 @@ export default function (pi: ExtensionAPI) {
       }
     });
 
-    // ⚡ 核心上下文非破坏性滑动修剪 (Context Sliding Window Optimizer)
-    // 监听 context 钩子，对过去 N 轮以外过旧的历史 tool_result 实施就地折叠脱水，彻底防止多轮长对话累积撑爆 Token
-    // 注意：严格遵循模型协议配对法则（Gemini / OpenAI），绝不丢弃任何 toolResult 或改变消息角色顺序，确保 toolCall 与 toolResult 始终成对
-    (pi as any).on("context", async (event: any) => {
+    // 7. Context hook: non-destructive historical sliding window folding
+    (pi as any).on("context", async (event: any, ctx?: any) => {
+      slimHistoricalContextMessages(event, ctx?.cwd || activeWorkspaceCwd);
+    });
+
+    // 8. Turn end: physical artifact verification and self-healing advancement
+    (pi as any).on("turn_end", async (_event: any, ctx: ExtensionContext) => {
       try {
-        if (!event || !Array.isArray(event.messages)) return;
-        const msgs = event.messages;
-        const total = msgs.length;
-        if (total <= 12) return;
+        if (ctx?.cwd) activeWorkspaceCwd = ctx.cwd;
+        const turnCwd = ctx?.cwd || activeWorkspaceCwd;
+        loadPersistedSessionState();
+        const state = getSessionState();
+        if (state.status !== "in_progress" || !state.currentBlueprint) {
+          return;
+        }
 
-        // ⚡ 增强滑动修剪：仅保护最近 8 条新鲜消息（约 3-4 轮），之前的旧历史工具输出与超长日志安全折叠
-        const protectIndex = Math.max(0, total - 8);
-        for (let i = 0; i < protectIndex; i++) {
-          const msg = msgs[i];
-          if (!msg) continue;
+        const currentStage = state.currentBlueprint.stages[state.currentStageIndex];
+        if (!currentStage) return;
 
-          // 1. 安全修剪过旧的历史 tool 输出 (保留结构，仅截断超长字符串，绝不删除消息节点)
-          // ⚡ Semantic Anchor Retention 保护机制：若包含架构契约/蓝图摘要/关键错误，绝不一刀切折叠
-          const isProtectedAnchor = (text: string): boolean => {
-            return (
-              text.includes("[ARCH_CONTRACT]") ||
-              text.includes("[BLUEPRINT_ESTABLISHED]") ||
-              text.includes("[FATAL_ERROR]") ||
-              text.includes("ToolFlow Blueprint") ||
-              text.includes("阶段目标:") ||
-              text.includes("核心契约")
-            );
-          };
-
-          if (msg.role === "tool") {
-            if (typeof msg.content === "string") {
-              if (
-                msg.content.length > 800 &&
-                !msg.content.includes("ToolFlow Context Slimmer") &&
-                !isProtectedAnchor(msg.content)
-              ) {
-                const lines = msg.content.split("\n");
-                if (lines.length > 12) {
-                  const head = lines.slice(0, 4).join("\n");
-                  const tail = lines.slice(-2).join("\n");
-                  msg.content = `${head}\n... [⚡ ToolFlow Context Slimmer: Pruned ${lines.length - 6} lines of historical tool output] ...\n${tail}`;
-                }
-              }
-            } else if (Array.isArray(msg.content)) {
-              for (const part of msg.content) {
-                if (
-                  part &&
-                  part.type === "text" &&
-                  typeof part.text === "string" &&
-                  part.text.length > 800 &&
-                  !part.text.includes("ToolFlow Context Slimmer") &&
-                  !isProtectedAnchor(part.text)
-                ) {
-                  const lines = part.text.split("\n");
-                  if (lines.length > 12) {
-                    const head = lines.slice(0, 4).join("\n");
-                    const tail = lines.slice(-2).join("\n");
-                    part.text = `${head}\n... [⚡ ToolFlow Context Slimmer: Pruned ${lines.length - 6} lines of historical tool output] ...\n${tail}`;
-                  }
-                }
-              }
-            }
+        const executedToolNames: string[] = [];
+        if (Array.isArray(_event?.toolResults)) {
+          for (const tr of _event.toolResults) {
+            if (tr?.toolName) executedToolNames.push(tr.toolName);
           }
-
-          // 2. ⚡ 折叠历史旧轮次中 assistant 的超长写参回声 (write/edit/bash 入参回声防膨胀)
-          // 必须严格维持 JSON 合法性与对象字段结构，防止底层 API 解析器报错
-          if (msg.role === "assistant") {
-            // 情况 A：toolCalls / tool_calls 结构化参数
-            const toolCalls = msg.toolCalls || msg.tool_calls;
-            if (Array.isArray(toolCalls)) {
-              for (const tc of toolCalls) {
-                const fnName = (tc?.function?.name || tc?.name || "").toLowerCase();
-                if (["write", "edit"].includes(fnName)) {
-                  // 针对写入与编辑内容执行无损物理折叠
-                  if (tc.function && typeof tc.function.arguments === "string" && tc.function.arguments.length > 600) {
-                    try {
-                      const parsed = JSON.parse(tc.function.arguments);
-                      let mutated = false;
-                      for (const key of ["content", "oldText", "newText"] as const) {
-                        if (typeof parsed[key] === "string" && parsed[key].length > 400) {
-                          const originalLines = parsed[key].split("\n").length;
-                          parsed[key] = `[⚡ ToolFlow Slimmer: ${originalLines} lines (${key}) already written to ${parsed.path || "disk"}]`;
-                          mutated = true;
-                        }
-                      }
-                      if (mutated) {
-                        tc.function.arguments = JSON.stringify(parsed);
-                      }
-                    } catch (_) {}
-                  } else if (tc.input && typeof tc.input === "object") {
-                    for (const key of ["content", "oldText", "newText"] as const) {
-                      if (typeof tc.input[key] === "string" && tc.input[key].length > 400) {
-                        const originalLines = tc.input[key].split("\n").length;
-                        tc.input[key] = `[⚡ ToolFlow Slimmer: ${originalLines} lines (${key}) already written to ${tc.input.path || "disk"}]`;
-                      }
-                    }
-                  }
-                }
-              }
-            }
-            // 情况 B：部分模型将工具调用渲染在 content 数组中
-            if (Array.isArray(msg.content)) {
-              for (const part of msg.content) {
-                if (part && (part.type === "tool_use" || part.type === "tool_call")) {
-                  const fnName = (part.name || "").toLowerCase();
-                  if (["write", "edit"].includes(fnName) && part.input && typeof part.input === "object") {
-                    if (part.input.content && typeof part.input.content === "string" && part.input.content.length > 400) {
-                      const originalLines = part.input.content.split("\n").length;
-                      part.input.content = `[⚡ ToolFlow Slimmer: ${originalLines} lines already written to ${part.input.path || "disk"}]`;
-                    }
-                  }
-                }
-              }
-            }
+        }
+        if (Array.isArray(_event?.message?.content)) {
+          for (const block of _event.message.content) {
+            if (block?.type === 'toolCall' && block.name) executedToolNames.push(block.name);
+          }
+        }
+        if (Array.isArray(_event?.toolCalls)) {
+          for (const tc of _event.toolCalls) {
+            if (tc?.name) executedToolNames.push(tc.name);
           }
         }
 
-        // 3. 🛡️ 严格模型协议一致性校验 (Turn Order & Tool Pair Sanitizer for Gemini/Claude)
-        // 确保没有孤立的 toolCall 或未配对的 toolResult，确保没有相邻重复的 user 消息破坏 turn 轮替
-        for (let i = 0; i < msgs.length - 1; i++) {
-          const current = msgs[i];
-          const next = msgs[i + 1];
-          // 保证消息流结构完备，防止 Gemini 等强校验模型报 400
+        const hasActiveWriting = executedToolNames.some(name => ['write', 'edit'].includes(name));
+        const isExploring = executedToolNames.length > 0 && !hasActiveWriting;
+
+        // Deadlock defense: if retryCount >= 3 and artifact not created, suspend without spamming retries
+        if ((state.retryCount || 0) >= 3) {
+          const quickCheck = verifyStageArtifacts(currentStage, turnCwd, true, true);
+          if (!quickCheck.valid) {
+            return;
+          }
         }
-      } catch (_) {}
-    });
-  }
 
-  // 注册 before_agent_start 钩子 (下沉注入蒸馏的 Skill SOP 规则契约与物理防护)
-  if (typeof (pi as any).on === "function") {
-    (pi as any).on("before_agent_start", async (event: any) => {
-      // 注入 ToolFlow 核心准则：现成工具优先与最高权重调用，以及高品质专业交付标准
-      const toolflowGuideline = `\n<toolflow_execution_policy>
-  [CORE PRINCIPLE 1: MANDATORY REUSE OF INSTALLED TOOLS / SKILLS / MCP]
-  - Always prefer installed skills, extensions, and CLI tools over writing code from scratch.
-  - Before writing ad-hoc scripts or manual implementations, actively inspect available tools and invoke them.
-
-  [CORE PRINCIPLE 2: PRODUCTION CRAFTSMANSHIP & DESIGN STANDARDS]
-  - 严禁粗制滥造与简陋玩具实现 (Eliminate crude toy/amateur designs across all deliverables).
-  - 视觉与设计重灾区防线 (Visual, UI, & Asset Standards):
-    * 拒绝粗糙简陋与白板简笔画：严禁使用最粗劣的原生默认样式或单调矩形/色块敷衍了事。
-    * 专业设计系统与配色：必须使用经过推敲的现代专业调色盘（主色、衬色、强调色、明暗背景层次）、清晰的排版层级、一致的间距网格 (8px grid) 与圆角阴影体系。
-    * 高质感资产与矢量图案：必须使用精细矢量 SVG 图案、高质量矢量图标（如 Lucide/Tailwind 风格）、高保真几何绘制或精美插画，绝对禁止粗糙小方块或几条简笔线当作图案资产。
-    * 动效与交互反馈：所有可交互元素必须具备平滑的过渡动效 (Hover/Active/Focus transitions)、微质感阴影、状态反馈与呼吸感。
-  - 架构与逻辑标准 (Architecture & Logic Standards):
-    * 核心逻辑模块化、强类型/数据驱动解耦（如纯业务/数学逻辑与 UI/DOM 渲染层分离），100% 具备可测试性。
-    * 配套真实自动化单元测试断言，覆盖核心功能、边界分支与真实运行闭环。
-</toolflow_execution_policy>\n`;
-
-      const currentState = getSessionState();
-      if (currentState.status === "in_progress" && currentState.currentBlueprint) {
-        const currentStage = currentState.currentBlueprint.stages[currentState.currentStageIndex];
-        if (currentStage?.skillContract) {
-          const contractXml = [
-            `\n<enforced_skill_contract skill="${currentStage.skillContract.skillName}">`,
-            `  <sop_directives>${currentStage.skillContract.directives.join(" | ")}</sop_directives>`,
-            `  <rules>`,
-            ...currentStage.skillContract.rules.map((r: string) => `    - ${r}`),
-            `  </rules>`,
-            `  <checklist>`,
-            ...(currentStage.skillContract.checkpoints || []).map((c: string) => `    [ ] ${c}`),
-            `  </checklist>`,
-            `</enforced_skill_contract>`
-          ].join("\n");
-
-          return {
-            systemPrompt: (event.systemPrompt || "") + toolflowGuideline + contractXml
-          };
-        }
-        return {
-          systemPrompt: (event.systemPrompt || "") + toolflowGuideline
-        };
-      }
-      return {
-        systemPrompt: (event.systemPrompt || "") + toolflowGuideline
-      };
-    });
-  }
-
-  // 物理产物守卫与 3 次就地自愈推进
-  pi.on("turn_end", async (_event: any, ctx: ExtensionContext) => {
-    try {
-      // 强制从磁盘重新加载最新持久化状态，防止内存与磁盘脱节
-      loadPersistedSessionState();
-      const state = getSessionState();
-      if (state.status !== "in_progress" || !state.currentBlueprint) {
-        return;
-      }
-
-      const currentStage = state.currentBlueprint.stages[state.currentStageIndex];
-      if (!currentStage) return;
-
-      const turnCwd = ctx.cwd || process.cwd();
-
-      // 提取本轮调用的工具名称，排查是否处于普通探索或无产物会话中
-      const executedToolNames: string[] = [];
-      if (Array.isArray(_event?.toolResults)) {
-        for (const tr of _event.toolResults) {
-          if (tr?.toolName) executedToolNames.push(tr.toolName);
-        }
-      }
-      if (Array.isArray(_event?.message?.content)) {
-        for (const block of _event.message.content) {
-          if (block?.type === 'toolCall' && block.name) executedToolNames.push(block.name);
-        }
-      }
-      if (Array.isArray(_event?.toolCalls)) {
-        for (const tc of _event.toolCalls) {
-          if (tc?.name) executedToolNames.push(tc.name);
-        }
-      }
-
-      const hasActiveWriting = executedToolNames.some(name => ['write', 'edit'].includes(name));
-      const isExploring = executedToolNames.length > 0 && !hasActiveWriting;
-
-      // 严防死锁死循环：自愈失败超过 3 次时，如果产物尚未生成，直接挂起不再发重试消息；如果已生成则继续验收
-      if ((state.retryCount || 0) >= 3) {
-        const quickCheck = verifyStageArtifacts(currentStage, turnCwd, true, true);
-        if (!quickCheck.valid) {
+        const verificationResult = verifyStageArtifacts(currentStage, turnCwd, !hasActiveWriting, isExploring);
+        if (!verificationResult.valid && (!hasActiveWriting || isExploring)) {
           return;
         }
-      }
-      // 如果本轮没写文件，以只读查询方式校验产物是否存在，绝对不累加错误重试计数！
-      const verificationResult = verifyStageArtifacts(currentStage, turnCwd, !hasActiveWriting, isExploring);
 
-      // 如果当前产物未生成，但模型本轮仅仅是回答了用户问题或在用非写入工具探索，静默放行，不骚扰用户也不报错
-      if (!verificationResult.valid && (!hasActiveWriting || isExploring)) {
-        return;
-      }
+        if (verificationResult.valid && verificationResult.record) {
+          const { record } = verificationResult;
+          if (ctx?.ui?.notify) {
+            ctx.ui.notify(t.stageVerified(state.currentStageIndex + 1, currentStage.expectedArtifact, record.sha256.slice(0, 12)), "info");
+          }
 
-      if (verificationResult.valid && verificationResult.record) {
-        const { record } = verificationResult;
-        if (ctx?.ui?.notify) {
-          ctx.ui.notify(t.stageVerified(state.currentStageIndex + 1, currentStage.expectedArtifact, record.sha256.slice(0, 12)), "info");
-        }
-
-        // 严防历史遗留文件未变更而误判定
-        if (!verificationResult.valid || !verificationResult.record) {
-          return;
-        }
-        try {
-          dehydrator.dehydrateStageLog(
-            currentStage.stageId,
-            currentStage.title,
-            `Stage ${state.currentStageIndex + 1} completed with verified artifact: ${currentStage.expectedArtifact}`,
-            [record],
-            currentStage.artifactContract
-          );
-          dehydrator.pruneOldRuns();
-        } catch (_) {}
-
-        // 阶段流转核心：原地触发上下文脱水压缩，削减前序阶段冗余日志与执行过程
-        if (ctx && typeof (ctx as any).compact === "function") {
           try {
-            (ctx as any).compact({
-              customInstructions: `Stage ${state.currentStageIndex + 1} ("${currentStage.title}") completed. Verified artifact: ${currentStage.expectedArtifact}. Dehydrate prior stage logs and preserve only essential architectural decisions and verified artifact fingerprint.`,
-              onError: (err: any) => console.warn("[ToolFlow] Stage-wise compact non-fatal:", err?.message)
-            });
-          } catch (_) {}
-        }
-
-        const turnCwd = ctx.cwd || process.cwd();
-        const hasNext = advanceStage(turnCwd);
-        updateToolFlowStatusBar(ctx);
-        const updatedState = getSessionState();
-        if (hasNext && updatedState.currentBlueprint) {
-          const nextStage = updatedState.currentBlueprint.stages[updatedState.currentStageIndex];
-          if (nextStage) {
-            if (nextStage.isReviewStage && nextStage.reviewIsolation?.enabled) {
-              reviewGuard.activate();
-            } else {
-              reviewGuard.deactivate();
-            }
-            blastGuard.updateAllowedScope(nextStage);
-            const pruned = degradationMatrix.resolvePrunedToolsForStage(nextStage.stageId, nextStage.allowedTools);
-            applyToolScoping(pruned.allowedTools, pi);
-            
-            let previewHint = "";
-            if (nextStage.isInteractiveCoCreation) {
-              const previewLink = nextStage.previewUrl ? ` | Preview: ${nextStage.previewUrl}` : "";
-              const previewCmd = nextStage.previewCommand ? ` | Cmd: ${nextStage.previewCommand}` : "";
-              previewHint = `${previewLink}${previewCmd}`;
-            }
-
-            const gateCmd = nextStage.verificationCommands && nextStage.verificationCommands.length > 0
-              ? `\nGate: ${nextStage.verificationCommands.join(" && ")}`
-              : "";
-
-            // 极简自然的阶段指引（随查随改随测，无束缚）
-            const actionGuidance = generateStageActionPrompt(
-              nextStage,
-              updatedState.currentStageIndex,
-              updatedState.currentBlueprint.stages.length
+            const dehydrator = getDehydrator(turnCwd);
+            dehydrator.dehydrateStageLog(
+              currentStage.stageId,
+              currentStage.title,
+              `Stage ${state.currentStageIndex + 1} completed with verified artifact: ${currentStage.expectedArtifact}`,
+              [record],
+              currentStage.artifactContract
             );
-            const promptMsg = `[Stage ${updatedState.currentStageIndex + 1}/${updatedState.currentBlueprint.stages.length}: ${nextStage.title}]\n` +
-              `Target Artifact: ${nextStage.expectedArtifact}${previewHint}\n` +
-              `Core Objective: ${nextStage.coreObjective}${gateCmd}\n` +
-              `Action Guidance: ${actionGuidance} (Run /toolflow rollback anytime to revert stage changes)`;
+            dehydrator.pruneOldRuns();
+          } catch (_) {}
 
-            // 同步渲染或刷新阶段看板
-            const pipelineCard = renderExecutionPipelineCard({
-              blueprintId: updatedState.currentBlueprint.blueprintId,
-              task: updatedState.currentBlueprint.task,
-              currentStageIndex: updatedState.currentStageIndex,
-              stages: updatedState.currentBlueprint.stages,
-              verifiedArtifactCount: Object.keys(updatedState.artifactLedger).length
+          if (ctx && typeof (ctx as any).compact === "function") {
+            try {
+              (ctx as any).compact({
+                customInstructions: `Stage ${state.currentStageIndex + 1} ("${currentStage.title}") completed. Verified artifact: ${currentStage.expectedArtifact}. Dehydrate prior stage logs and preserve only essential architectural decisions and verified artifact fingerprint.`,
+                onError: (err: any) => console.warn("[ToolFlow] Stage-wise compact non-fatal:", err?.message)
+              });
+            } catch (_) {}
+          }
+
+          const hasNext = advanceStage(turnCwd);
+          updateToolFlowStatusBar(ctx);
+          const updatedState = getSessionState();
+          if (hasNext && updatedState.currentBlueprint) {
+            const nextStage = updatedState.currentBlueprint.stages[updatedState.currentStageIndex];
+            if (nextStage) {
+              if (nextStage.isReviewStage && nextStage.reviewIsolation?.enabled) {
+                reviewGuard.activate();
+              } else {
+                reviewGuard.deactivate();
+              }
+              blastGuard.updateAllowedScope(nextStage, turnCwd);
+              const pruned = degradationMatrix.resolvePrunedToolsForStage(nextStage.stageId, nextStage.allowedTools);
+              applyToolScoping(pruned.allowedTools, pi);
+
+              let previewHint = "";
+              if (nextStage.isInteractiveCoCreation) {
+                const previewLink = nextStage.previewUrl ? ` | Preview: ${nextStage.previewUrl}` : "";
+                const previewCmd = nextStage.previewCommand ? ` | Cmd: ${nextStage.previewCommand}` : "";
+                previewHint = `${previewLink}${previewCmd}`;
+              }
+
+              const gateCmd = nextStage.verificationCommands && nextStage.verificationCommands.length > 0
+                ? `\nGate: ${nextStage.verificationCommands.join(" && ")}`
+                : "";
+
+              const actionGuidance = generateStageActionPrompt(
+                nextStage,
+                updatedState.currentStageIndex,
+                updatedState.currentBlueprint.stages.length
+              );
+              const promptMsg = `[Stage ${updatedState.currentStageIndex + 1}/${updatedState.currentBlueprint.stages.length}: ${nextStage.title}]\n` +
+                `Target Artifact: ${nextStage.expectedArtifact}${previewHint}\n` +
+                `Core Objective: ${nextStage.coreObjective}${gateCmd}\n` +
+                `Action Guidance: ${actionGuidance} (Run /toolflow rollback anytime to revert stage changes)`;
+
+              const pipelineCard = renderExecutionPipelineCard({
+                blueprintId: updatedState.currentBlueprint.blueprintId,
+                task: updatedState.currentBlueprint.task,
+                currentStageIndex: updatedState.currentStageIndex,
+                stages: updatedState.currentBlueprint.stages,
+                verifiedArtifactCount: Object.keys(updatedState.artifactLedger).length
+              });
+
+              if (typeof pi.sendMessage === "function") {
+                pi.sendMessage({
+                  customType: CUSTOM_MSG_TYPE,
+                  content: pipelineCard,
+                  display: true
+                });
+              }
+
+              if (typeof pi.sendUserMessage === "function") {
+                pi.sendUserMessage(promptMsg, { deliverAs: "followUp" });
+              }
+            }
+          } else {
+            // All stages complete: render receipt, record memory, and compact
+            const verifiedFiles = Object.keys(updatedState.artifactLedger);
+            memoryManager.recordLesson(
+              state.currentBlueprint.task,
+              `蓝图 ${state.currentBlueprint.blueprintId} 竣工交付`,
+              `交付产物 ${verifiedFiles.join(", ")} 物理校验通过`
+            );
+
+            const receiptRows = renderValueReceipt({
+              task: state.currentBlueprint.task,
+              blueprintId: state.currentBlueprint.blueprintId,
+              stageCount: state.currentBlueprint.stages.length,
+              verifiedFiles,
+              totalDurationSec: Math.round((Date.now() - state.currentBlueprint.createdAt) / 1000),
+              tokenSavingsRatio: "68%"
             });
 
             if (typeof pi.sendMessage === "function") {
               pi.sendMessage({
                 customType: CUSTOM_MSG_TYPE,
-                content: pipelineCard,
+                content: receiptRows.join("\n"),
                 display: true
               });
             }
 
-            if (typeof pi.sendUserMessage === "function") {
-              pi.sendUserMessage(promptMsg, { deliverAs: "followUp" });
+            restoreInitialActiveTools(pi);
+            reviewGuard.deactivate();
+            blastGuard.clearAllowedScope();
+            if (ctx?.ui?.notify) {
+              ctx.ui.notify(t.allCompleted(state.currentBlueprint.task), "info");
+            }
+
+            if (ctx && typeof (ctx as any).compact === "function") {
+              try {
+                (ctx as any).compact({
+                  customInstructions: `Blueprint task "${state.currentBlueprint.task}" completed successfully across all stages with verified artifacts: ${verifiedFiles.join(", ")}. Retain this completion state and verified files ledger.`,
+                  onComplete: () => {
+                    if (ctx?.ui?.notify) {
+                      ctx.ui.notify(t.contextDehydrated, "info");
+                    }
+                  }
+                });
+              } catch (compactErr: any) {
+                console.warn("[ToolFlow] auto-compact triggered but failed safely:", compactErr.message);
+              }
             }
           }
         } else {
-          // 最终全部竣工：触发高保真价值结算单与通知，并持久化架构记忆
-          const verifiedFiles = Object.keys(updatedState.artifactLedger);
-          memoryManager.recordLesson(
-            state.currentBlueprint.task,
-            `蓝图 ${state.currentBlueprint.blueprintId} 竣工交付`,
-            `交付产物 ${verifiedFiles.join(", ")} 物理校验通过`
-          );
-
-          const receiptRows = renderValueReceipt({
-            task: state.currentBlueprint.task,
-            blueprintId: state.currentBlueprint.blueprintId,
-            stageCount: state.currentBlueprint.stages.length,
-            verifiedFiles,
-            totalDurationSec: Math.round((Date.now() - state.currentBlueprint.createdAt) / 1000),
-            tokenSavingsRatio: "68%"
-          });
-
-          if (typeof pi.sendMessage === "function") {
-            pi.sendMessage({
-              customType: CUSTOM_MSG_TYPE,
-              content: receiptRows.join("\n"),
-              display: true
-            });
-          }
-
-          restoreInitialActiveTools(pi);
-          reviewGuard.deactivate();
-          blastGuard.clearAllowedScope();
-          if (ctx?.ui?.notify) {
-            ctx.ui.notify(t.allCompleted(state.currentBlueprint.task), "info");
-          }
-
-          // 核心方案 2：全阶段竣工时原地调用 ctx.compact() 脱水清理上下文
-          // 彻底免去用户手动敲 /new 的繁琐与割裂，同时保留最终的交付指纹与状态
-          if (ctx && typeof (ctx as any).compact === "function") {
-            try {
-              (ctx as any).compact({
-                customInstructions: `Blueprint task "${state.currentBlueprint.task}" completed successfully across all stages with verified artifacts: ${verifiedFiles.join(", ")}. Retain this completion state and verified files ledger.`,
-                onComplete: () => {
-                  if (ctx?.ui?.notify) {
-                    ctx.ui.notify(t.contextDehydrated, "info");
-                  }
-                }
-              });
-            } catch (compactErr: any) {
-              console.warn("[ToolFlow] auto-compact triggered but failed safely:", compactErr.message);
+          // Verification failed: trigger self-healing prompt or circuit breaker
+          if (verificationResult.isCircuitBroken) {
+            if (ctx?.ui?.notify) {
+              ctx.ui.notify(t.circuitBroken(state.currentStageIndex + 1, currentStage.expectedArtifact), "warning");
             }
+          } else if (verificationResult.remediationGuidance && typeof pi.sendUserMessage === "function") {
+            const retryPrefix = `[SELF-HEALING ${verificationResult.retryCount || 1}/3] `;
+            pi.sendUserMessage(`${retryPrefix}${verificationResult.remediationGuidance}`, { deliverAs: "followUp" });
           }
         }
-      } else {
-        // 验收未通过：触发 3 次就地自愈或熔断提示
-        if (verificationResult.isCircuitBroken) {
-          if (ctx?.ui?.notify) {
-            ctx.ui.notify(t.circuitBroken(state.currentStageIndex + 1, currentStage.expectedArtifact), "warning");
-          }
-        } else if (verificationResult.remediationGuidance && typeof pi.sendUserMessage === "function") {
-          const retryPrefix = `[SELF-HEALING ${verificationResult.retryCount || 1}/3] `;
-          pi.sendUserMessage(`${retryPrefix}${verificationResult.remediationGuidance}`, { deliverAs: "followUp" });
-        }
+      } catch (err: any) {
+        console.error("[ToolFlow turn_end error]", err);
       }
-    } catch (err: any) {
-      console.error("[ToolFlow turn_end error]", err);
-    }
-  });
+    });
+  }
 }

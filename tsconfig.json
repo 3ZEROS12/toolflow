@@ -7,11 +7,12 @@
     "noEmit": true,
     "strict": true,
     "skipLibCheck": true,
-    "typeRoots": [
-      "./node_modules/@types",
-      "C:/Users/Jason/AppData/Roaming/npm/node_modules/@earendil-works/pi-coding-agent/node_modules/@types"
-    ],
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts"
+  ]
 }

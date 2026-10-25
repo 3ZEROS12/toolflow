@@ -28,7 +28,6 @@ import {
   rollbackStage
 } from "../src/state.js";
 import { CodebaseMemoryManager } from "../src/memory.js";
-import { MultiAgentWorkerOrchestrator } from "../src/worker_orchestrator.js";
 import { GracefulDegradationMatrix } from "../src/degradation_matrix.js";
 import { BlastRadiusGuard } from "../src/blast_radius.js";
 import { ContextDehydrator, ReadCacheManager } from "../src/dehydrator.js";
@@ -666,8 +665,8 @@ async function runFullRegressionVerification() {
     const memPrompt = memoryMgr.getPromptContextInjection();
     assert(memPrompt.includes("API规范"), "12.28 架构记忆库成功持久化与注入");
 
-    const bundles = MultiAgentWorkerOrchestrator.compileWaveBundles(customReqsBlueprint.stages);
-    assert(Array.isArray(bundles) && bundles.length > 0, "12.29 多 Agent 任务包编排成功");
+    const customWaves = planDAGWaves(customReqsBlueprint.stages).waves;
+    assert(Array.isArray(customWaves) && customWaves.length > 0, "12.29 DAG 波次编排成功");
 
   } finally {
     try {
@@ -710,10 +709,10 @@ async function runFullRegressionVerification() {
       }
     ];
 
-    const waveBundles = MultiAgentWorkerOrchestrator.compileWaveBundles(sampleStages, 2);
-    assert.strictEqual(waveBundles.length, 2, "13.1 DAG 分波长度正确 (2波)");
-    assert.strictEqual(waveBundles[0].tasks[0].stageId, "stage_init", "13.2 stageId 属性正确解构 (无 undefined)");
-    assert(waveBundles[0].tasks[0].executionPrompt.includes("构建项目目录与初始配置"), "13.3 executionPrompt 包含 coreObjective (无 undefined)");
+    const wavePlan = planDAGWaves(sampleStages);
+    assert.strictEqual(wavePlan.waves.length, 2, "13.1 DAG 分波长度正确 (2波)");
+    assert.strictEqual(wavePlan.waves[0].stages[0].stageId, "stage_init", "13.2 波次 1 收敛到根阶段");
+    assert.strictEqual(wavePlan.waves[1].stages[0].stageId, "stage_core", "13.3 依赖阶段排入波次 2");
 
     // 13.2 BlastRadiusGuard: Glob 模式匹配 (src/**)
     const guard = new BlastRadiusGuard();
@@ -895,9 +894,9 @@ async function runFullRegressionVerification() {
       }
     ];
 
-    const bundles = MultiAgentWorkerOrchestrator.compileWaveBundles(tsStages, 4);
-    assert.strictEqual(bundles.length, 3, "14.2 Kahn DAG 编译为 3 个波次");
-    assert.strictEqual(bundles[1].tasks.length, 2, "14.3 波次 2 并发调度 2 个子任务");
+    const dagWaves = planDAGWaves(tsStages).waves;
+    assert.strictEqual(dagWaves.length, 3, "14.2 Kahn DAG 编译为 3 个波次");
+    assert.strictEqual(dagWaves[1].stages.length, 2, "14.3 波次 2 并发调度 2 个子任务");
 
     const guard = new BlastRadiusGuard();
     guard.setStrictArtifactScope(true);
@@ -1115,16 +1114,6 @@ async function runFullRegressionVerification() {
       coreDependencies: []
     });
     assert(pyFlatProfile.previewCommands?.[0].includes("uv run python main.py"), "15.12 根目录 Python 预览命令为 uv run python main.py 而非 /main.py");
-
-    // 15.13 worker_orchestrator expectedArtifacts: [] 真实性与并发分批
-    const emptyArrayStage: BlueprintStage[] = [
-      { stageId: "t1", title: "T1", roleProfile: "A", coreObjective: "O1", expectedArtifact: "src/t1.ts", expectedArtifacts: [], artifactContract: "c1", allowedTools: [], tokenCostNotice: "", boundCapabilities: {} },
-      { stageId: "t2", title: "T2", roleProfile: "A", coreObjective: "O2", expectedArtifact: "src/t2.ts", expectedArtifacts: [], artifactContract: "c2", allowedTools: [], tokenCostNotice: "", boundCapabilities: {} },
-      { stageId: "t3", title: "T3", roleProfile: "A", coreObjective: "O3", expectedArtifact: "src/t3.ts", expectedArtifacts: [], artifactContract: "c3", allowedTools: [], tokenCostNotice: "", boundCapabilities: {} }
-    ];
-    const chunkedBundles = MultiAgentWorkerOrchestrator.compileWaveBundles(emptyArrayStage, 2);
-    assert.strictEqual(chunkedBundles[0].tasks[0].targetArtifacts[0], "src/t1.ts", "15.13 expectedArtifacts 为空数组时正确提取 expectedArtifact");
-    assert.strictEqual(chunkedBundles.length, 2, "15.13.1 maxConcurrency=2 将 3 个并行任务切分为 2 个波次批次");
 
     // 15.14 dehydrator pruneOldRuns 升序 LRU 淘汰最旧 Run
     const dehydDir = path.join(edgeSandbox, "dehyd_test");
@@ -1604,7 +1593,6 @@ Always verify diff before finalizing.
   // 清理沙箱
   fs.rmSync(resetSandbox, { recursive: true, force: true });
   console.log("  [OK] 22.1 - 22.13 会话重置与清理物理持久化状态验证 100% 通过！\n");
-}
 
   console.log("[TEST-23] 验证实时工具输出脱水 (Tool Result Dehydration)...");
   // using already imported ContextDehydrator
@@ -1695,8 +1683,8 @@ Always verify diff before finalizing.
       const dehydrateRes = dehydrator.dehydrateToolOutput("bash", longOutput);
 
       assert.strictEqual(dehydrateRes.dehydrated, true, "26.1 超长日志成功脱水");
-      assert(ContextDehydrator.getLatestLogPath() !== null, "26.2 最新脱水日志指针已自动记录");
-      assert(fs.existsSync(ContextDehydrator.getLatestLogPath()!), "26.3 最新脱水日志物理文件存在于磁盘");
+      assert(ContextDehydrator.getLatestLogPath(tmpDir) !== null, "26.2 最新脱水日志指针已自动记录");
+      assert(fs.existsSync(ContextDehydrator.getLatestLogPath(tmpDir)!), "26.3 最新脱水日志物理文件存在于磁盘");
 
       // 2. 验证 StatsManager 自动累加了节省数据
       const stats = statsMgr.getStats();
@@ -1937,7 +1925,430 @@ Always verify diff before finalizing.
         fs.rmSync(auditSandbox, { recursive: true, force: true });
       } catch (_) {}
     }
+
+    // ---------------------------------------------------------------------------
+    // 模块 33: ToolFlow 架构重组、物理安全防线加固与零空载 Token 验证
+    // ---------------------------------------------------------------------------
+    console.log("\n[TEST-33] 验证 ToolFlow 架构重组与关键防线加固 (BlastRadiusGuard Always-On, Zero-Idle-Tokens, Modularization)...");
+    const modSandbox = fs.mkdtempSync(path.join(os.tmpdir(), "tf-mod-test-"));
+    const modSandboxB = fs.mkdtempSync(path.join(os.tmpdir(), "tf-mod-test-b-"));
+    try {
+      const { default: toolflowExtension } = await import("../src/index.js");
+      const { getDehydrator, getReadCache, clearAllReadCaches, StatsManager, ContextDehydrator } = await import("../src/dehydrator.js");
+      const { executeToolFlowInspect, isSafeRunLog } = await import("../src/inspect_tool.js");
+      const { pruneHeavyProviderTools, slimHistoricalContextMessages } = await import("../src/context_slimmer.js");
+
+      const registeredHooks: Record<string, Function> = {};
+      const registeredTools: Record<string, any> = {};
+      let registeredCommand: any = null;
+
+      const mockPi: any = {
+        on: (event: string, handler: Function) => {
+          registeredHooks[event] = handler;
+        },
+        registerTool: (toolDef: any) => {
+          registeredTools[toolDef.name] = toolDef;
+        },
+        registerCommand: (name: string, def: any) => {
+          if (name === "toolflow") registeredCommand = def;
+        },
+        registerMessageRenderer: () => {},
+        getAllTools: () => [],
+        sendMessage: () => {},
+        sendUserMessage: () => {}
+      };
+
+      toolflowExtension(mockPi);
+
+      // 33.1 验证 BlastRadiusGuard 在无蓝图时 (status === "idle") 依然物理拦截敏感写操作与危险命令
+      resetState(modSandbox);
+      assert.strictEqual(getSessionState().status, "idle", "33.1.1 初始状态为 idle");
+
+      let statusSetCalls: Array<[string, any]> = [];
+      const mockCtxA = {
+        cwd: modSandbox,
+        ui: {
+          setStatus: (id: string, text: any) => statusSetCalls.push([id, text]),
+          notify: () => {}
+        }
+      };
+
+      // 拦截写入 .env
+      const envCheck = await registeredHooks["tool_call"](
+        { toolName: "write", input: { path: ".env" } },
+        mockCtxA
+      );
+      assert(envCheck && envCheck.block === true, "33.1.2 idle 状态下拦截写入 .env");
+      assert(envCheck.reason.includes("受保护状态") || envCheck.reason.includes("红线"), "33.1.3 拦截原因清晰明确");
+
+      // 验证拦截时记录 blast 节省收益并刷新状态栏
+      const statsA = new StatsManager(modSandbox).getStats();
+      assert(statsA.blastRadiusBlocksCount >= 1, "33.1.4 拦截计数已记入 StatsManager");
+      assert(statusSetCalls.some(c => c[0] === "toolflow"), "33.1.5 拦截时已调用 updateToolFlowStatusBar");
+
+      // 拦截写入 .git 内部
+      const gitCheck = await registeredHooks["tool_call"](
+        { toolName: "write", input: { path: ".git/config" } },
+        mockCtxA
+      );
+      assert(gitCheck && gitCheck.block === true, "33.1.6 idle 状态下拦截写入 .git/config");
+
+      // 拦截 package-lock.json
+      const lockCheck = await registeredHooks["tool_call"](
+        { toolName: "edit", input: { path: "package-lock.json" } },
+        mockCtxA
+      );
+      assert(lockCheck && lockCheck.block === true, "33.1.7 idle 状态下拦截篡改 lock 文件");
+
+      // 拦截高危 bash 毁灭性指令
+      const bashCheck = await registeredHooks["tool_call"](
+        { toolName: "bash", input: { command: "git reset --hard HEAD~1" } },
+        mockCtxA
+      );
+      assert(bashCheck && bashCheck.block === true, "33.1.8 idle 状态下拦截高危 git reset --hard");
+
+      const rmCheck = await registeredHooks["tool_call"](
+        { toolName: "bash", input: { command: "rm -rf .env" } },
+        mockCtxA
+      );
+      assert(rmCheck && rmCheck.block === true, "33.1.9 idle 状态下拦截 rm .env");
+
+      // 33.2 验证 before_agent_start 在 idle 无脱水日志时注入 0 Token
+      const emptyPromptRes = await registeredHooks["before_agent_start"](
+        { systemPrompt: "You are a coding assistant." },
+        mockCtxA
+      );
+      assert.strictEqual(emptyPromptRes, undefined, "33.2.1 idle 无日志时返回 undefined (0 token 注入)");
+
+      // 当存在脱水日志时，仅追加 1 行简洁英文指引
+      const fakeLogDir = path.join(modSandbox, ".pi", "toolflow", "runs", "default");
+      fs.mkdirSync(fakeLogDir, { recursive: true });
+      const fakeLogFile = path.join(fakeLogDir, "tool_bash_1.log");
+      fs.writeFileSync(fakeLogFile, "sample log content\n", "utf-8");
+      ContextDehydrator.setLatestLogPath(fakeLogFile, modSandbox);
+
+      const logPromptRes = await registeredHooks["before_agent_start"](
+        { systemPrompt: "You are a coding assistant." },
+        mockCtxA
+      );
+      assert(logPromptRes && typeof logPromptRes.systemPrompt === "string", "33.2.2 存在脱水日志时返回系统提示词");
+      assert(logPromptRes.systemPrompt.includes("[ToolFlow]: Large tool outputs are archived in .pi/toolflow/runs/"), "33.2.3 注入单行简洁英文日志指引");
+      assert(!logPromptRes.systemPrompt.includes("严禁粗制滥造"), "33.2.4 杜绝中文长篇设计教条");
+
+      // 当蓝图处于 in_progress 时，注入全英文规范与契约
+      const dummyBp: any = {
+        blueprintId: "bp_mod_test",
+        task: "Modularization Verification",
+        createdAt: Date.now(),
+        stages: [
+          {
+            stageId: "stg_exec",
+            title: "Execution Stage",
+            roleProfile: "Coder",
+            expectedArtifact: "src/output.ts",
+            artifactContract: "Contract",
+            coreObjective: "Objective",
+            allowedTools: ["write", "read"],
+            skillContract: {
+              skillName: "TestSkill",
+              directives: ["Dir 1"],
+              rules: ["Rule 1"],
+              checkpoints: ["Check 1"]
+            }
+          }
+        ]
+      };
+      startBlueprintExecution(dummyBp, modSandbox);
+      assert.strictEqual(getSessionState().status, "in_progress", "33.2.5 蓝图已启动");
+
+      const bpPromptRes = await registeredHooks["before_agent_start"](
+        { systemPrompt: "System:" },
+        mockCtxA
+      );
+      assert(bpPromptRes && bpPromptRes.systemPrompt.includes("<toolflow_execution_policy>"), "33.2.6 蓝图进行中注入 execution_policy");
+      assert(bpPromptRes.systemPrompt.includes("<enforced_skill_contract skill=\"TestSkill\">"), "33.2.7 注入 skillContract");
+      assert(!/[\u4e00-\u9fa5]/.test(bpPromptRes.systemPrompt.replace("System:", "")), "33.2.8 注入内容实现零汉字泄漏 (Universal English Parity)");
+
+      resetState(modSandbox);
+
+      // 33.3 验证多工作区隔离与 getDehydrator / getReadCache / clearAllReadCaches
+      const dehyA = getDehydrator(modSandbox);
+      const dehyB = getDehydrator(modSandboxB);
+      assert.notStrictEqual(dehyA, dehyB, "33.3.1 不同工作区获得独立 ContextDehydrator 实例");
+
+      const cacheA = getReadCache(modSandbox);
+      const cacheB = getReadCache(modSandboxB);
+      assert.notStrictEqual(cacheA, cacheB, "33.3.2 不同工作区获得独立 ReadCacheManager 实例");
+
+      const testFileA = path.join(modSandbox, "demo.ts");
+      fs.writeFileSync(testFileA, "export const a = 100;\n".repeat(10), "utf-8");
+      cacheA.checkOrUpdate(testFileA, "export const a = 100;\n".repeat(10), 1);
+      const hitRes = cacheA.checkOrUpdate(testFileA, "export const a = 100;\n".repeat(10), 2);
+      assert(hitRes.isDuplicate, "33.3.3 cacheA 命中重复读取缓存");
+
+      clearAllReadCaches();
+      const afterClearRes = cacheA.checkOrUpdate(testFileA, "export const a = 100;\n".repeat(10), 3);
+      assert(!afterClearRes.isDuplicate, "33.3.4 clearAllReadCaches 后缓存已清空");
+
+      // 33.4 验证 readCache 命中时立即触发状态栏刷新
+      statusSetCalls = [];
+      const readBlock = { type: "text", text: "export const x = 1;\n".repeat(10) };
+      const readEvent = {
+        toolName: "read",
+        input: { path: testFileA },
+        content: [readBlock]
+      };
+      // 首次读取建立缓存
+      await registeredHooks["tool_result"](readEvent, mockCtxA);
+      // 第二次读取命中缓存
+      const readBlock2 = { type: "text", text: "export const x = 1;\n".repeat(10) };
+      await registeredHooks["tool_result"]({ ...readEvent, content: [readBlock2] }, mockCtxA);
+      assert(readBlock2.text.includes("ToolFlow Read Cache"), "33.4.1 文本内容被替换为读缓存 notice");
+      assert(statusSetCalls.some(c => c[0] === "toolflow"), "33.4.2 读缓存命中时已立即调用 updateToolFlowStatusBar");
+
+      // 33.5 验证 toolflow_inspect 独立模块工作正常
+      const inspectLogDir = path.join(modSandbox, ".pi", "toolflow", "runs", "bp_inspect");
+      fs.mkdirSync(inspectLogDir, { recursive: true });
+      const sampleLog = path.join(inspectLogDir, "test_run.log");
+      const logLines = Array.from({ length: 30 }, (_, i) => `Log entry row ${i + 1}: ${i === 15 ? "FATAL_ERROR: memory overflow" : "normal output"}`);
+      fs.writeFileSync(sampleLog, logLines.join("\n"), "utf-8");
+
+      // 越界路径检测
+      assert.strictEqual(isSafeRunLog(path.join(modSandbox, "package.json"), modSandbox), false, "33.5.1 非 runs 目录下的文件拒绝");
+      assert.strictEqual(isSafeRunLog(sampleLog, modSandbox), true, "33.5.2 runs 目录下的普通 log 文件放行");
+
+      // 切片读取
+      const sliceRes = executeToolFlowInspect({ id: "test_run.log", offset: 5, limit: 10 }, modSandbox);
+      assert.strictEqual(sliceRes.isError, false, "33.5.3 toolflow_inspect 正常切片执行");
+      assert(sliceRes.content[0].text.includes("Lines 5-14 of 30"), "33.5.4 切片范围正确");
+
+      // 文本搜索
+      const grepRes = executeToolFlowInspect({ id: "test_run.log", findText: "FATAL_ERROR" }, modSandbox);
+      assert.strictEqual(grepRes.isError, false, "33.5.5 toolflow_inspect 搜索执行");
+      assert(grepRes.content[0].text.includes("FATAL_ERROR: memory overflow"), "33.5.6 成功匹配搜索关键词");
+
+      // 33.6 验证 context_slimmer 独立模块
+      // 33.6.1 pruneHeavyProviderTools
+      const providerEvent: any = {
+        payload: {
+          tools: [
+            { name: "read" },
+            { name: "write" },
+            { name: "edit" },
+            { name: "bash" },
+            { name: "browser_probe_interaction" },
+            { name: "subagent" },
+            { name: "bg_wait" },
+            { name: "grep" },
+            { name: "find" },
+            { name: "ls" },
+            { name: "web_search" }
+          ],
+          messages: [{ role: "user", content: "Please fix the typo in utils.ts" }]
+        }
+      };
+      pruneHeavyProviderTools(providerEvent, () => modSandbox);
+      const remainingToolNames = providerEvent.payload.tools.map((t: any) => t.name);
+      assert(!remainingToolNames.includes("browser_probe_interaction"), "33.6.1 重型工具 browser 已被修剪");
+      assert(!remainingToolNames.includes("subagent"), "33.6.2 重型工具 subagent 已被修剪");
+      assert(remainingToolNames.includes("read") && remainingToolNames.includes("edit"), "33.6.3 核心写查工具完好保留");
+
+      // 33.6.2 slimHistoricalContextMessages
+      const longOutput = Array.from({ length: 40 }, (_, i) => `Verbose test stdout line ${i}`).join("\n");
+      const longArg = Array.from({ length: 50 }, (_, i) => `const codeLine${i} = "hello";`).join("\n");
+      const contextEvent: any = {
+        messages: [
+          { role: "user", content: "Start" },
+          { role: "assistant", toolCalls: [{ function: { name: "write", arguments: JSON.stringify({ path: "src/a.ts", content: longArg }) } }] },
+          { role: "tool", content: longOutput }, // 旧历史 tool 消息
+          { role: "tool", content: `[ARCH_CONTRACT]\n${longOutput}` }, // 锚点保护消息
+          { role: "user", content: "m1" },
+          { role: "user", content: "m2" },
+          { role: "user", content: "m3" },
+          { role: "user", content: "m4" },
+          { role: "user", content: "m5" },
+          { role: "user", content: "m6" },
+          { role: "user", content: "m7" },
+          { role: "user", content: "m8" },
+          { role: "tool", content: longOutput } // 最近 8 条内的保护消息
+        ]
+      };
+      slimHistoricalContextMessages(contextEvent);
+      assert(contextEvent.messages[2].content.includes("ToolFlow Context Slimmer"), "33.6.4 旧历史 tool 消息已被滑动折叠");
+      assert(!contextEvent.messages[3].content.includes("ToolFlow Context Slimmer"), "33.6.5 包含 [ARCH_CONTRACT] 语义锚点的消息免遭折叠");
+      assert(!contextEvent.messages[12].content.includes("ToolFlow Context Slimmer"), "33.6.6 最近保护窗口内的最新 tool 消息完好保留");
+
+      // 33.7 验证 /toolflow 子命令自动补全包含 stats 和 logs
+      assert(registeredCommand !== null, "33.7.1 /toolflow 命令已注册");
+      const completions = registeredCommand.getArgumentCompletions("");
+      const compValues = completions.map((c: any) => c.value);
+      assert(compValues.includes("stats"), "33.7.2 补全列表中包含 stats");
+      assert(compValues.includes("logs"), "33.7.3 补全列表中包含 logs");
+      assert(compValues.includes("rollback"), "33.7.4 补全列表中包含 rollback");
+      assert(compValues.includes("reset"), "33.7.5 补全列表中包含 reset");
+
+      console.log("  [OK] 33.1 - 33.7 ToolFlow 架构重组、物理安全防线加固、零空载 Token 与全模块化 100% 验证通过！\n");
+    } finally {
+      try {
+        fs.rmSync(modSandbox, { recursive: true, force: true });
+        fs.rmSync(modSandboxB, { recursive: true, force: true });
+      } catch (_) {}
+    }
   }
+
+  console.log("\n[TEST-34] 验证 Phase 2 解耦与升级: Symbol Outline、Playbook 7 Anchor 握手与脱水净节约计量...");
+  {
+    const { extractSymbolOutline, ReadCacheManager } = await import("../src/read_cache.js");
+    const { loadActiveAnchorFiles, isProtectedAnchor, slimHistoricalContextMessages } = await import("../src/context_slimmer.js");
+    const { ContextDehydrator, StatsManager } = await import("../src/dehydrator.js");
+
+    const p2Sandbox = path.join(os.tmpdir(), `toolflow_p2_test_${Date.now()}`);
+    const anchorSandbox = path.join(os.tmpdir(), `anchor_p2_state_${Date.now()}`);
+    fs.mkdirSync(p2Sandbox, { recursive: true });
+    fs.mkdirSync(anchorSandbox, { recursive: true });
+
+    const prevAnchorDir = process.env.ANCHOR_DIR;
+
+    try {
+      // 34.1 验证 extractSymbolOutline 提取 TypeScript / Python / Rust / Go 行号符号大纲
+      const tsCode = [
+        "// Header comment",
+        "export interface UserProfile {",
+        "  id: string;",
+        "}",
+        "export class AuthService {",
+        "  login() {}",
+        "}",
+        "export async function verifyToken(token: string): Promise<boolean> {",
+        "  return true;",
+        "}",
+        "export const DEFAULT_TIMEOUT = 5000;"
+      ].join("\n");
+
+      const tsOutline = extractSymbolOutline(tsCode, 5);
+      assert.strictEqual(tsOutline.length, 4, "34.1.1 提取全部 4 个 TS 顶层符号声明");
+      assert.strictEqual(tsOutline[0], "L2: export interface UserProfile", "34.1.2 包含行号并剥离尾部大括号");
+      assert.strictEqual(tsOutline[1], "L5: export class AuthService", "34.1.3 正确提取类声明与行号");
+      assert.strictEqual(tsOutline[2], "L8: export async function verifyToken(token: string): Promise<boolean>", "34.1.4 正确提取异步函数");
+      assert.strictEqual(tsOutline[3], "L11: export const DEFAULT_TIMEOUT = 5000;", "34.1.5 正确提取常量");
+
+      // Python & Rust
+      const pyCode = "def process_data(data):\n    pass\n\nclass DataPipeline:\n    pass\n";
+      const pyOutline = extractSymbolOutline(pyCode);
+      assert.strictEqual(pyOutline[0], "L1: def process_data(data):", "34.1.6 提取 Python 函数");
+      assert.strictEqual(pyOutline[1], "L4: class DataPipeline:", "34.1.7 提取 Python 类");
+
+      const rustGoCode = "pub fn execute() -> Result<()> {\n    Ok(())\n}\nfunc HandleHTTP(w ResponseWriter) {\n}\n";
+      const rustGoOutline = extractSymbolOutline(rustGoCode);
+      assert.strictEqual(rustGoOutline[0], "L1: pub fn execute() -> Result<()>", "34.1.8 提取 Rust pub fn 并移除尾部大括号");
+      assert.strictEqual(rustGoOutline[1], "L4: func HandleHTTP(w ResponseWriter)", "34.1.9 提取 Go func 并移除尾部大括号");
+
+      // 34.2 验证 ReadCacheManager 二次读取命中时自动追加 [Symbol Outline] 与净节约 Token
+      const cacheMgr = new ReadCacheManager(p2Sandbox);
+      const testFilePath = path.join(p2Sandbox, "service.ts");
+      const fullTsContent = tsCode + "\n" + "// padding\n".repeat(30);
+      fs.writeFileSync(testFilePath, fullTsContent, "utf-8");
+
+      // 首次读取
+      const hit1 = cacheMgr.checkOrUpdate(testFilePath, fullTsContent, 1);
+      assert.strictEqual(hit1.isDuplicate, false, "34.2.1 首次读取不应重复");
+
+      // 第二次读取
+      const hit2 = cacheMgr.checkOrUpdate(testFilePath, fullTsContent, 2);
+      assert.strictEqual(hit2.isDuplicate, true, "34.2.2 第二次读取应命中缓存");
+      assert(hit2.notice?.includes("[Symbol Outline]:"), "34.2.3 提示中必须包含 [Symbol Outline] 标识");
+      assert(hit2.notice?.includes("L2: export interface UserProfile"), "34.2.4 符号大纲包含行号符号");
+      assert(typeof hit2.savedTokens === "number" && hit2.savedTokens > 0, "34.2.5 净节约 Tokens 准确计算且大于 0");
+
+      // 34.3 验证 Playbook 7 Cross-Project Handshake (anchor -> toolflow)
+      const fakeAnchorState = {
+        version: 1,
+        lastSweepAt: Date.now(),
+        anchors: [
+          {
+            id: "anc-1",
+            title: "OAuth2 核心重构与安全加固",
+            status: "active",
+            project: "toolflow",
+            cwd: p2Sandbox,
+            files: ["src/auth_core.ts", "config/security.json"]
+          },
+          {
+            id: "anc-2",
+            title: "历史遗留休眠任务",
+            status: "sleeping",
+            project: "toolflow",
+            cwd: p2Sandbox,
+            files: ["legacy/old.ts"]
+          }
+        ]
+      };
+      fs.writeFileSync(path.join(anchorSandbox, "state.json"), JSON.stringify(fakeAnchorState, null, 2), "utf-8");
+      process.env.ANCHOR_DIR = anchorSandbox;
+
+      const activeFiles = loadActiveAnchorFiles(p2Sandbox);
+      assert(activeFiles.includes("src/auth_core.ts"), "34.3.1 成功识别 active anchor 关联文件");
+      assert(activeFiles.includes("config/security.json"), "34.3.2 成功识别配置文件");
+      assert(activeFiles.includes("OAuth2 核心重构与安全加固"), "34.3.3 包含 anchor 标题关键词");
+      assert(!activeFiles.includes("legacy/old.ts"), "34.3.4 排除非 active 状态的 anchor 文件");
+
+      // 34.4 验证 isProtectedAnchor 语义与锚点文件保护
+      assert.strictEqual(isProtectedAnchor("Reading src/auth_core.ts line 1", activeFiles), true, "34.4.1 命中 active anchor 关联文件受保护");
+      assert.strictEqual(isProtectedAnchor("[Active Anchor Focus] Working on auth", activeFiles), true, "34.4.2 包含 [Active Anchor Focus] 受保护");
+      assert.strictEqual(isProtectedAnchor("<sticky-notes>\nCritical note\n</sticky-notes>", activeFiles), true, "34.4.3 包含 <sticky-notes 受保护");
+      assert.strictEqual(isProtectedAnchor("Normal verbose log from temp.log", activeFiles), false, "34.4.4 无关常规日志不被保护");
+
+      // 34.5 验证 slimHistoricalContextMessages 保护 active anchor 文件相关输出
+      const longToolOutputAnchor = Array.from({ length: 30 }, (_, i) => `src/auth_core.ts analysis log row ${i}: ok`).join("\n");
+      const longToolOutputIrrelevant = Array.from({ length: 30 }, (_, i) => `Unrelated stdout line ${i}: verbose output`).join("\n");
+
+      const handshakeEvent: any = {
+        messages: [
+          { role: "user", content: "Start handshake test" },
+          { role: "tool", content: longToolOutputAnchor }, // 关联 anchor 文件：应被保护！
+          { role: "tool", content: longToolOutputIrrelevant }, // 无关超长 tool 消息：应被折叠！
+          { role: "user", content: "m1" },
+          { role: "user", content: "m2" },
+          { role: "user", content: "m3" },
+          { role: "user", content: "m4" },
+          { role: "user", content: "m5" },
+          { role: "user", content: "m6" },
+          { role: "user", content: "m7" },
+          { role: "user", content: "m8" },
+          { role: "user", content: "m9" },
+          { role: "tool", content: longToolOutputIrrelevant } // 最近 8 条内的保护窗口
+        ]
+      };
+
+      slimHistoricalContextMessages(handshakeEvent, p2Sandbox);
+      assert(!handshakeEvent.messages[1].content.includes("ToolFlow Context Slimmer"), "34.5.1 关联 active anchor 文件的历史输出完整保留");
+      assert(handshakeEvent.messages[2].content.includes("ToolFlow Context Slimmer"), "34.5.2 无关历史输出被正确滑动折叠");
+      assert(!handshakeEvent.messages[12].content.includes("ToolFlow Context Slimmer"), "34.5.3 尾部保护窗口内的消息完好保留");
+
+      // 34.6 验证 ContextDehydrator.dehydrateToolOutput 净节约 Token 计量
+      const dehydrator = new ContextDehydrator(p2Sandbox, "bp_p2_net_savings");
+      const testStatsMgr = new StatsManager(p2Sandbox);
+      const longTerminalOutput = Array.from({ length: 80 }, (_, i) => `Server compilation step ${i + 1}: bundling module chunks...`).join("\n");
+      const dehydrateRes = dehydrator.dehydrateToolOutput("bash", longTerminalOutput);
+      assert.strictEqual(dehydrateRes.dehydrated, true, "34.6.1 终端超长日志触发脱水");
+      const statsAfter = testStatsMgr.getStats();
+      assert(statsAfter.totalTokensSaved > 0, "34.6.2 净节约 Token 成功入账");
+      assert(statsAfter.totalTokensSaved < Math.round(longTerminalOutput.length / 4) + 10, "34.6.3 净节约 Token 精准计量 (低于全量粗暴估算)");
+
+      console.log("  [OK] 34.1 - 34.6 Phase 2 解耦、Symbol Outline、Playbook 7 握手与净节约计量 100% 验证通过！\n");
+    } finally {
+      if (prevAnchorDir !== undefined) {
+        process.env.ANCHOR_DIR = prevAnchorDir;
+      } else {
+        delete process.env.ANCHOR_DIR;
+      }
+      try {
+        fs.rmSync(p2Sandbox, { recursive: true, force: true });
+        fs.rmSync(anchorSandbox, { recursive: true, force: true });
+      } catch (_) {}
+    }
+  }
+}
 
 runFullRegressionVerification().catch(err => {
   console.error("[FAILED] 回归测试失败:", err);
