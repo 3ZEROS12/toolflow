@@ -199,6 +199,8 @@ export interface StageSnapshot {
   timestamp: number;
   fileHashes: Record<string, string>;
   fileContents?: Record<string, string>;
+  /** Base64 payloads for non-UTF-8 files; writing `fileContents` (UTF-8) would corrupt them. */
+  fileBinaries?: Record<string, string>;
   changedFiles?: string[];
   gitTracked?: boolean;
   shadowCommitHash?: string;

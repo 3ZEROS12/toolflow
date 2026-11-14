@@ -173,7 +173,12 @@ export class StatsManager {
     try {
       const st = fs.statSync(this.statsFilePath);
       if (st.size <= STATS_COMPACT_BYTES) return;
-      const stats = this.getStats();
+      // Read the ledger directly instead of via getStats(): that accessor swallows read
+      // failures and returns zeroed counters, and compacting those would overwrite an
+      // intact ledger with an empty snapshot (transient EBUSY/EPERM is routine on Windows).
+      const raw = fs.readFileSync(this.statsFilePath, "utf-8");
+      if (raw.trim() === "") return; // never replace an opaque non-empty ledger with zeros
+      const stats = this.aggregate(raw);
       const snapshot = {
         snap: stats.totalTokensSaved,
         d: stats.dehydratedLogsCount,

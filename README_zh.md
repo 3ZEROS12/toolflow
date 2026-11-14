@@ -59,7 +59,7 @@ pi install npm:toolflow
 | `/toolflow status` | 查看当前蓝图或能力索引 |
 | `/toolflow dashboard` | 完整仪表盘：阶段流水线 + 节省账本 |
 | `/toolflow stats` | 查看 Token 节省账本 |
-| `/toolflow rollback [n]` | 回滚到第 n 阶段（默认当前阶段） |
+| `/toolflow rollback [n]` | 回滚到第 n 阶段（默认当前阶段）；二进制产物按字节还原，已暂存（staged）的改动不会被清空 |
 | `/toolflow export` | 导出当前蓝图到 `TOOLFLOW_BLUEPRINT.md` |
 | `/toolflow reset` | 清理活动状态、读缓存与脱水指针 |
 

@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
-import { execSync } from "node:child_process";
+import { execSync, execFileSync } from "node:child_process";
 import type {
   ArtifactRecord,
   Blueprint,
@@ -50,6 +50,18 @@ export function computeFileSha256(filePath: string): string {
   } catch {
     return "";
   }
+}
+
+/** Files above this size are hash-only: replaying them would cost more than a git checkout. */
+const SNAPSHOT_CONTENT_LIMIT_BYTES = 512 * 1024;
+
+/**
+ * Sniff for non-text payloads. A NUL byte in the first 8 KiB is the classic heuristic
+ * (`git` uses the same signal); text files never contain one.
+ */
+function isBinaryBuffer(buffer: Buffer): boolean {
+  const probe = buffer.subarray(0, 8192);
+  return probe.includes(0);
 }
 
 export function getGitChangedFiles(cwd: string = process.cwd()): {
@@ -329,6 +341,7 @@ export class WorkspaceStateStore {
   public captureStageSnapshot(stageIndex: number, stageId: string, blueprint: Blueprint): StageSnapshot {
     const fileHashes: Record<string, string> = {};
     const fileContents: Record<string, string> = {};
+    const fileBinaries: Record<string, string> = {};
 
     const candidates = new Set<string>(this.scanChangedFiles());
     for (const stage of blueprint.stages) {
@@ -347,8 +360,14 @@ export class WorkspaceStateStore {
         const stat = fs.statSync(fullPath);
         if (stat.isFile()) {
           fileHashes[relPath] = computeFileSha256(fullPath);
-          if (stat.size <= 512 * 1024) {
-            fileContents[relPath] = fs.readFileSync(fullPath, "utf-8");
+          if (stat.size <= SNAPSHOT_CONTENT_LIMIT_BYTES) {
+            const buffer = fs.readFileSync(fullPath);
+            // Rollback replays these payloads verbatim, so binaries must stay bytes.
+            if (isBinaryBuffer(buffer)) {
+              fileBinaries[relPath] = buffer.toString("base64");
+            } else {
+              fileContents[relPath] = buffer.toString("utf-8");
+            }
           }
         }
       } catch {
@@ -403,6 +422,7 @@ export class WorkspaceStateStore {
       timestamp: Date.now(),
       fileHashes,
       fileContents,
+      ...(Object.keys(fileBinaries).length > 0 ? { fileBinaries } : {}),
       changedFiles: Array.from(candidates),
       gitTracked,
       shadowCommitHash,
@@ -465,6 +485,42 @@ export class WorkspaceStateStore {
     return false;
   }
 
+  /**
+   * Replays the shadow tree into the working copy without touching the user's index.
+   *
+   * The previous implementation ran `git checkout <ref> -- .` followed by a bare
+   * `git reset HEAD`, which unstaged every file the user had staged before the rollback.
+   * `git restore --worktree` restores only the working copy; older gits fall back to
+   * checkout with the reset narrowed to the snapshot's own paths.
+   */
+  private restoreWorktreeFromShadow(ref: string): boolean {
+    const run = (args: string[], timeout = 5000): boolean => {
+      try {
+        execFileSync("git", args, { cwd: this.cwd, stdio: "ignore", timeout });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (run(["restore", `--source=${ref}`, "--worktree", "--", "."])) return true;
+
+    // git < 2.23: no `restore`. Checkout stages what it writes, so only unstage when that
+    // cannot cost the user anything (index already matches HEAD).
+    if (!run(["checkout", ref, "--", "."])) return false;
+
+    let indexClean = true;
+    try {
+      execSync("git diff --cached --quiet", { cwd: this.cwd, stdio: "ignore", timeout: 3000 });
+    } catch {
+      indexClean = false;
+    }
+    if (indexClean) {
+      run(["reset", "HEAD"], 3000);
+    }
+    return true;
+  }
+
   public rollbackStage(targetStageIndex?: number): {
     success: boolean;
     rolledBackToStage: number;
@@ -503,30 +559,12 @@ export class WorkspaceStateStore {
     const resolvedCwd = path.resolve(this.cwd);
 
     // 1. Restore tracked/untracked files from shadow commit/ref when present
-    if (snapshot.shadowRef) {
-      try {
-        execSync(`git checkout "${snapshot.shadowRef}" -- .`, {
-          cwd: this.cwd,
-          stdio: "ignore",
-          timeout: 5000,
-        });
-        execSync(`git reset HEAD`, { cwd: this.cwd, stdio: "ignore", timeout: 3000 });
-      } catch {
-        // Fall through to file-content restoration
-      }
-    } else if (snapshot.shadowCommitHash) {
-      try {
-        execSync(`git checkout ${snapshot.shadowCommitHash} -- .`, {
-          cwd: this.cwd,
-          stdio: "ignore",
-          timeout: 5000,
-        });
-      } catch {
-        // Fall through to file-content restoration
-      }
+    const shadowTarget = snapshot.shadowRef ?? snapshot.shadowCommitHash;
+    if (shadowTarget) {
+      this.restoreWorktreeFromShadow(shadowTarget);
     }
 
-    // 2. Restore exact file contents from snapshot
+    // 2. Restore exact file contents from snapshot (text first, then byte-exact binaries)
     for (const [relPath, content] of Object.entries(snapshot.fileContents ?? {})) {
       const fullPath = path.resolve(resolvedCwd, relPath);
       if (fullPath !== resolvedCwd && !fullPath.startsWith(resolvedCwd + path.sep)) continue;
@@ -534,6 +572,19 @@ export class WorkspaceStateStore {
         const dir = path.dirname(fullPath);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(fullPath, content, "utf-8");
+        restoredFiles.push(relPath);
+      } catch {
+        // Ignore locked target
+      }
+    }
+
+    for (const [relPath, base64] of Object.entries(snapshot.fileBinaries ?? {})) {
+      const fullPath = path.resolve(resolvedCwd, relPath);
+      if (fullPath !== resolvedCwd && !fullPath.startsWith(resolvedCwd + path.sep)) continue;
+      try {
+        const dir = path.dirname(fullPath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(fullPath, Buffer.from(base64, "base64"));
         restoredFiles.push(relPath);
       } catch {
         // Ignore locked target

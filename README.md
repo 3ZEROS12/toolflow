@@ -7,7 +7,7 @@ Stop tool overload and context bloat. Workspace-isolated log dehydration, duplic
 [![npm version](https://img.shields.io/npm/v/toolflow?color=blue)](https://www.npmjs.com/package/toolflow)
 [![npm downloads](https://img.shields.io/npm/dm/toolflow?color=22c55e&label=downloads)](https://www.npmjs.com/package/toolflow)
 [![GitHub stars](https://img.shields.io/github/stars/3ZEROS12/toolflow?color=yellow)](https://github.com/3ZEROS12/toolflow)
-[![Tests: 51 Pass](https://img.shields.io/badge/Tests-51%20Pass%20(100%25)-brightgreen)](tests/)
+[![Tests: 54 Pass](https://img.shields.io/badge/Tests-54%20Pass%20(100%25)-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 [English](./README.md) | [简体中文](./README_zh.md) | [日本語](./README_ja.md)
@@ -59,7 +59,7 @@ Two engines share one extension:
 | `/toolflow status` | Show the active blueprint or the capability index |
 | `/toolflow dashboard` | Full dashboard: stage pipeline plus the savings ledger |
 | `/toolflow stats` | Show the token savings ledger |
-| `/toolflow rollback [n]` | Revert workspace files to stage `n` (default: current stage) |
+| `/toolflow rollback [n]` | Revert workspace files to stage `n` (default: current stage); binary artifacts restore byte-exact and your staged index is left untouched |
 | `/toolflow export` | Export the active blueprint to `TOOLFLOW_BLUEPRINT.md` |
 | `/toolflow reset` | Clear active state, read caches, and dehydrated pointers |
 

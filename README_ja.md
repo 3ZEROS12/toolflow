@@ -59,7 +59,7 @@ pi install npm:toolflow
 | `/toolflow status` | 実行中ブループリントまたはケイパビリティ索引を表示 |
 | `/toolflow dashboard` | 総合ダッシュボード：ステージ進行と節約台帳 |
 | `/toolflow stats` | トークン節約台帳を表示 |
-| `/toolflow rollback [n]` | ステージ n（既定は現在ステージ）へ巻き戻す |
+| `/toolflow rollback [n]` | ステージ n（既定は現在ステージ）へ巻き戻す。バイナリ成果物はバイト単位で復元し、ステージ済みの変更は保持 |
 | `/toolflow export` | 現在のブループリントを `TOOLFLOW_BLUEPRINT.md` に書き出す |
 | `/toolflow reset` | 実行状態、読み取りキャッシュ、脱水ポインタを初期化 |
 
