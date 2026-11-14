@@ -1,10 +1,20 @@
 {
   "name": "toolflow",
-  "version": "4.0.0",
-  "description": "Save 80%+ context tokens in Pi — automatically compresses huge bash/grep logs, caches duplicate file reads, prunes unused tools, and blocks accidental .env/git deletions.",
+  "version": "5.0.0",
+  "description": "Pi context optimizer & staged blueprint workbench — workspace-isolated log dehydration, duplicate read cache, protected-file guard, and stage-gated capability mounting.",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "files": [
+    "dist",
     "src",
     "assets",
     "README.md",
@@ -14,45 +24,32 @@
   ],
   "pi": {
     "extensions": [
-      "src/index.ts"
+      "dist/index.js"
     ],
     "image": "https://raw.githubusercontent.com/3ZEROS12/toolflow/main/assets/hero-en.svg"
   },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean --external @earendil-works/pi-tui --external @earendil-works/pi-coding-agent --external @sinclair/typebox",
+    "typecheck": "tsc --noEmit",
+    "test": "npx tsx --test --test-concurrency=1 tests/*.test.ts",
+    "check": "npm run typecheck && npm test",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "pi",
+    "pi-coding-agent",
+    "extension",
+    "context",
+    "token-optimization",
+    "dehydration",
+    "guardrails",
+    "blueprint",
+    "stage-gate",
+    "agent"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/3ZEROS12/toolflow.git"
-  },
-  "homepage": "https://github.com/3ZEROS12/toolflow#readme",
-  "bugs": {
-    "url": "https://github.com/3ZEROS12/toolflow/issues"
-  },
-  "scripts": {
-    "test": "npx tsx tests/test_suite.ts",
-    "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm test"
-  },
-  "keywords": [
-    "pi-package",
-    "pi-extension",
-    "toolflow",
-    "token-saver",
-    "compression",
-    "context-compression",
-    "dehydration",
-    "sandbox",
-    "security",
-    "guardrails",
-    "workflow",
-    "blueprint",
-    "tool-pruning",
-    "interactive-sop",
-    "blast-radius-guard",
-    "cache",
-    "coding-agent"
-  ],
-  "peerDependencies": {
-    "@earendil-works/pi-coding-agent": ">=0.80.0",
-    "@sinclair/typebox": "*"
   },
   "author": "Jason",
   "license": "MIT",
@@ -61,7 +58,11 @@
     "@earendil-works/pi-tui": ">=0.80.0",
     "@sinclair/typebox": "^0.34.52",
     "@types/node": "^20.17.0",
+    "tsup": "^8.5.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "@sinclair/typebox": "*"
   }
 }

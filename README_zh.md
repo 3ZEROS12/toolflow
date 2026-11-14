@@ -1,156 +1,107 @@
 # ToolFlow ⌬
 
-面向 Pi Coding Agent 的动态工具沙箱与上下文脱水引擎。
+面向 Pi Coding Agent 的动态工具沙箱与上下文脱水器。
 
-告别工具过载与海量报错堆栈。按阶段精准挂载生态能力，长日志自动落盘脱水（削减 95% 冗余上下文），敏感配置防误删守卫，内置随身提示词工作台。
+告别工具过载与上下文膨胀：工作区隔离的日志脱水、重复读取拦截、敏感文件写入护栏，以及分阶段蓝图工作台。
 
 [![npm version](https://img.shields.io/npm/v/toolflow?color=blue)](https://www.npmjs.com/package/toolflow)
 [![npm downloads](https://img.shields.io/npm/dm/toolflow?color=22c55e&label=downloads)](https://www.npmjs.com/package/toolflow)
-[![GitHub stars](https://img.shields.io/github/stars/3ZEROS12/toolflow?style=flat&color=f59e0b)](https://github.com/3ZEROS12/toolflow/stargazers)
-[![Built for Pi](https://img.shields.io/badge/Built%20for-Pi%20Coding%20Agent-orange)](https://github.com/earendil-works/pi-coding-agent)
-[![Tests: 26 Suites Pass](https://img.shields.io/badge/Tests-26%20Suites%20Pass%20(100%25)-brightgreen)](tests/test_suite.ts)
+[![GitHub stars](https://img.shields.io/github/stars/3ZEROS12/toolflow?color=yellow)](https://github.com/3ZEROS12/toolflow)
+[![Tests: 43 Pass](https://img.shields.io/badge/Tests-43%20Pass%20(100%25)-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[English](./README.md) | [日本語](./README_ja.md) | **简体中文**
+[English](./README.md) | **简体中文** | [日本語](./README_ja.md)
 
 <p align="center">
-  <img src="assets/hero-en.svg" alt="ToolFlow 动态工具沙箱与上下文脱水" width="820">
+  <img src="assets/hero-en.svg" alt="ToolFlow Context Dehydrator &amp; Tool Sandboxing" width="820">
 </p>
-
-```text
-  ┌─ 工具定义过载 (40+ 工具与 MCP 同时塞入 System Prompt) ───────────────────────────────┐
-  │  read write edit bash browser_click mcp_query subagent_run git_reset ...             │
-  │  [后果: 无关工具定义过多，让它写个纯函数，它去调浏览器或连接数据库]                   │
-  └───────────────────────────────────────────────────────────────────────────────────────┘
-                                             │
-                                             ▼
-  ┌─ ToolFlow ⌬ 阶段化精准沙箱与长日志脱水 (-95% 上下文开销) ─────────────────────────────┐
-  │  阶段 1: 调研 ❯ [read, grep, find, web_search]                                        │
-  │  阶段 2: 编码 ❯ [read, edit, write, bash] (运行测试长日志 >40 行自动落盘脱水)         │
-  │  阶段 3: 走查 ❯ [read, grep, bash (只读走查)] (从运行时物理剥离写权限，保证客观)      │
-  └───────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-## 一键安装
-
-在 Pi 终端内直接运行：
 
 ```bash
 pi install npm:toolflow
 ```
 
-安装后开箱即用。敲入 `/toolflow` 随时调出交互式提示词提词器。
+---
+
+## 功能构成
+
+同一扩展内包含两套引擎：
+
+| 引擎 | 生效时机 | 作用 |
+| :--- | :--- | :--- |
+| **优化器** | 始终生效 | 归档冗长输出、拦截未变更的重复读取、压缩历史消息、拦截危险写入 |
+| **规划器** | `/toolflow <task>` 触发 | 任务诊断、分阶段 DAG 蓝图合成、按阶段挂载工具、产物校验后推进 |
+
+`src/optimizer/` 不依赖 `src/planner/`；规划器只通过公开函数调用优化器能力。
 
 ---
 
-## 核心价值：为什么需要 ToolFlow？
+## 工程要点
 
-在终端使用 AI 编程助手并接入大量 MCP 与扩展时，开发者普遍面临三重阻力：
-
-### 1. 工具定义过载与工具误调用
-当环境里装了数十个工具和 MCP 时，大量无关的工具 Schema 同时暴露在系统提示词中，极易分散模型注意力。
-让它写个简单的 TypeScript 工具函数，它偶尔会尝试启动无头浏览器；查个语法报错，它可能去连接数据库。
-`toolflow` 实行**阶段化按需挂载**：原生核心工具（`read`、`edit`、`write`、`bash`）全程可用；重型外部 MCP、浏览器与子代理仅在需要它们的阶段按需挂载。
-
-### 2. 冗长报错日志撑爆上下文
-跑一次测试或构建常常打印数百行堆栈日志。海量日志直接灌入上下文，往往三轮对话过去，上下文就达到了上限，触发过早的会话压缩，冲垮正在编写的代码记忆。
-`toolflow` 实行**实时长日志落盘脱水**：输出超过 40 行时，自动将全量日志归档至磁盘（`.pi/toolflow/runs/...`），仅向模型传递退出码、核心错误摘要与落盘文件路径，**直接削减 95% 的冗余 Token 开销**。
-
-### 3. 提示词零散与反复切屏
-常用实战提示词分散在备忘录、网页或历史记录中，反复复制粘贴严重打断终端编码心流。
-`toolflow` 内置**随身提词器工作台**：随时敲 `/toolflow` 唤起沉浸式提示词看板，按 `[p]` 键一秒将选中模板填入输入框，无需繁琐规划。
+- **工作区隔离状态**：缓存、账本与蓝图状态全部按解析后的工作区根目录隔离。同一 Pi 会话内切换项目，不会串台阶段状态、读缓存或节省计数。
+- **零冷启动副作用**：导入扩展不读写磁盘；只有钩子或命令真正写入时才创建 `.pi/`。
+- **日志脱水**：超过 40 行或 4 KB 的输出归档到 `.pi/toolflow/runs/<stage>/`，上下文只保留语义错误峰值（TS、Python、Rust、Go、JVM 堆栈）、首尾片段与磁盘路径。
+- **死循环拦截**：同一失败命令连续出现两次即明确提示，避免继续空耗对话轮次。
+- **读缓存门禁**：仅当文件 ≥30 行、哈希未变、未被编辑、非 `offset`/`limit` 定向切片，且自上轮读取后无 shell 变更时，才拦截重复的完整读取；命中时返回符号大纲便于定向补读。
+- **写入护栏**：拦截工作区外写入、敏感文件（`.env*`、`.git*`、各类锁文件）、危险 shell 模式（`rm -rf /`、`git reset --hard`、`rmdir /s` 等），以及活动阶段内超出目标范围的改动（可显式确认升级）。
+- **阶段校验**：每阶段声明期望产物与校验命令；产物缺失或命令失败会触发修复提示，连续三次失败进入熔断暂停。
 
 ---
 
-## 工作机制：行为-结果矩阵
+## 命令
 
-```text
-  /toolflow <任务内容>  (启动受控流水线)   /toolflow (无参数快速唤起随身提词器)
-```
-
-| 模式 / 场景 | 你做什么 | ToolFlow 幕后动作 | 模型/上下文得到什么 | 适用场景 |
-| :--- | :--- | :--- | :--- | :--- |
-| **阶段化工具挂载** | 启动任务 `/toolflow <task>` | 核心工具常驻，高阶 MCP/浏览器按需挂载 | 专注当前阶段的极简工具集，零工具混淆 | 中大型多阶段协同任务 |
-| **长日志实时脱水** | 运行耗时测试或复杂构建 | 拦截 >40 行冗长输出，全量归档至磁盘 | 仅传递退出码、错误摘要与落盘日志路径 (-95% Token) | 编译报错、多行测试堆栈 |
-| **只读走查隔离** | 进入阶段验收或 Code Review | 运行时物理剥离代码写权限 | 仅保留代码与测试只读验证工具，防止误改代码 | 代码审查、测试验收走查 |
-| **随身提词器** | 终端直接输入 `/toolflow` | 自动扫描本地与全局 `prompts/*.md` 模板 | 按 `[p]` 键一秒将选中提示词填入输入框 | 日常高频提示词秒级调用 |
-| **环境无损还原** | 任务结束或 `/toolflow reset` | 对比初始工具快照，归还并卸载临时挂载工具 | 100% 恢复原生干净工具箱，零残留 | 随时退出或重置 |
-
----
-
-## 核心特性与工程机制
-
-- 🛡️ **基础工具常驻，高阶生态按阶段挂载**：原生读写、搜索与终端（`read`, `edit`, `write`, `bash`, `grep` 等）全程保持可用，杜绝中途卡壳。外部重型 MCP 工具只在特定阶段挂载。
-- ⚡ **四重 Token 治理防线（削减 95% 开销）**：
-  * 超过 40 行的终端输出毫秒级全量落盘归档（`.pi/toolflow/runs/...`）；
-  * 阶段交接时监听 `session_before_compact`，自动剔除历史试错代码，向后仅传递物理产物路径；
-  * 重型 MCP 仅在需要时 JIT 挂载，其余阶段屏蔽其庞大的 JSON Schema。
-- 🔒 **敏感配置防误删守卫**：引擎底层监控原生写工具与终端执行指令。对核心敏感文件（`.env*`、`.git*`、包管理器锁文件）的越权篡改与删除操作，在引擎层直接物理拦截。
-- 🎨 **交付品质与工匠标准门禁**：拦截纯单调色块、粗制滥造的简笔线等敷衍产物。强制现代调色盘、8px 间距网格、高质感矢量 SVG 图标与平滑微动效。
-- 🔄 **工具生命周期严格还原**：首秒自动捕获会话初始工具快照。无论是正常竣工、意外崩溃，还是执行 `/toolflow reset`，100% 将工具箱恢复到原生面貌。
-
----
-
-## 常用命令与快捷键
-
-### 常用命令
 | 命令 | 说明 |
 | :--- | :--- |
-| `/toolflow` | 打开提示词模板工作台与任务初始化面板 |
-| `/toolflow <任务内容>` | 启动带工具沙箱与阶段治理的受控任务 |
-| `/toolflow status` | 查看当前阶段流水线与挂载工具状态 (别名: `/sop`) |
-| `/toolflow stats` | 查看累计节省 Token 收益账单（长日志脱水与重复读拦截统计） |
-| `/toolflow logs` | 调出最近一次被脱水截断的完整原始日志 |
-| `/toolflow rollback` | 撤销当前阶段的修改，回退到阶段开始前的快照 |
-| `/toolflow reset` | 清除当前任务状态并清理脱水临时缓存 |
-| `/toolflow export` | 将阶段规划与架构决策导出为 `BLUEPRINT.md` |
+| `/toolflow` | 打开提示词工作台与蓝图导航器 |
+| `/toolflow <task>` | 诊断任务、选择方案并执行分阶段蓝图 |
+| `/toolflow fast <task>` | 强制单阶段执行 |
+| `/toolflow status` | 查看当前蓝图或能力索引 |
+| `/toolflow stats` | 查看 Token 节省账本 |
+| `/toolflow rollback [n]` | 回滚到第 n 阶段（默认当前阶段） |
+| `/toolflow export` | 导出当前蓝图到 `TOOLFLOW_BLUEPRINT.md` |
+| `/toolflow reset` | 清理活动状态、读缓存与脱水指针 |
 
-### 快捷键指南
-- `[Enter]`：输入任务并开始受控执行
-- `[p]`：将选中的 Prompt 模板填入输入框
-- `[c]`：在终端就地新建 Prompt 模板
-- `[1-4]` / `[←/→]`：在方案决策面板中切换选项
-- `[Esc]`：退出当前浮层
+工具：`toolflow_inspect` 可按 `tail`、`head`、`grep`、`range` 模式查看归档日志，不污染主上下文。
 
 ---
 
-## 作者手记
+## 模块结构
 
-写 ToolFlow 的最初冲动，来自于我看着大模型在满载的工具箱里迷失方向时的无力感。
-
-在终端 AI 编程助手引入 MCP 协议与多 Agent 扩展后，我陆续安装了浏览器控制、数据库连接、多引擎搜索和多 Agent 流水线。然而几天后，一个隐蔽的问题浮出水面：当我向 AI 请教一个简单的 TypeScript 工具函数时，它偶尔会尝试启动 Chrome 或者拉起多 Agent 流程。暴露在模型面前的工具定义太多，干扰了模型的工具决策。
-
-另一个痛点是冗长的终端输出。跑一次编译测试或端到端验证，终端常常打印出大几百行的报错堆栈。这些原始日志直接塞满上下文窗口，往往三轮对话过去，上下文就达到了上限，触发过早的会话压缩，冲垮了正在编写的代码记忆。
-
-ToolFlow 针对这两个痛点做了两道物理防线：
-1. **阶段化工具挂载**：核心基础工具（`read`、`write`、`edit`、`bash`）始终可用，重型外部工具仅在真正需要的阶段动态挂载；
-2. **实时日志脱水**：超过 40 行的冗长输出自动落盘归档至磁盘，上下文仅保留退出状态码、核心错误摘要与日志路径。
-
-它让智能体的工具箱有了纪律，也让上下文窗口留给真正关键的代码逻辑。
-
----
-
-## 质量验证
-
-```bash
-npm test            # 物理全景回归测试套件 (26 大模块全部通过)
+```text
+src/
+├── core/        类型、原子文件读写、JSON 提取、工作区状态、文案字典、脚本辅助
+├── optimizer/   写入护栏、读缓存、日志脱水、上下文压缩、节省账本
+├── planner/     生态索引、深度生态、DAG 分波、任务路由、蓝图合成、校验器、提示词、记忆
+├── ui/          终端卡片与自定义导航组件
+└── extension/   命令注册、生命周期钩子、日志查看工具
 ```
 
 ---
 
-## 配套生态套件 (Pi Terminal Suite)
+## 质量保障
 
-四款扩展分别挂载于终端的不同物理槽位（`aboveEditor`、`belowEditor`、`status-only` 底栏与运行时工具钩子），独立运行或组合安装均不产生小部件重叠：
+```bash
+npm run typecheck   # 严格 tsc，零错误
+npm test            # node:test 套件 —— 35 项（core、optimizer、planner、UI、英文门禁、e2e）
+npm run build       # tsup 产出 ESM + CJS + DTS 到 dist/
+```
 
-| 插件仓库 | 终端挂载槽位与核心机制 | 一键安装 |
-| :--- | :--- | :--- |
-| **[`pi-lingual`](https://github.com/3ZEROS12/pi-lingual)** | `二 ⇄ two` `aboveEditor` 双语伴学视窗（≤9 行 UAX #11 树状排版）与母语提示词转写（0 会话历史 Token 注入） | `pi install npm:pi-lingual` |
-| **[`toolflow`](https://github.com/3ZEROS12/toolflow)** *(当前)* | `⌬` 运行时工具钩子 —— 按阶段动态挂载重型 MCP，>40 行终端长日志自动落盘脱水（削减 95% 日志 Token） | `pi install npm:toolflow` |
-| **[`pi-tui-status-beautifier`](https://github.com/3ZEROS12/pi-tui-status-beautifier)** | `status-only` 底栏微钩子 —— 6 套徽章预设、`<80` 列窄屏折叠 `(+N idle)`、重绘循环 0 磁盘读取 | `pi install npm:pi-tui-status-beautifier` |
-| **[`pi-anchor`](https://github.com/3ZEROS12/anchor)** | `⌖` `belowEditor` 1 行常驻便签条、0ms `pin:` 输入拦截、迷你进度条 `[■■□□]` 与原会话跳转 `↪` | `pi install npm:pi-anchor` |
+英文门禁会断言 `src/**` 中不含任何汉字（包括注释与正则字面量）。
 
 ---
 
-## 开源协议
+## 生态：Pi 终端套件
+
+四个扩展各占独立终端槽位（`aboveEditor`、`belowEditor`、`status-only` 页脚、运行时工具钩子），可同时启用且零控件重叠：
+
+| 包 | 终端槽位与机制 | 安装 |
+| :--- | :--- | :--- |
+| **[`pi-lingual`](https://github.com/3ZEROS12/pi-lingual)** | `二 ⇄ two` `aboveEditor` HUD（≤9 行，UAX #11 树形布局）与提示词英文化转换 | `pi install npm:pi-lingual` |
+| **[`toolflow`](https://github.com/3ZEROS12/toolflow)** *(当前)* | `⌬` 运行时工具钩子 —— 阶段化挂载、>40 行日志脱水、读缓存 | `pi install npm:toolflow` |
+| **[`pi-tui-status-beautifier`](https://github.com/3ZEROS12/pi-tui-status-beautifier)** | `status-only` 页脚钩子 —— 6 套徽标预设，`<80` 列空闲折叠 | `pi install npm:pi-tui-status-beautifier` |
+| **[`pi-anchor`](https://github.com/3ZEROS12/anchor)** | `⌖` `belowEditor` 单行便签条、0ms `pin:` 拦截、会话跳转 | `pi install npm:pi-anchor` |
+
+---
+
+## 许可证
 
 MIT © [Jason](https://github.com/3ZEROS12)
