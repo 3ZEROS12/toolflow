@@ -22,11 +22,12 @@ function anchorStatePath(): string {
 }
 
 function isTestEnvironment(): boolean {
+  // No argv sniffing: `/test/i` over argv matched any prompt containing "run tests" (and any
+  // script named *test*), silently disabling anchor contracts in real sessions.
   return Boolean(
     process.env.NODE_TEST_CONTEXT ||
       process.env.NODE_ENV === "test" ||
-      process.env.VITEST ||
-      (process.argv && process.argv.some(arg => /test/i.test(arg)))
+      process.env.VITEST
   );
 }
 

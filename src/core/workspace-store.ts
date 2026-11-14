@@ -198,6 +198,9 @@ export class WorkspaceStateStore {
 
   public resetRetry(): void {
     this.state.retryCount = 0;
+    // Persist immediately: a crash before the next advanceStage() resurrected the counter
+    // from disk and burned the remaining retry budget on a stage that already passed.
+    this.save();
   }
 
   public addCustomDirective(directive: string): void {

@@ -185,8 +185,14 @@ export class BlastRadiusGuard {
         const prefix = pattern.replace(/\/\*+$/, "");
         if (normalized.startsWith(`${prefix}/`) || normalized === prefix) return true;
       } else if (pattern.includes("*")) {
-        const regexStr = "^" + pattern.replace(/\./g, "\\.").replace(/\*/g, ".*") + "$";
-        if (new RegExp(regexStr).test(normalized)) return true;
+        const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regexStr = "^" + escaped.replace(/\*/g, ".*") + "$";
+        try {
+          if (new RegExp(regexStr).test(normalized)) return true;
+        } catch {
+          // A pattern we cannot compile must not throw out of the hook: treating it as a
+          // non-match keeps the guard's verdict deliverable.
+        }
       }
     }
     return false;
@@ -201,7 +207,14 @@ export class BlastRadiusGuard {
 
     if (WRITE_TOOLS[tool]) {
       const targetPath = this.extractTargetPath(event.input);
-      if (!targetPath) return { block: false };
+      if (!targetPath) {
+        // Fail closed: a write tool whose arguments carry no recognizable path (e.g. batch
+        // `delete` with `paths: [...]`) used to bypass containment and protected-file checks.
+        return {
+          block: true,
+          reason: `[ToolFlow Guard] Blocked "${tool}": no recognizable target path in tool arguments.`,
+        };
+      }
 
       const absoluteTarget = path.isAbsolute(targetPath)
         ? path.resolve(targetPath)
@@ -253,6 +266,19 @@ export class BlastRadiusGuard {
           return {
             block: true,
             reason: `[ToolFlow Guard] ${rule.reason}`,
+          };
+        }
+      }
+
+      // Redirections do not need a space (`echo x >.env`), so the whitespace tokenizer below
+      // sees one token `>.env` and matches nothing. Check targets before tokenizing.
+      for (const match of command.matchAll(/>>?\s*([^\s;&|]+)/g)) {
+        const target = match[1].replace(/^['"`]+|['"`]+$/g, "");
+        if (!target || target === "&1" || target === "&2" || target.startsWith("&")) continue;
+        if (this.isCriticalFile(this.normalizeRel(target))) {
+          return {
+            block: true,
+            reason: `[ToolFlow Guard] Blocked shell redirection into protected file "${target}".`,
           };
         }
       }

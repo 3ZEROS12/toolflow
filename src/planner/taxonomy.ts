@@ -15,6 +15,14 @@ import { getGitChangedFiles } from "../core/workspace-store.js";
 import { callExtensionLlm, type LlmModelRuntime } from "./llm-client.js";
 export type { LlmModelRuntime } from "./llm-client.js";
 
+function hasExplicitAgentDir(): boolean {
+  return Boolean(process.env.PI_CODING_AGENT_DIR || process.env.PI_CONFIG_DIR || process.env.PI_AGENT_DIR);
+}
+
+function isTestEnvironment(): boolean {
+  return Boolean(process.env.NODE_TEST_CONTEXT || process.env.NODE_ENV === "test" || process.env.VITEST);
+}
+
 function getPiAgentDir(): string {
   return (
     process.env.PI_CODING_AGENT_DIR ||
@@ -267,14 +275,21 @@ function scanMarkdownItems(
 }
 
 export function discoverEcosystemTaxonomy(cwd: string = process.cwd(), runtimeTools: unknown[] = []): EcosystemTaxonomy {
+  // Tests that never pointed PI_AGENT_DIR at a sandbox must not read the operator's live
+  // ~/.pi/agent tree (results were host-dependent and broke the zero-host-pollution rule).
+  // Workspace-local `.pi/` scanning still runs, so fingerprint and repo skills stay testable.
+  const agentDir = isTestEnvironment() && !hasExplicitAgentDir() ? "" : getPiAgentDir();
+  const agentPaths = (...segments: string[]): string[] =>
+    agentDir ? [path.join(agentDir, ...segments)] : [];
+
   const extensions: CapabilityItem[] = [];
   const skills: CapabilityItem[] = [];
   const prompts: CapabilityItem[] = [];
   const tools: CapabilityItem[] = [];
 
   const extSeen = new Set<string>();
-  const settingsPath = path.join(getPiAgentDir(), "settings.json");
-  if (fs.existsSync(settingsPath)) {
+  const settingsPath = agentDir ? path.join(agentDir, "settings.json") : "";
+  if (settingsPath && fs.existsSync(settingsPath)) {
     try {
       const parsed: unknown = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
       if (parsed && typeof parsed === "object" && "packages" in parsed && Array.isArray(parsed.packages)) {
@@ -305,13 +320,13 @@ export function discoverEcosystemTaxonomy(cwd: string = process.cwd(), runtimeTo
   }
 
   scanMarkdownItems(
-    [path.join(cwd, ".pi", "skills"), path.join(getPiAgentDir(), "skills")],
+    [path.join(cwd, ".pi", "skills"), ...agentPaths("skills")],
     "skill",
     skills,
     new Set<string>()
   );
   scanMarkdownItems(
-    [path.join(cwd, ".pi", "prompts"), path.join(getPiAgentDir(), "prompts")],
+    [path.join(cwd, ".pi", "prompts"), ...agentPaths("prompts")],
     "prompt",
     prompts,
     new Set<string>()

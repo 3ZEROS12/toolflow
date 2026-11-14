@@ -263,6 +263,7 @@ export function registerToolFlowCommand(
         store.reset();
         store.restoreInitialActiveTools(toolHost);
         clearAllReadCaches();
+        getStatsManager(cwd).resetLedger();
         clearAllStatsManagers();
         ContextDehydrator.clearLatestLogPaths();
         updateToolFlowStatusBar(ctx, store.getState(), cwd);

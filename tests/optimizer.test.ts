@@ -304,3 +304,71 @@ test("context-slimmer: reports per-pass reclaim and stays idempotent", () => {
   clearAllStatsManagers();
   fs.rmSync(workspace, { recursive: true, force: true });
 });
+
+test("blast-radius: fails closed on targets it cannot parse, and on space-less redirection", () => {
+  const workspace = makeWorkspace("guard-hard");
+  const guard = new BlastRadiusGuard();
+
+  // A write tool whose arguments carry no path used to slip past containment entirely.
+  const unparsed = guard.verifyToolCall({ toolName: "delete", input: { paths: ["src/a.ts"] } }, workspace);
+  assert.equal(unparsed.block, true);
+  assert.match(unparsed.reason ?? "", /no recognizable target path/);
+
+  // `>.env` is one whitespace token, so the mutating-token scan never matched it.
+  const redirect = guard.verifyToolCall({ toolName: "bash", input: { command: "echo pwn >.env" } }, workspace);
+  assert.equal(redirect.block, true);
+  assert.equal(guard.verifyToolCall({ toolName: "bash", input: { command: "npm run build >build.log" } }, workspace).block, false);
+
+  // Scope patterns come from the LLM; metacharacters must not throw out of the hook.
+  const stage: BlueprintStage = {
+    stageId: "s1",
+    title: "Regex Stage",
+    coreObjective: "touch one file",
+    boundCapabilities: {},
+    expectedArtifact: "src/app.ts",
+    artifactContract: "app exists",
+    allowedTools: ["read", "write"],
+    targetPatterns: ["src/(draft)+/*.ts"],
+  };
+  guard.configureStageScope(stage);
+  assert.doesNotThrow(() => guard.verifyToolCall({ toolName: "write", input: { path: "src/app.ts" } }, workspace));
+
+  fs.rmSync(workspace, { recursive: true, force: true });
+});
+
+test("stats: resetLedger deletes the ledger so counters cannot come back on re-read", () => {
+  const workspace = makeWorkspace("reset-ledger");
+  const manager = new StatsManager(workspace);
+  manager.recordSavings({ tokensSaved: 900, readCacheHits: 2 });
+  assert.equal(manager.getStats().totalTokensSaved, 900);
+
+  manager.resetLedger();
+  assert.equal(manager.getStats().totalTokensSaved, 0);
+  assert.equal(fs.existsSync(manager.getLedgerPath()), false);
+
+  // A fresh manager for the same workspace sees nothing to resurrect.
+  assert.equal(new StatsManager(workspace).getStats().totalTokensSaved, 0);
+
+  fs.rmSync(workspace, { recursive: true, force: true });
+});
+
+test("dehydrator: archiving a stage log does not claim inflated token savings", () => {
+  const workspace = makeWorkspace("stage-log");
+  const dehydrator = new ContextDehydrator(workspace);
+  const raw = Array.from({ length: 400 }, (_, i) => `line ${i} of stage output`).join("\n");
+
+  dehydrator.dehydrateStageLog({
+    stageId: "stage-1",
+    stageTitle: "Build API",
+    rawStageOutput: raw,
+    verifiedArtifacts: [],
+    contractSummary: "api exists",
+  });
+
+  const stats = getStatsManager(workspace).getStats();
+  assert.equal(stats.totalTokensSaved, 0, "archival is not a reclaim");
+  assert.equal(stats.dehydratedLogsCount, 0);
+
+  fs.rmSync(workspace, { recursive: true, force: true });
+  clearAllStatsManagers();
+});

@@ -88,6 +88,22 @@ export class StatsManager {
     return `ToolFlow Saved: ~${kSaved} tokens (${s.dehydratedLogsCount} dehydrated, ${s.readCacheHitsCount} cache hits)`;
   }
 
+  /**
+   * Delete the on-disk ledger and its compaction backup. `/toolflow reset` used to clear only
+   * the in-memory pool, so the next getStatsManager() re-read the old counters and the card's
+   * "Counters reset with /toolflow reset" promise was false.
+   */
+  public resetLedger(): void {
+    for (const file of [this.statsFilePath, `${this.statsFilePath}.bak`]) {
+      try {
+        fs.rmSync(file, { force: true });
+      } catch {
+        // Best-effort: an un-deletable ledger must not abort the reset.
+      }
+    }
+    this.cached = null;
+  }
+
   /** Absolute path of the append-only JSONL ledger backing these counters. */
   public getLedgerPath(): string {
     return this.statsFilePath;

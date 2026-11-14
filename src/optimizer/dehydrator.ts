@@ -404,15 +404,11 @@ export class ContextDehydrator {
       `Stage ${params.stageTitle} completed. Contract: ${params.contractSummary}. ` +
       `Artifacts: ${params.verifiedArtifacts.map(a => a.path).join(", ")}`;
     const compactBytes = Buffer.byteLength(compactText, "utf-8");
-    const savedTokens = Math.max(0, Math.round((rawBytes - compactBytes) / 4));
     const ratio = rawBytes > 0 ? `${Math.max(0, Math.round((1 - compactBytes / rawBytes) * 100))}%` : "0%";
 
-    if (savedTokens > 0) {
-      getStatsManager(this.cwd).recordSavings({
-        tokensSaved: savedTokens,
-        dehydratedLogs: 1,
-      });
-    }
+    // No recordSavings here: the raw turn text is copied to `.pi/toolflow/runs/`, not replaced
+    // in context, so nothing was reclaimed. The compact summary is returned as a handoff and the
+    // same bytes are folded (and counted) later by the context slimmer.
 
     const topologyHints = this.extractTopologyHints(params.rawStageOutput || "");
     return {

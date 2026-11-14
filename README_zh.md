@@ -7,7 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/toolflow?color=blue)](https://www.npmjs.com/package/toolflow)
 [![npm downloads](https://img.shields.io/npm/dm/toolflow?color=22c55e&label=downloads)](https://www.npmjs.com/package/toolflow)
 [![GitHub stars](https://img.shields.io/github/stars/3ZEROS12/toolflow?color=yellow)](https://github.com/3ZEROS12/toolflow)
-[![Tests: 51 Pass](https://img.shields.io/badge/Tests-51%20Pass%20(100%25)-brightgreen)](tests/)
+[![Tests: 57 Pass](https://img.shields.io/badge/Tests-57%20Pass%20(100%25)-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 [English](./README.md) | **简体中文** | [日本語](./README_ja.md)
@@ -42,10 +42,10 @@ pi install npm:toolflow
 - **日志脱水**：超过 40 行或 4 KB 的输出归档到 `.pi/toolflow/runs/<stage>/`，上下文只保留语义错误峰值（TS、Python、Rust、Go、JVM 堆栈）、首尾片段与磁盘路径。
 - **死循环拦截**：同一失败命令连续出现两次即明确提示，避免继续空耗对话轮次。
 - **读缓存门禁**：仅当文件 ≥30 行、哈希未变、未被编辑、非 `offset`/`limit` 定向切片，且自上轮读取后无 shell 变更时，才拦截重复的完整读取；命中时返回符号大纲便于定向补读。
-- **写入护栏**：拦截工作区外写入、敏感文件（`.env*`、`.git*`、各类锁文件）、危险 shell 模式（`rm -rf /`、`git reset --hard`、`rmdir /s` 等），以及活动阶段内超出目标范围的改动（可显式确认升级）。
+- **写入护栏**：拦截工作区外写入、敏感文件（`.env*`、`.git*`、各类锁文件）、危险 shell 模式（`rm -rf /`、`git reset --hard`、`rmdir /s` 等），以及活动阶段内超出目标范围的改动（可显式确认升级）。护栏默认拒绝：写类工具若参数里找不到可识别路径直接拦截，shell 重定向目标即使没写空格（`echo x >.env`）同样拦下。
 - **阶段校验**：每阶段声明期望产物与校验命令；产物缺失或命令失败会触发修复提示，连续三次失败进入熔断暂停。
 - **底栏徽标**：`[2/3] Implementing · ~1.4k saved · 2 guarded` —— 阶段标题按码点裁剪，去掉产品名（Pi 已自带 key 前缀），零值计数自动隐藏，`pi-tui-status-beautifier` 可直接解析。
-- **上下文回收有回执**：折叠旧工具块时每次仅提示一次 `Stage history compacted (~N tokens released)` 并刷新徽标；已折叠的块保持静默，单轮不会重复计数。
+- **上下文回收有回执**：折叠旧工具块时每次仅提示一次 `Stage history compacted (~N tokens released)` 并刷新徽标。归档到 `.pi/toolflow/runs/` 的阶段日志按 0 Token 记账——原文是复制而非移出上下文，只有折叠才算真实回收。
 
 ---
 
@@ -61,7 +61,7 @@ pi install npm:toolflow
 | `/toolflow stats` | 查看 Token 节省账本 |
 | `/toolflow rollback [n]` | 回滚到第 n 阶段（默认当前阶段）；二进制产物按字节还原，已暂存（staged）的改动不会被清空 |
 | `/toolflow export` | 导出当前蓝图到 `TOOLFLOW_BLUEPRINT.md` |
-| `/toolflow reset` | 清理活动状态、读缓存与脱水指针 |
+| `/toolflow reset` | 清理活动状态、读缓存、脱水指针与节省账本 |
 
 工具：`toolflow_inspect` 可按 `tail`、`head`、`grep`、`range` 模式查看归档日志，不污染主上下文。
 
