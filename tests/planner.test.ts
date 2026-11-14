@@ -15,6 +15,7 @@ import { synthesizeBlueprint } from "../src/planner/synthesizer.js";
 import { verifyStageArtifacts } from "../src/planner/verifier.js";
 import { clearAllWorkspaceStores, getWorkspaceStore } from "../src/core/workspace-store.js";
 import { formatActiveAnchorHint, loadActiveAnchorFiles } from "../src/planner/anchor-handshake.js";
+import { PromptsManager } from "../src/planner/prompts-manager.js";
 
 function makeWorkspace(prefix: string, files: Record<string, string> = {}): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `toolflow-plan-${prefix}-`));
@@ -307,4 +308,31 @@ test("verifier: a failing verification command leaves the artifact ledger empty"
 
   fs.rmSync(workspace, { recursive: true, force: true });
   clearAllWorkspaceStores();
+});
+
+test("prompts: PI_CODING_AGENT_DIR and PromptsManager resolve the same agent directory", () => {
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "toolflow-agentdir-"));
+  const previous = {
+    coding: process.env.PI_CODING_AGENT_DIR,
+    config: process.env.PI_CONFIG_DIR,
+    agent: process.env.PI_AGENT_DIR,
+  };
+  process.env.PI_CODING_AGENT_DIR = sandbox;
+  delete process.env.PI_CONFIG_DIR;
+  delete process.env.PI_AGENT_DIR;
+  try {
+    const info = PromptsManager.addUserPrompt("parity probe", "resolver parity", "body");
+    assert.equal(path.dirname(info.filePath), path.join(sandbox, "prompts"));
+    assert.equal(fs.existsSync(info.filePath), true);
+  } finally {
+    for (const [key, value] of [
+      ["PI_CODING_AGENT_DIR", previous.coding],
+      ["PI_CONFIG_DIR", previous.config],
+      ["PI_AGENT_DIR", previous.agent],
+    ] as const) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    fs.rmSync(sandbox, { recursive: true, force: true });
+  }
 });

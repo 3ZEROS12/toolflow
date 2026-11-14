@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as os from "node:os";
 import { extractValidJsonObject } from "../core/json-extract.js";
+import { getPiAgentDir } from "../core/agent-dir.js";
 import { callExtensionLlm, type LlmModelRuntime } from "./llm-client.js";
 
 export interface PromptItemInfo {
@@ -17,7 +17,7 @@ export interface PromptItemInfo {
 
 export class PromptsManager {
   private static getAgentDir(): string {
-    return process.env.PI_AGENT_DIR || path.join(os.homedir(), ".pi", "agent");
+    return getPiAgentDir();
   }
 
   private static getMruFilePath(): string {

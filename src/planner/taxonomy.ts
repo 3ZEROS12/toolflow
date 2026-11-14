@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
-import * as os from "node:os";
 import type {
   CapabilityItem,
   EcosystemTaxonomy,
@@ -10,26 +9,14 @@ import type {
   ProjectType,
 } from "../core/types.js";
 import { atomicWriteFileSync } from "../core/atomic-fs.js";
+import { getPiAgentDir, hasExplicitAgentDir } from "../core/agent-dir.js";
 import { extractValidJsonObject } from "../core/json-extract.js";
 import { getGitChangedFiles } from "../core/workspace-store.js";
 import { callExtensionLlm, type LlmModelRuntime } from "./llm-client.js";
 export type { LlmModelRuntime } from "./llm-client.js";
 
-function hasExplicitAgentDir(): boolean {
-  return Boolean(process.env.PI_CODING_AGENT_DIR || process.env.PI_CONFIG_DIR || process.env.PI_AGENT_DIR);
-}
-
 function isTestEnvironment(): boolean {
   return Boolean(process.env.NODE_TEST_CONTEXT || process.env.NODE_ENV === "test" || process.env.VITEST);
-}
-
-function getPiAgentDir(): string {
-  return (
-    process.env.PI_CODING_AGENT_DIR ||
-    process.env.PI_CONFIG_DIR ||
-    process.env.PI_AGENT_DIR ||
-    path.join(os.homedir(), ".pi", "agent")
-  );
 }
 
 function getRuntimeTaxonomyCachePath(): string {
