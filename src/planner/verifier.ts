@@ -221,7 +221,8 @@ export function verifyStageArtifacts(
         gitStatus,
       };
       verifiedRecords.push(record);
-      store.recordArtifact(relPath, record);
+      // Recorded only after every verification command passes (below): a failed stage used to
+      // leave the ledger populated and inflate "Artifacts Verified" in the receipt.
     } catch {
       missingArtifacts.push(relPath);
     }
@@ -315,6 +316,9 @@ export function verifyStageArtifacts(
     };
   }
 
+  for (const record of verifiedRecords) {
+    store.recordArtifact(record.path, record);
+  }
   store.resetRetry();
 
   if (rawStageOutput) {

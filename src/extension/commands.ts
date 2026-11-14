@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { truncateToWidth } from "@earendil-works/pi-tui";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
@@ -45,10 +46,12 @@ function asCustomUiHost(ctx: ExtensionContext | ExtensionCommandContext): Custom
   return ui && typeof ui.custom === "function" ? (ui as CustomUiHost) : null;
 }
 
-/** Stage titles are user/LLM text; clamp by code point so the badge never wraps. */
-function clampLabel(text: string, max = 30): string {
-  const chars = [...text];
-  return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : text;
+/**
+ * Stage titles are user/LLM text and follow the user's language, so a CJK title of 30 code
+ * points is ~60 columns and wrapped the footer. Clamp by display columns instead.
+ */
+function clampLabel(text: string, maxColumns = 30): string {
+  return truncateToWidth(text, maxColumns, "…");
 }
 
 export function updateToolFlowStatusBar(

@@ -13,7 +13,7 @@ import {
 import { discoverEcosystemTaxonomy, sniffProjectFingerprint } from "../src/planner/taxonomy.js";
 import { synthesizeBlueprint } from "../src/planner/synthesizer.js";
 import { verifyStageArtifacts } from "../src/planner/verifier.js";
-import { clearAllWorkspaceStores } from "../src/core/workspace-store.js";
+import { clearAllWorkspaceStores, getWorkspaceStore } from "../src/core/workspace-store.js";
 import { formatActiveAnchorHint, loadActiveAnchorFiles } from "../src/planner/anchor-handshake.js";
 
 function makeWorkspace(prefix: string, files: Record<string, string> = {}): string {
@@ -269,4 +269,42 @@ test("synthesizer: extracts task-mentioned source and test file paths into stage
   assert.ok(bp.stages[0].targetPatterns?.includes("src/calc.js"));
   assert.ok(bp.stages[0].targetPatterns?.includes("tests/calc.test.js"));
   fs.rmSync(workspace, { recursive: true, force: true });
+});
+
+test("verifier: a failing verification command leaves the artifact ledger empty", () => {
+  clearAllWorkspaceStores();
+  const workspace = makeWorkspace("verify-cmd", { "package.json": "{}" });
+  fs.mkdirSync(path.join(workspace, "src"), { recursive: true });
+  fs.writeFileSync(path.join(workspace, "src", "index.ts"), "export const value = 1;\n", "utf-8");
+
+  const gate: BlueprintStage = {
+    stageId: "stage_1",
+    title: "Stage 1",
+    coreObjective: "create index",
+    boundCapabilities: {},
+    expectedArtifact: "src/index.ts",
+    artifactContract: "exists",
+    allowedTools: ["read", "write"],
+    verificationCommands: ['node -e "process.exit(1)"'],
+  };
+
+  const result = verifyStageArtifacts(gate, workspace);
+  assert.equal(result.valid, false);
+  assert.equal(result.retryCount, 1);
+
+  const state = getWorkspaceStore(workspace).getState();
+  assert.deepEqual(
+    Object.keys(state.artifactLedger ?? {}),
+    [],
+    "an unverified artifact must not be reported as verified"
+  );
+
+  // Once the command passes, the artifact is recorded.
+  const passing: BlueprintStage = { ...gate, verificationCommands: ['node -e "process.exit(0)"'] };
+  const ok = verifyStageArtifacts(passing, workspace);
+  assert.equal(ok.valid, true);
+  assert.deepEqual(Object.keys(getWorkspaceStore(workspace).getState().artifactLedger ?? {}), ["src/index.ts"]);
+
+  fs.rmSync(workspace, { recursive: true, force: true });
+  clearAllWorkspaceStores();
 });

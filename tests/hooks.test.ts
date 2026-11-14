@@ -5,6 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { registerToolFlowHooks } from "../src/extension/hooks.js";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { updateToolFlowStatusBar } from "../src/extension/commands.js";
 import { getStatsManager } from "../src/optimizer/stats.js";
 import { clearAllWorkspaceStores, getWorkspaceStore } from "../src/core/workspace-store.js";
@@ -330,6 +331,22 @@ test("status bar: compact badge tracks stage progress, guards, and clamps long t
   assert.ok(!statuses[0].includes("toolflow"), "the status key already carries the product name");
   assert.ok(statuses[0].includes("…"), "long stage titles are clamped");
   assert.ok(!statuses[0].includes(longTitle));
+
+  // A CJK title is ~2 columns per code point: clamping by code point still wrapped the footer.
+  const cjkBlueprint = {
+    ...(blueprint as object),
+    stages: [
+      { stageId: "stage_1", title: "实现阶段一的用户认证模块并补齐全部单元测试与边界校验用例", coreObjective: "a", boundCapabilities: {}, expectedArtifact: "src/a.ts", artifactContract: "exists", allowedTools: ["read"] },
+    ],
+  } as unknown as SessionPlanState["currentBlueprint"];
+  updateToolFlowStatusBar(
+    ctx,
+    { ...baseState, currentBlueprint: cjkBlueprint, status: "in_progress" } as unknown as SessionPlanState,
+    workspace
+  );
+  const cjkBadge = statuses.at(-1)!;
+  assert.ok(visibleWidth(cjkBadge) < visibleWidth("　".repeat(0) + "实现阶段一的用户认证模块并补齐全部单元测试与边界校验用例"), "CJK stage title is clamped by columns");
+  assert.ok(cjkBadge.includes("…"));
   assert.match(statuses[1], /^✓ Completed · ~0 saved$/);
   assert.match(statuses[2], /^▲ Paused · rollback · ~0 saved$/);
   assert.equal(statuses[3], "~0 saved");

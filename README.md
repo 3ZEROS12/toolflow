@@ -7,7 +7,7 @@ Stop tool overload and context bloat. Workspace-isolated log dehydration, duplic
 [![npm version](https://img.shields.io/npm/v/toolflow?color=blue)](https://www.npmjs.com/package/toolflow)
 [![npm downloads](https://img.shields.io/npm/dm/toolflow?color=22c55e&label=downloads)](https://www.npmjs.com/package/toolflow)
 [![GitHub stars](https://img.shields.io/github/stars/3ZEROS12/toolflow?color=yellow)](https://github.com/3ZEROS12/toolflow)
-[![Tests: 57 Pass](https://img.shields.io/badge/Tests-57%20Pass%20(100%25)-brightgreen)](tests/)
+[![Tests: 58 Pass](https://img.shields.io/badge/Tests-58%20Pass%20(100%25)-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 [English](./README.md) | [简体中文](./README_zh.md) | [日本語](./README_ja.md)
@@ -43,7 +43,7 @@ Two engines share one extension:
 - **Loop buster**: an identical failing command repeated twice gets called out explicitly instead of silently burning another turn.
 - **Read cache gates**: duplicate full reads are intercepted only when the file is ≥30 lines, hash-identical, not recently edited, not a targeted `offset`/`limit` slice, and no shell mutation happened since the last read. Hits return a symbol outline for targeted follow-up reads.
 - **Blast radius guard**: blocks writes outside the workspace, protected files (`.env*`, `.git*`, lockfiles), destructive shell patterns (`rm -rf /`, `git reset --hard`, `rmdir /s`, …), and out-of-scope edits during an active stage with an explicit escalation prompt. It fails closed: a write tool whose arguments carry no recognizable path is blocked rather than waved through, and shell redirection targets are checked even when written without a space (`echo x >.env`).
-- **Stage verification**: each stage declares expected artifacts and verification commands. Missing artifacts or failing commands feed a remediation turn; three consecutive failures trip a circuit breaker.
+- **Stage verification**: each stage declares expected artifacts and verification commands. Missing artifacts or failing commands feed a remediation turn; three consecutive failures trip a circuit breaker. An artifact is written to the ledger only after every verification command passes, so a failed stage never shows up as verified.
 - **Footer badge**: `[2/3] Implementing · ~1.4k saved · 2 guarded` — stage title clamped by code point, the product name dropped (Pi already prefixes the key), zero counters hidden, and counters parsed as-is by `pi-tui-status-beautifier`.
 - **Context reclaim is reported**: folding a stale tool block emits one `Stage history compacted (~N tokens released)` notice per fold and refreshes the badge. Archiving a stage log to `.pi/toolflow/runs/` counts as 0 tokens: the text is copied, not removed, so only the fold is billed as reclaimed.
 
