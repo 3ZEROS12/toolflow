@@ -372,3 +372,23 @@ test("dehydrator: archiving a stage log does not claim inflated token savings", 
   fs.rmSync(workspace, { recursive: true, force: true });
   clearAllStatsManagers();
 });
+
+test("dehydrator: quota eviction keeps the newest run log toolflow_inspect reads back", () => {
+  const workspace = makeWorkspace("prune");
+  const dehydrator = new ContextDehydrator(workspace);
+
+  const handoff = dehydrator.dehydrateStageLog({
+    stageId: "stage-prune",
+    stageTitle: "Prune Stage",
+    rawStageOutput: "line\n".repeat(50),
+    verifiedArtifacts: [],
+    contractSummary: "contract",
+  });
+
+  const deleted = dehydrator.pruneOldRuns(24, 1);
+  const kept = path.join(workspace, handoff.rawLogFilePath.replace(/\//g, path.sep));
+  assert.equal(fs.existsSync(kept), true, `newest log was evicted (deleted=${deleted})`);
+
+  fs.rmSync(workspace, { recursive: true, force: true });
+  clearAllStatsManagers();
+});

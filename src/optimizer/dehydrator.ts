@@ -49,7 +49,6 @@ export class ContextDehydrator {
   private consecutiveIdenticalFailures = 0;
 
   private static readonly latestLogPaths = new Map<string, string>();
-  private static readonly protectedPathPools = new Map<string, Set<string>>();
 
   constructor(cwd: string = process.cwd()) {
     this.cwd = path.resolve(cwd);
@@ -58,27 +57,6 @@ export class ContextDehydrator {
 
   private static workspaceKey(cwd: string): string {
     return normalizeWorkspaceKey(cwd);
-  }
-
-  public static setProtectedPaths(paths: string[], cwd: string = process.cwd()): void {
-    const key = ContextDehydrator.workspaceKey(cwd);
-    const set = new Set<string>();
-    for (const p of paths) {
-      if (p) set.add(path.resolve(cwd, p));
-    }
-    ContextDehydrator.protectedPathPools.set(key, set);
-  }
-
-  public static getProtectedPaths(cwd: string = process.cwd()): Set<string> {
-    return ContextDehydrator.protectedPathPools.get(ContextDehydrator.workspaceKey(cwd)) ?? new Set();
-  }
-
-  public static clearProtectedPaths(cwd?: string): void {
-    if (cwd) {
-      ContextDehydrator.protectedPathPools.delete(ContextDehydrator.workspaceKey(cwd));
-    } else {
-      ContextDehydrator.protectedPathPools.clear();
-    }
   }
 
   public static getLatestLogPath(cwd?: string): string | null {
@@ -98,27 +76,17 @@ export class ContextDehydrator {
     ContextDehydrator.latestLogPaths.clear();
   }
 
-  public getDirectorySizeBytes(dirPath: string = this.runsBaseDir): number {
-    let total = 0;
-    try {
-      if (!fs.existsSync(dirPath)) return 0;
-      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-      for (const entry of entries) {
-        const full = path.join(dirPath, entry.name);
-        if (entry.isDirectory()) {
-          total += this.getDirectorySizeBytes(full);
-        } else if (entry.isFile()) {
-          try {
-            total += fs.statSync(full).size;
-          } catch {
-            // Ignore transient vanished file
-          }
-        }
-      }
-    } catch {
-      return 0;
-    }
-    return total;
+  /**
+   * Newest run log is never evicted: `toolflow_inspect` reads it back, so deleting it under
+   * quota pressure left the tool with nothing to show. (The old `setProtectedPaths` pool had
+   * no caller and only ever compared paths outside the runs directory, so it was inert.)
+   */
+  private protectedRunFiles(): Set<string> {
+    const key = ContextDehydrator.workspaceKey(this.cwd);
+    const latest = ContextDehydrator.latestLogPaths.get(key);
+    // The pool stores workspace-relative paths (that is what `toolflow_inspect` reports), so
+    // resolve against this workspace, not against the process cwd.
+    return latest ? new Set([path.resolve(this.cwd, latest)]) : new Set();
   }
 
   public pruneOldRuns(maxAgeHours: number = 24, maxTotalBytes: number = MAX_RUNS_DISK_QUOTA_BYTES): number {
@@ -128,7 +96,7 @@ export class ContextDehydrator {
 
       const cutoffMs = Date.now() - maxAgeHours * 60 * 60 * 1000;
       const allFiles: Array<{ path: string; mtimeMs: number; size: number }> = [];
-      const protectedSet = ContextDehydrator.getProtectedPaths(this.cwd);
+      const protectedSet = this.protectedRunFiles();
 
       const walk = (dir: string): void => {
         for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -439,5 +407,4 @@ export function getDehydrator(cwd: string = process.cwd()): ContextDehydrator {
 export function clearAllDehydrators(): void {
   dehydratorPool.clear();
   ContextDehydrator.clearLatestLogPaths();
-  ContextDehydrator.clearProtectedPaths();
 }

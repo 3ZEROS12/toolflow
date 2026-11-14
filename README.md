@@ -7,7 +7,7 @@ Stop tool overload and context bloat. Workspace-isolated log dehydration, duplic
 [![npm version](https://img.shields.io/npm/v/toolflow?color=blue)](https://www.npmjs.com/package/toolflow)
 [![npm downloads](https://img.shields.io/npm/dm/toolflow?color=22c55e&label=downloads)](https://www.npmjs.com/package/toolflow)
 [![GitHub stars](https://img.shields.io/github/stars/3ZEROS12/toolflow?color=yellow)](https://github.com/3ZEROS12/toolflow)
-[![Tests: 58 Pass](https://img.shields.io/badge/Tests-58%20Pass%20(100%25)-brightgreen)](tests/)
+[![Tests: 59 Pass](https://img.shields.io/badge/Tests-59%20Pass%20(100%25)-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 [English](./README.md) | [简体中文](./README_zh.md) | [日本語](./README_ja.md)
