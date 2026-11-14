@@ -259,3 +259,48 @@ test("regression: Windows drive-case containment, pooled StatsManager, and colli
   clearAllStatsManagers();
   fs.rmSync(workspace, { recursive: true, force: true });
 });
+
+test("stats: compact badge stays short, drops zero counters, and reports guard blocks", () => {
+  const workspace = makeWorkspace("badge");
+  const stats = new StatsManager(workspace);
+
+  // A brand-new ledger still renders a badge instead of an empty string.
+  assert.equal(stats.getCompactBadge(), "~0 saved");
+
+  stats.recordSavings({ tokensSaved: 1400, dehydratedLogs: 2 });
+  assert.equal(stats.getCompactBadge(), "~1.4k saved · 2 logs");
+
+  stats.recordSavings({ readCacheHits: 3, blastRadiusBlocks: 2 });
+  assert.equal(stats.getCompactBadge(), "~1.4k saved · 2 logs · 3 hits · 2 guarded");
+  assert.ok(!stats.getCompactBadge().includes("toolflow"), "badge must not repeat the status key");
+  assert.equal(stats.getLedgerPath(), path.join(workspace, ".pi", "toolflow", "stats.jsonl"));
+
+  // The long human-facing form is unchanged for callers that want the full sentence.
+  assert.match(stats.getFormattedSavings(), /ToolFlow Saved: ~1\.4k tokens/);
+
+  fs.rmSync(workspace, { recursive: true, force: true });
+});
+
+test("context-slimmer: reports per-pass reclaim and stays idempotent", () => {
+  const workspace = makeWorkspace("slim-count");
+  const longText = (label: string): string => `${label}\n${"z".repeat(4000)}`;
+  const buildMessages = (): Array<Record<string, unknown>> => [
+    { role: "toolResult", toolName: "bash", content: [{ type: "text", text: longText("build log") }] },
+    ...Array.from({ length: 8 }, (_, i) => ({ role: i % 2 === 0 ? "user" : "assistant", content: "ok" })),
+  ];
+
+  const messages = buildMessages();
+  const first = slimHistoricalContextMessages({ messages }, workspace);
+  assert.equal(typeof first, "number");
+  assert.ok(first > 0, "folding a 4000-char block must report reclaimed tokens");
+
+  // Second pass over the already-folded transcript must not double-count.
+  assert.equal(slimHistoricalContextMessages({ messages }, workspace), 0);
+  assert.equal(getStatsManager(workspace).getStats().totalTokensSaved, first);
+
+  // Too-short transcripts are left alone.
+  assert.equal(slimHistoricalContextMessages({ messages: buildMessages().slice(0, 3) }, workspace), 0);
+
+  clearAllStatsManagers();
+  fs.rmSync(workspace, { recursive: true, force: true });
+});

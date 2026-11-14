@@ -19,7 +19,7 @@ import {
   synthesizeBlueprint,
   synthesizeBlueprintPlanWithLLM,
 } from "../planner/synthesizer.js";
-import { renderBlueprintSummary, renderCompactEcosystemOverview } from "../ui/cards.js";
+import { renderBlueprintSummary, renderCompactEcosystemOverview, renderSavingsLedger } from "../ui/cards.js";
 import { openArchitectNavigator, type CustomUiHost } from "../ui/navigator.js";
 
 const TOOL_HOST_KEYS = ["setActiveTools", "getAllTools", "getActiveTools"] as const;
@@ -45,6 +45,12 @@ function asCustomUiHost(ctx: ExtensionContext | ExtensionCommandContext): Custom
   return ui && typeof ui.custom === "function" ? (ui as CustomUiHost) : null;
 }
 
+/** Stage titles are user/LLM text; clamp by code point so the badge never wraps. */
+function clampLabel(text: string, max = 30): string {
+  const chars = [...text];
+  return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : text;
+}
+
 export function updateToolFlowStatusBar(
   ctx: Pick<ExtensionContext, "ui"> | undefined,
   state: Readonly<SessionPlanState>,
@@ -53,27 +59,41 @@ export function updateToolFlowStatusBar(
   const ui = ctx?.ui;
   if (!ui || typeof ui.setStatus !== "function") return;
 
-  const savings = getStatsManager(cwd).getFormattedSavings();
+  // Pi prefixes the badge with its own key (`toolflow: …`), so the value never repeats
+  // the product name — that keeps the badge short enough to survive narrow panes.
+  const savings = getStatsManager(cwd).getCompactBadge();
 
   if (state.status === "in_progress" && state.currentBlueprint) {
     const idx = state.currentStageIndex + 1;
     const total = state.currentBlueprint.stages.length;
     const stage = state.currentBlueprint.stages[state.currentStageIndex];
-    ui.setStatus("toolflow", `ToolFlow [${idx}/${total}] ${stage ? stage.title : "Running"} | ${savings}`);
+    const label = clampLabel(stage ? stage.title : "Running");
+    ui.setStatus("toolflow", `[${idx}/${total}] ${label} · ${savings}`);
     return;
   }
 
   if (state.status === "completed" && state.currentBlueprint) {
-    ui.setStatus("toolflow", `ToolFlow [Completed] | ${savings}`);
+    ui.setStatus("toolflow", `✓ Completed · ${savings}`);
     return;
   }
 
   if (state.status === "healing_failed_circuit_break") {
-    ui.setStatus("toolflow", `ToolFlow [Paused: /toolflow rollback] | ${savings}`);
+    ui.setStatus("toolflow", `▲ Paused · rollback · ${savings}`);
     return;
   }
 
   ui.setStatus("toolflow", savings);
+}
+
+/** Ledger card shared by `/toolflow stats` and `/toolflow dashboard`. */
+export function renderStatsLedger(cwd?: string): string {
+  const manager = getStatsManager(cwd);
+  const summary = manager.getSavingsSummary();
+  return renderSavingsLedger({
+    stats: summary.stats,
+    estimatedRatioPercent: summary.estimatedRatioPercent,
+    ledgerPath: manager.getLedgerPath(),
+  });
 }
 
 export function registerToolFlowCommand(
@@ -251,17 +271,20 @@ export function registerToolFlowCommand(
       }
 
       if (trimmedArgs === "stats") {
-        const stats = getStatsManager(cwd).getStats();
-        ctx.ui?.notify?.(
-          `ToolFlow Ledger: ~${stats.totalTokensSaved} tokens saved | ` +
-            `${stats.dehydratedLogsCount} logs dehydrated | ${stats.readCacheHitsCount} read cache hits | ` +
-            `${stats.blastRadiusBlocksCount} guard blocks`,
-          "info"
-        );
+        ctx.ui?.notify?.(renderStatsLedger(cwd), "info");
         return;
       }
 
       const taxonomy = reflectEnvironmentContext(toolHost, cwd);
+
+      if (trimmedArgs === "dashboard") {
+        const current = store.getState();
+        const stageView = current.currentBlueprint
+          ? renderBlueprintSummary(current.currentBlueprint)
+          : renderCompactEcosystemOverview(taxonomy);
+        ctx.ui?.notify?.(`${stageView}\n\n---\n\n${renderStatsLedger(cwd)}`, "info");
+        return;
+      }
 
       if (trimmedArgs === "status") {
         const current = store.getState();

@@ -88,6 +88,29 @@ export class StatsManager {
     return `ToolFlow Saved: ~${kSaved} tokens (${s.dehydratedLogsCount} dehydrated, ${s.readCacheHitsCount} cache hits)`;
   }
 
+  /** Absolute path of the append-only JSONL ledger backing these counters. */
+  public getLedgerPath(): string {
+    return this.statsFilePath;
+  }
+
+  /**
+   * One-line status-bar fragment sized for the Pi footer and parsed by
+   * pi-tui-status-beautifier (`~1.4k saved` / `N guarded`).
+   * Zero-count counters are dropped so the badge stays short on narrow terminals.
+   */
+  public getCompactBadge(): string {
+    const s = this.getStats();
+    const kSaved =
+      s.totalTokensSaved >= 1000
+        ? `${(s.totalTokensSaved / 1000).toFixed(1)}k`
+        : `${s.totalTokensSaved}`;
+    const parts = [`~${kSaved} saved`];
+    if (s.dehydratedLogsCount > 0) parts.push(`${s.dehydratedLogsCount} logs`);
+    if (s.readCacheHitsCount > 0) parts.push(`${s.readCacheHitsCount} hits`);
+    if (s.blastRadiusBlocksCount > 0) parts.push(`${s.blastRadiusBlocksCount} guarded`);
+    return parts.join(" · ");
+  }
+
   public getSavingsSummary(baselineTokens: number = 25000): {
     stats: ToolFlowStats;
     estimatedRatioPercent: number;

@@ -87,12 +87,14 @@ function compactBlock(text: string, toolName: string): string {
 /**
  * Folds verbose historical tool results and `write`/`edit` argument echoes in the older half
  * of the transcript. Recent messages and anchor-protected contracts stay byte-identical.
+ * Returns the estimated tokens released by this pass (0 when nothing was folded); the ledger
+ * already holds the accumulated total, so callers use this only for per-turn reporting.
  */
-export function slimHistoricalContextMessages(event: ContextSlimmingEvent, cwd?: string): void {
-  if (!event || !Array.isArray(event.messages) || event.messages.length === 0) return;
+export function slimHistoricalContextMessages(event: ContextSlimmingEvent, cwd?: string): number {
+  if (!event || !Array.isArray(event.messages) || event.messages.length === 0) return 0;
 
   const messages = event.messages;
-  if (messages.length <= RECENT_MESSAGE_WINDOW) return;
+  if (messages.length <= RECENT_MESSAGE_WINDOW) return 0;
 
   const anchorFiles = loadActiveAnchorFiles(cwd);
   const protectIndex = messages.length - RECENT_MESSAGE_WINDOW;
@@ -153,4 +155,6 @@ export function slimHistoricalContextMessages(event: ContextSlimmingEvent, cwd?:
   if (tokensReclaimed > 0) {
     getStatsManager(cwd).recordSavings({ tokensSaved: tokensReclaimed });
   }
+
+  return tokensReclaimed;
 }

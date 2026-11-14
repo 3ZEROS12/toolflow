@@ -5,7 +5,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { registerToolFlowHooks } from "../src/extension/hooks.js";
+import { updateToolFlowStatusBar } from "../src/extension/commands.js";
+import { getStatsManager } from "../src/optimizer/stats.js";
 import { clearAllWorkspaceStores, getWorkspaceStore } from "../src/core/workspace-store.js";
+import type { SessionPlanState } from "../src/core/types.js";
 import { openArchitectNavigator } from "../src/ui/navigator.js";
 
 type Handler = (event: unknown, ctx: unknown) => unknown;
@@ -237,4 +240,104 @@ test("navigator: detects unmounted RPC ui.custom stub and returns custom_ui_unav
     tools: [],
   });
   assert.deepEqual(res, { kind: "custom_ui_unavailable" });
+});
+
+test("hooks: context folds stale history once, then reports the reclaim on the badge", async () => {
+  clearAllWorkspaceStores();
+  const workspace = makeWorkspace();
+  const anchorDir = fs.mkdtempSync(path.join(os.tmpdir(), "toolflow-anchor-ctx-"));
+  const previousAnchorDir = process.env.ANCHOR_DIR;
+  process.env.ANCHOR_DIR = anchorDir;
+
+  const harness = createHarness();
+  await harness.handlers.get("session_start")!({ type: "session_start", reason: "new" }, createContext(workspace));
+
+  const notifications: string[] = [];
+  const statuses: string[] = [];
+  const ctx = {
+    cwd: workspace,
+    ui: {
+      notify: (message: string) => notifications.push(message),
+      setStatus: (_key: string, value: string) => statuses.push(value),
+      confirm: async () => false,
+    },
+    getActiveTools: () => ["read"],
+    getAllTools: () => ["read"],
+    setActiveTools: () => {},
+  } as unknown as ExtensionContext;
+
+  const longText = `build log\n${"q".repeat(4000)}`;
+  const messages: Array<Record<string, unknown>> = [
+    { role: "toolResult", toolName: "bash", content: [{ type: "text", text: longText }] },
+    ...Array.from({ length: 8 }, (_, i) => ({ role: i % 2 === 0 ? "user" : "assistant", content: "ok" })),
+  ];
+
+  const context = harness.handlers.get("context")!;
+  const first = (await context({ type: "context", messages }, ctx)) as { messages: unknown[] };
+  assert.equal(first.messages, messages);
+  assert.equal(notifications.length, 1);
+  assert.match(notifications[0], /Stage history compacted \(~\d+ tokens released\)/);
+  assert.match(statuses.at(-1) ?? "", /saved/);
+
+  // Folded blocks are short, so the next LLM call reclaims nothing and stays silent.
+  await context({ type: "context", messages }, ctx);
+  assert.equal(notifications.length, 1);
+
+  if (previousAnchorDir === undefined) delete process.env.ANCHOR_DIR;
+  else process.env.ANCHOR_DIR = previousAnchorDir;
+
+  fs.rmSync(anchorDir, { recursive: true, force: true });
+  fs.rmSync(workspace, { recursive: true, force: true });
+  clearAllWorkspaceStores();
+});
+
+test("status bar: compact badge tracks stage progress, guards, and clamps long titles", () => {
+  clearAllWorkspaceStores();
+  const workspace = makeWorkspace();
+  const statuses: string[] = [];
+  const ctx = {
+    cwd: workspace,
+    ui: { setStatus: (_key: string, value: string) => statuses.push(value) },
+  } as unknown as ExtensionContext;
+
+  const longTitle = "Extremely verbose architectural refactor stage title that would wrap";
+  const blueprint = {
+    blueprintId: "bp_status",
+    task: "Refactor",
+    createdAt: Date.now(),
+    userChoices: {},
+    activatedCapabilities: { extensions: [], skills: [], prompts: [] },
+    tokenEfficiencySummary: "",
+    stages: [
+      { stageId: "stage_1", title: longTitle, coreObjective: "a", boundCapabilities: {}, expectedArtifact: "src/a.ts", artifactContract: "exists", allowedTools: ["read"] },
+      { stageId: "stage_2", title: "Verify", coreObjective: "b", boundCapabilities: {}, expectedArtifact: "src/b.ts", artifactContract: "exists", allowedTools: ["read"] },
+    ],
+  } as unknown as SessionPlanState["currentBlueprint"];
+
+  const baseState = {
+    currentBlueprint: blueprint,
+    currentStageIndex: 0,
+    stepByStepGate: true,
+    artifactLedger: {},
+  };
+
+  updateToolFlowStatusBar(ctx, { ...baseState, status: "in_progress" } as unknown as SessionPlanState, workspace);
+  updateToolFlowStatusBar(ctx, { ...baseState, status: "completed" } as unknown as SessionPlanState, workspace);
+  updateToolFlowStatusBar(ctx, { ...baseState, status: "healing_failed_circuit_break" } as unknown as SessionPlanState, workspace);
+  updateToolFlowStatusBar(ctx, { ...baseState, currentBlueprint: null, status: "idle" } as unknown as SessionPlanState, workspace);
+
+  assert.match(statuses[0], /^\[1\/2\] /);
+  assert.ok(!statuses[0].includes("toolflow"), "the status key already carries the product name");
+  assert.ok(statuses[0].includes("…"), "long stage titles are clamped");
+  assert.ok(!statuses[0].includes(longTitle));
+  assert.match(statuses[1], /^✓ Completed · ~0 saved$/);
+  assert.match(statuses[2], /^▲ Paused · rollback · ~0 saved$/);
+  assert.equal(statuses[3], "~0 saved");
+
+  getStatsManager(workspace).recordSavings({ blastRadiusBlocks: 2, tokensSaved: 1200 });
+  updateToolFlowStatusBar(ctx, { ...baseState, status: "in_progress" } as unknown as SessionPlanState, workspace);
+  assert.match(statuses.at(-1)!, /~1\.2k saved · 2 guarded/);
+
+  fs.rmSync(workspace, { recursive: true, force: true });
+  clearAllWorkspaceStores();
 });

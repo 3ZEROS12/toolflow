@@ -6,6 +6,7 @@ import {
   renderBlueprintSummary,
   renderCJKSafeInputBox,
   renderCompactEcosystemOverview,
+  renderSavingsLedger,
   renderExecutionPipelineCard,
   renderUnicodeDAG,
   renderValueReceipt,
@@ -144,4 +145,40 @@ test("cards: blueprint summary includes stage table and DAG block", () => {
   assert.match(summary, /Execution Blueprint/);
   assert.match(summary, /\| \*\*1\. Design\*\*/);
   assert.match(summary, /```text/);
+});
+
+test("cards: savings ledger reports counters, ratio, and ledger path", () => {
+  const card = renderSavingsLedger({
+    stats: {
+      totalTokensSaved: 1400,
+      dehydratedLogsCount: 2,
+      readCacheHitsCount: 3,
+      blastRadiusBlocksCount: 1,
+      lastUpdated: Date.UTC(2026, 10, 14, 12, 0, 0),
+    },
+    estimatedRatioPercent: 5,
+    ledgerPath: ".pi/toolflow/stats.jsonl",
+  });
+
+  assert.match(card, /\[ToolFlow Ledger\]/);
+  assert.match(card, /~1\.4k/);
+  assert.match(card, /2 log\(s\)/);
+  assert.match(card, /3 hit\(s\)/);
+  assert.match(card, /1 block\(s\)/);
+  assert.match(card, /~5%/);
+  assert.match(card, /2026-11-14 12:00:00/);
+  assert.match(card, /\.pi\/toolflow\/stats\.jsonl/);
+  assert.ok(!card.includes("No savings recorded yet"));
+
+  const idle = renderSavingsLedger({
+    stats: {
+      totalTokensSaved: 0,
+      dehydratedLogsCount: 0,
+      readCacheHitsCount: 0,
+      blastRadiusBlocksCount: 0,
+      lastUpdated: 0,
+    },
+  });
+  assert.match(idle, /never/);
+  assert.match(idle, /No savings recorded yet/);
 });

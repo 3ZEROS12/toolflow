@@ -7,7 +7,7 @@ Pi Coding Agent 向けの動的ツールサンドボックスとコンテキス�
 [![npm version](https://img.shields.io/npm/v/toolflow?color=blue)](https://www.npmjs.com/package/toolflow)
 [![npm downloads](https://img.shields.io/npm/dm/toolflow?color=22c55e&label=downloads)](https://www.npmjs.com/package/toolflow)
 [![GitHub stars](https://img.shields.io/github/stars/3ZEROS12/toolflow?color=yellow)](https://github.com/3ZEROS12/toolflow)
-[![Tests: 43 Pass](https://img.shields.io/badge/Tests-43%20Pass%20(100%25)-brightgreen)](tests/)
+[![Tests: 51 Pass](https://img.shields.io/badge/Tests-51%20Pass%20(100%25)-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 [English](./README.md) | [简体中文](./README_zh.md) | **日本語**
@@ -44,6 +44,8 @@ pi install npm:toolflow
 - **読み取りキャッシュの条件**：ファイルが 30 行以上、ハッシュ未変更、直近で編集されておらず、`offset`/`limit` 指定の部分読み取りではなく、直前の読み取り以降にシェル変更がない場合のみ重複を抑止します。ヒット時はシンボル概要を返し、部分読み取りへ誘導します。
 - **書き込みガード**：ワークスペース外への書き込み、保護ファイル（`.env*`、`.git*`、各種ロックファイル）、危険なシェルパターン（`rm -rf /`、`git reset --hard`、`rmdir /s` など）、実行中ステージの対象外変更を遮断します（明示確認で昇格可能）。
 - **ステージ検証**：各ステージは期待成果物と検証コマンドを宣言します。成果物の欠落やコマンド失敗は修正指示につながり、3 回連続失敗でサーキットブレーカーが作動します。
+- **フッターバッジ**：`[2/3] Implementing · ~1.4k saved · 2 guarded` — ステージ名はコードポイント単位で切り詰め、製品名は省略（Pi がすでにキー接頭辞を持つ）、ゼロ件のカウンタは非表示、`pi-tui-status-beautifier` がそのまま解釈できます。
+- **コンテキスト回収の通知**：古いツールブロックを畳むたびに `Stage history compacted (~N tokens released)` を 1 回だけ通知してバッジを更新し、折り畳み済みのブロックでは沈黙します（二重計上なし）。
 
 ---
 
@@ -55,6 +57,7 @@ pi install npm:toolflow
 | `/toolflow <task>` | タスクを診断し、方針を選択して段階的ブループリントを実行 |
 | `/toolflow fast <task>` | 単一ステージ実行を強制 |
 | `/toolflow status` | 実行中ブループリントまたはケイパビリティ索引を表示 |
+| `/toolflow dashboard` | 総合ダッシュボード：ステージ進行と節約台帳 |
 | `/toolflow stats` | トークン節約台帳を表示 |
 | `/toolflow rollback [n]` | ステージ n（既定は現在ステージ）へ巻き戻す |
 | `/toolflow export` | 現在のブループリントを `TOOLFLOW_BLUEPRINT.md` に書き出す |

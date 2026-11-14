@@ -29,6 +29,7 @@ export const t = {
     "  /toolflow <task>          - Analyze task and run fast track or staged blueprint\n" +
     "  /toolflow fast <task>     - Force lightweight single-stage execution\n" +
     "  /toolflow status          - Show active blueprint stage and verification status\n" +
+    "  /toolflow dashboard       - Full dashboard: stage pipeline plus savings ledger\n" +
     "  /toolflow stats           - Show token savings ledger (dehydration, cache, guards)\n" +
     "  /toolflow rollback [n]    - Revert workspace changes to stage snapshot\n" +
     "  /toolflow export          - Export current blueprint to TOOLFLOW_BLUEPRINT.md\n" +

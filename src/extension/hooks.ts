@@ -85,9 +85,22 @@ export function registerToolFlowHooks(
     updateToolFlowStatusBar(ctx, state, cwd);
   });
 
-  pi.on("context", async (event) => {
-    const cwd = getActiveCwd();
-    slimHistoricalContextMessages(event as unknown as ContextSlimmingEvent, cwd);
+  pi.on("context", async (event, ctx) => {
+    const cwd = ctx.cwd || getActiveCwd();
+    setActiveCwd(cwd);
+    const tokensReclaimed = slimHistoricalContextMessages(
+      event as unknown as ContextSlimmingEvent,
+      cwd
+    );
+
+    // Pi owns tool declarations here (the `context` event carries messages only), so the
+    // stage allowlist is already enforced through setActiveTools. Report the reclaim once:
+    // folded blocks are short, so the next pass reclaims 0 and stays silent.
+    if (tokensReclaimed > 0) {
+      updateToolFlowStatusBar(ctx, getWorkspaceStore(cwd).getState(), cwd);
+      ctx.ui?.notify?.(t.compactNotice(tokensReclaimed), "info");
+    }
+
     return { messages: event.messages };
   });
 

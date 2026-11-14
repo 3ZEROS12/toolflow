@@ -400,6 +400,14 @@ declare class StatsManager {
     getStats(): ToolFlowStats;
     recordSavings(delta: StatsDelta): ToolFlowStats;
     getFormattedSavings(): string;
+    /** Absolute path of the append-only JSONL ledger backing these counters. */
+    getLedgerPath(): string;
+    /**
+     * One-line status-bar fragment sized for the Pi footer and parsed by
+     * pi-tui-status-beautifier (`~1.4k saved` / `N guarded`).
+     * Zero-count counters are dropped so the badge stays short on narrow terminals.
+     */
+    getCompactBadge(): string;
     getSavingsSummary(baselineTokens?: number): {
         stats: ToolFlowStats;
         estimatedRatioPercent: number;
@@ -569,8 +577,10 @@ declare function pruneHeavyProviderTools(event: ContextSlimmingEvent, cwd?: stri
 /**
  * Folds verbose historical tool results and `write`/`edit` argument echoes in the older half
  * of the transcript. Recent messages and anchor-protected contracts stay byte-identical.
+ * Returns the estimated tokens released by this pass (0 when nothing was folded); the ledger
+ * already holds the accumulated total, so callers use this only for per-turn reporting.
  */
-declare function slimHistoricalContextMessages(event: ContextSlimmingEvent, cwd?: string): void;
+declare function slimHistoricalContextMessages(event: ContextSlimmingEvent, cwd?: string): number;
 
 /**
  * Unified LLM call bridge for Pi extensions.
@@ -828,6 +838,17 @@ declare function renderUnicodeDAG(stages: BlueprintStage[], options?: {
     width?: number;
     theme?: UiThemeLike;
 }): string[];
+declare function renderSavingsLedger(metrics: {
+    stats: {
+        totalTokensSaved: number;
+        dehydratedLogsCount: number;
+        readCacheHitsCount: number;
+        blastRadiusBlocksCount: number;
+        lastUpdated: number;
+    };
+    estimatedRatioPercent?: number;
+    ledgerPath?: string;
+}): string;
 declare function renderCompactEcosystemOverview(tax: EcosystemTaxonomy): string;
 declare function renderBlueprintSummary(bp: Blueprint): string;
 
@@ -864,4 +885,4 @@ declare function openArchitectNavigator(ui: CustomUiHost, _taxonomy: EcosystemTa
  */
 declare function toolflow(pi: ExtensionAPI): void;
 
-export { type ABMatrix, type AnchorStateEntry, type ArchitectNavigatorResult, type ArchitectSpark, type ArchitecturalLesson, type ArtifactRecord, BASELINE_TOOLS, BlastRadiusGuard, type Blueprint, type BlueprintStage, type CacheCheckResult, type CapabilityItem, CodebaseMemoryManager, type CodebaseMemoryStore, ContextDehydrator, type ContextSlimmingEvent, type ContextSlimmingMessage, type CustomUiHost, type DAGPlanResult, type DAGWave, type DecisionSlot, DeepSkillsDistiller, type DegradationTier, type DehydratedStageHandoff, type DistilledSkillContract, type EcosystemBundlePlan, EcosystemRadar, type EcosystemTaxonomy, GracefulDegradationMatrix, type LayerType, type LlmArtifactPlan, type LlmModelRuntime, McpMethodRegistry, type McpToolBinding, type ProjectArtifactProfile, type ProjectFingerprint, type ProjectType, type PromptItemInfo, PromptsManager, type ProviderToolEntry, ReadCacheManager, type ReadToolInput, type RecommendedPackageItem, ReviewIsolationGuard, type ReviewIsolationResult, type ReviewSnapshot, STATS_COMPACT_BYTES, type SecurityVerificationResult, type SessionPlanState, type StageSnapshot, type StageVerificationResult, StatsManager, type TaskDiagnosis, type TaskRequirementChoice, type TaskRequirementSlot, type TaskRouteDecision, type ToolCallSecurityEvent, type ToolCapabilityResolution, type ToolDehydrationResult, type ToolFlowStats, type ToolRegistryHost, type TradeOffPlan, type UiThemeLike, WorkspaceStateStore, atomicWriteFileSync, bindDeepEcosystemToStage, buildReviewIsolationPrompt, callExtensionLlm, captureReviewSnapshot, cleanName, cleanupStaleTempFiles, clearAllCodebaseMemories, clearAllDehydrators, clearAllReadCaches, clearAllStatsManagers, clearAllWorkspaceStores, computeFileSha256, createEmptySessionState, deepAnalyzeTaxonomyWithLLM, toolflow as default, diagnoseTaskExecutionMode, diagnoseTaskRequirements, discoverEcosystemTaxonomy, emptyStats, extractSymbolOutline, extractValidJsonObject, formatActiveAnchorHint, generateABTradeOffMatrix, generateCapabilityCompactDigest, generateStageActionPrompt, generateUniversalMetaSlots, getCodebaseMemory, getDehydrator, getGitChangedFiles, getReadCache, getStatsManager, getWorkspaceStore, inferArtifactProfile, isHeavyTool, isPathInsideWorkspace, isProtectedAnchorText, loadActiveAnchorFiles, loadOrRefreshTaxonomy, normalizeWorkspaceKey, openArchitectNavigator, padToVisibleWidth, planDAGWaves, pruneHeavyProviderTools, reflectEnvironmentContext, renderBlueprintSummary, renderCJKSafeInputBox, renderCompactEcosystemOverview, renderExecutionPipelineCard, renderUnicodeDAG, renderValueReceipt, sleepSync, slimHistoricalContextMessages, sniffProjectFingerprint, synthesizeBlueprint, synthesizeBlueprintPlanWithLLM, t, verifyStageArtifacts };
+export { type ABMatrix, type AnchorStateEntry, type ArchitectNavigatorResult, type ArchitectSpark, type ArchitecturalLesson, type ArtifactRecord, BASELINE_TOOLS, BlastRadiusGuard, type Blueprint, type BlueprintStage, type CacheCheckResult, type CapabilityItem, CodebaseMemoryManager, type CodebaseMemoryStore, ContextDehydrator, type ContextSlimmingEvent, type ContextSlimmingMessage, type CustomUiHost, type DAGPlanResult, type DAGWave, type DecisionSlot, DeepSkillsDistiller, type DegradationTier, type DehydratedStageHandoff, type DistilledSkillContract, type EcosystemBundlePlan, EcosystemRadar, type EcosystemTaxonomy, GracefulDegradationMatrix, type LayerType, type LlmArtifactPlan, type LlmModelRuntime, McpMethodRegistry, type McpToolBinding, type ProjectArtifactProfile, type ProjectFingerprint, type ProjectType, type PromptItemInfo, PromptsManager, type ProviderToolEntry, ReadCacheManager, type ReadToolInput, type RecommendedPackageItem, ReviewIsolationGuard, type ReviewIsolationResult, type ReviewSnapshot, STATS_COMPACT_BYTES, type SecurityVerificationResult, type SessionPlanState, type StageSnapshot, type StageVerificationResult, StatsManager, type TaskDiagnosis, type TaskRequirementChoice, type TaskRequirementSlot, type TaskRouteDecision, type ToolCallSecurityEvent, type ToolCapabilityResolution, type ToolDehydrationResult, type ToolFlowStats, type ToolRegistryHost, type TradeOffPlan, type UiThemeLike, WorkspaceStateStore, atomicWriteFileSync, bindDeepEcosystemToStage, buildReviewIsolationPrompt, callExtensionLlm, captureReviewSnapshot, cleanName, cleanupStaleTempFiles, clearAllCodebaseMemories, clearAllDehydrators, clearAllReadCaches, clearAllStatsManagers, clearAllWorkspaceStores, computeFileSha256, createEmptySessionState, deepAnalyzeTaxonomyWithLLM, toolflow as default, diagnoseTaskExecutionMode, diagnoseTaskRequirements, discoverEcosystemTaxonomy, emptyStats, extractSymbolOutline, extractValidJsonObject, formatActiveAnchorHint, generateABTradeOffMatrix, generateCapabilityCompactDigest, generateStageActionPrompt, generateUniversalMetaSlots, getCodebaseMemory, getDehydrator, getGitChangedFiles, getReadCache, getStatsManager, getWorkspaceStore, inferArtifactProfile, isHeavyTool, isPathInsideWorkspace, isProtectedAnchorText, loadActiveAnchorFiles, loadOrRefreshTaxonomy, normalizeWorkspaceKey, openArchitectNavigator, padToVisibleWidth, planDAGWaves, pruneHeavyProviderTools, reflectEnvironmentContext, renderBlueprintSummary, renderCJKSafeInputBox, renderCompactEcosystemOverview, renderExecutionPipelineCard, renderSavingsLedger, renderUnicodeDAG, renderValueReceipt, sleepSync, slimHistoricalContextMessages, sniffProjectFingerprint, synthesizeBlueprint, synthesizeBlueprintPlanWithLLM, t, verifyStageArtifacts };

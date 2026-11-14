@@ -1,6 +1,6 @@
 {
   "name": "toolflow",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "Pi context optimizer & staged blueprint workbench — workspace-isolated log dehydration, duplicate read cache, protected-file guard, and stage-gated capability mounting.",
   "type": "module",
   "main": "dist/index.js",

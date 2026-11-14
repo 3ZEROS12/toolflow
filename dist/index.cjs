@@ -93,6 +93,7 @@ __export(index_exports, {
   renderCJKSafeInputBox: () => renderCJKSafeInputBox,
   renderCompactEcosystemOverview: () => renderCompactEcosystemOverview,
   renderExecutionPipelineCard: () => renderExecutionPipelineCard,
+  renderSavingsLedger: () => renderSavingsLedger,
   renderUnicodeDAG: () => renderUnicodeDAG,
   renderValueReceipt: () => renderValueReceipt,
   sleepSync: () => sleepSync,
@@ -127,7 +128,7 @@ var t = {
   circuitBroken: (stageNum, artifact) => `Stage ${stageNum} paused after 3 remediation retries (${artifact}). Run \`/toolflow rollback\` or update manually.`,
   contextDehydrated: "Context compacted and stage logs archived.",
   noInteractiveUi: "Interactive UI unavailable. Use `/toolflow <task description>` directly.",
-  helpBanner: "ToolFlow Commands:\n  /toolflow                 - Open interactive Prompt Workbench & Blueprint Navigator\n  /toolflow <task>          - Analyze task and run fast track or staged blueprint\n  /toolflow fast <task>     - Force lightweight single-stage execution\n  /toolflow status          - Show active blueprint stage and verification status\n  /toolflow stats           - Show token savings ledger (dehydration, cache, guards)\n  /toolflow rollback [n]    - Revert workspace changes to stage snapshot\n  /toolflow export          - Export current blueprint to TOOLFLOW_BLUEPRINT.md\n  /toolflow reset           - Clear active blueprint state and read caches",
+  helpBanner: "ToolFlow Commands:\n  /toolflow                 - Open interactive Prompt Workbench & Blueprint Navigator\n  /toolflow <task>          - Analyze task and run fast track or staged blueprint\n  /toolflow fast <task>     - Force lightweight single-stage execution\n  /toolflow status          - Show active blueprint stage and verification status\n  /toolflow dashboard       - Full dashboard: stage pipeline plus savings ledger\n  /toolflow stats           - Show token savings ledger (dehydration, cache, guards)\n  /toolflow rollback [n]    - Revert workspace changes to stage snapshot\n  /toolflow export          - Export current blueprint to TOOLFLOW_BLUEPRINT.md\n  /toolflow reset           - Clear active blueprint state and read caches",
   toolOutputDehydrated: (toolName, lines, savedTokens) => `[Dehydrated] ${toolName} (${lines} lines -> ~${savedTokens} tokens saved)`,
   readCacheHitNotice: (file, tokens) => `[Read Cache] ${file} unchanged, ~${tokens} tokens saved`,
   compactNotice: (tokensSaved) => tokensSaved ? `[ToolFlow] Stage history compacted (~${tokensSaved} tokens released)` : "[ToolFlow] Stage history compacted"
@@ -837,6 +838,24 @@ var StatsManager = class {
     }
     const kSaved = s.totalTokensSaved >= 1e3 ? `${(s.totalTokensSaved / 1e3).toFixed(1)}k` : `${s.totalTokensSaved}`;
     return `ToolFlow Saved: ~${kSaved} tokens (${s.dehydratedLogsCount} dehydrated, ${s.readCacheHitsCount} cache hits)`;
+  }
+  /** Absolute path of the append-only JSONL ledger backing these counters. */
+  getLedgerPath() {
+    return this.statsFilePath;
+  }
+  /**
+   * One-line status-bar fragment sized for the Pi footer and parsed by
+   * pi-tui-status-beautifier (`~1.4k saved` / `N guarded`).
+   * Zero-count counters are dropped so the badge stays short on narrow terminals.
+   */
+  getCompactBadge() {
+    const s = this.getStats();
+    const kSaved = s.totalTokensSaved >= 1e3 ? `${(s.totalTokensSaved / 1e3).toFixed(1)}k` : `${s.totalTokensSaved}`;
+    const parts = [`~${kSaved} saved`];
+    if (s.dehydratedLogsCount > 0) parts.push(`${s.dehydratedLogsCount} logs`);
+    if (s.readCacheHitsCount > 0) parts.push(`${s.readCacheHitsCount} hits`);
+    if (s.blastRadiusBlocksCount > 0) parts.push(`${s.blastRadiusBlocksCount} guarded`);
+    return parts.join(" \xB7 ");
   }
   getSavingsSummary(baselineTokens = 25e3) {
     const stats = this.getStats();
@@ -3244,6 +3263,28 @@ function renderUnicodeDAG(stages, options) {
   }
   return lines;
 }
+function renderSavingsLedger(metrics) {
+  const { stats } = metrics;
+  const ratio = metrics.estimatedRatioPercent ?? 0;
+  const kSaved = stats.totalTokensSaved >= 1e3 ? `${(stats.totalTokensSaved / 1e3).toFixed(1)}k` : `${stats.totalTokensSaved}`;
+  const idle = stats.totalTokensSaved === 0 && stats.dehydratedLogsCount === 0 && stats.readCacheHitsCount === 0;
+  const updated = stats.lastUpdated > 0 ? new Date(stats.lastUpdated).toISOString().replace("T", " ").slice(0, 19) : "never";
+  const rows = [
+    "## [ToolFlow Ledger] Context Savings",
+    "| Metric | Value |",
+    "| :--- | :--- |",
+    `| Tokens reclaimed | ~${kSaved} |`,
+    `| Log dehydration | ${stats.dehydratedLogsCount} log(s) |`,
+    `| Read cache hits | ${stats.readCacheHitsCount} hit(s) |`,
+    `| Blast radius blocks | ${stats.blastRadiusBlocksCount} block(s) |`,
+    `| Est. overhead avoided | ~${ratio}% |`,
+    `| Last update | ${updated} |`
+  ];
+  if (metrics.ledgerPath) rows.push(`| Ledger | \`${metrics.ledgerPath}\` |`);
+  rows.push("> Counters reset with `/toolflow reset`. Run `/toolflow status` for the active stage.");
+  if (idle) rows.push("> No savings recorded yet in this workspace.");
+  return rows.join("\n");
+}
 function renderCompactEcosystemOverview(tax) {
   const formatItems = (items) => items.length > 0 ? items.map((i) => `\`${i.name}\``).join(" ") : "none";
   const l1 = formatItems(tax.extensions.filter((e) => e.layer === "L1_UTILITY"));
@@ -4006,26 +4047,40 @@ function asCustomUiHost(ctx) {
   const ui = ctx.ui;
   return ui && typeof ui.custom === "function" ? ui : null;
 }
+function clampLabel(text, max = 30) {
+  const chars = [...text];
+  return chars.length > max ? `${chars.slice(0, max - 1).join("")}\u2026` : text;
+}
 function updateToolFlowStatusBar(ctx, state, cwd) {
   const ui = ctx?.ui;
   if (!ui || typeof ui.setStatus !== "function") return;
-  const savings = getStatsManager(cwd).getFormattedSavings();
+  const savings = getStatsManager(cwd).getCompactBadge();
   if (state.status === "in_progress" && state.currentBlueprint) {
     const idx = state.currentStageIndex + 1;
     const total = state.currentBlueprint.stages.length;
     const stage = state.currentBlueprint.stages[state.currentStageIndex];
-    ui.setStatus("toolflow", `ToolFlow [${idx}/${total}] ${stage ? stage.title : "Running"} | ${savings}`);
+    const label = clampLabel(stage ? stage.title : "Running");
+    ui.setStatus("toolflow", `[${idx}/${total}] ${label} \xB7 ${savings}`);
     return;
   }
   if (state.status === "completed" && state.currentBlueprint) {
-    ui.setStatus("toolflow", `ToolFlow [Completed] | ${savings}`);
+    ui.setStatus("toolflow", `\u2713 Completed \xB7 ${savings}`);
     return;
   }
   if (state.status === "healing_failed_circuit_break") {
-    ui.setStatus("toolflow", `ToolFlow [Paused: /toolflow rollback] | ${savings}`);
+    ui.setStatus("toolflow", `\u25B2 Paused \xB7 rollback \xB7 ${savings}`);
     return;
   }
   ui.setStatus("toolflow", savings);
+}
+function renderStatsLedger(cwd) {
+  const manager = getStatsManager(cwd);
+  const summary = manager.getSavingsSummary();
+  return renderSavingsLedger({
+    stats: summary.stats,
+    estimatedRatioPercent: summary.estimatedRatioPercent,
+    ledgerPath: manager.getLedgerPath()
+  });
 }
 function registerToolFlowCommand(pi, getActiveCwd, setActiveCwd) {
   if (typeof pi.registerCommand !== "function") return;
@@ -4179,14 +4234,20 @@ ${generateStageActionPrompt(firstStage, blueprint, 0)}`
         return;
       }
       if (trimmedArgs === "stats") {
-        const stats = getStatsManager(cwd).getStats();
-        ctx.ui?.notify?.(
-          `ToolFlow Ledger: ~${stats.totalTokensSaved} tokens saved | ${stats.dehydratedLogsCount} logs dehydrated | ${stats.readCacheHitsCount} read cache hits | ${stats.blastRadiusBlocksCount} guard blocks`,
-          "info"
-        );
+        ctx.ui?.notify?.(renderStatsLedger(cwd), "info");
         return;
       }
       const taxonomy = reflectEnvironmentContext(toolHost, cwd);
+      if (trimmedArgs === "dashboard") {
+        const current = store.getState();
+        const stageView = current.currentBlueprint ? renderBlueprintSummary(current.currentBlueprint) : renderCompactEcosystemOverview(taxonomy);
+        ctx.ui?.notify?.(`${stageView}
+
+---
+
+${renderStatsLedger(cwd)}`, "info");
+        return;
+      }
       if (trimmedArgs === "status") {
         const current = store.getState();
         const view = current.currentBlueprint ? renderBlueprintSummary(current.currentBlueprint) : renderCompactEcosystemOverview(taxonomy);
@@ -4558,9 +4619,9 @@ function compactBlock(text, toolName) {
   return `[ToolFlow Slimmed History | ${toolName}] (${lineCount} lines, ${text.length} chars). Head: "${firstLine}..." -> Inspect the archived log or re-read the file if needed.`;
 }
 function slimHistoricalContextMessages(event, cwd) {
-  if (!event || !Array.isArray(event.messages) || event.messages.length === 0) return;
+  if (!event || !Array.isArray(event.messages) || event.messages.length === 0) return 0;
   const messages = event.messages;
-  if (messages.length <= RECENT_MESSAGE_WINDOW) return;
+  if (messages.length <= RECENT_MESSAGE_WINDOW) return 0;
   const anchorFiles = loadActiveAnchorFiles(cwd);
   const protectIndex = messages.length - RECENT_MESSAGE_WINDOW;
   let tokensReclaimed = 0;
@@ -4609,6 +4670,7 @@ function slimHistoricalContextMessages(event, cwd) {
   if (tokensReclaimed > 0) {
     getStatsManager(cwd).recordSavings({ tokensSaved: tokensReclaimed });
   }
+  return tokensReclaimed;
 }
 
 // src/planner/memory.ts
@@ -5005,9 +5067,17 @@ function registerToolFlowHooks(pi, getActiveCwd, setActiveCwd) {
     }
     updateToolFlowStatusBar(ctx, state, cwd);
   });
-  pi.on("context", async (event) => {
-    const cwd = getActiveCwd();
-    slimHistoricalContextMessages(event, cwd);
+  pi.on("context", async (event, ctx) => {
+    const cwd = ctx.cwd || getActiveCwd();
+    setActiveCwd(cwd);
+    const tokensReclaimed = slimHistoricalContextMessages(
+      event,
+      cwd
+    );
+    if (tokensReclaimed > 0) {
+      updateToolFlowStatusBar(ctx, getWorkspaceStore(cwd).getState(), cwd);
+      ctx.ui?.notify?.(t.compactNotice(tokensReclaimed), "info");
+    }
     return { messages: event.messages };
   });
   pi.on("before_agent_start", async (event, ctx) => {
@@ -5437,6 +5507,7 @@ function toolflow(pi) {
   renderCJKSafeInputBox,
   renderCompactEcosystemOverview,
   renderExecutionPipelineCard,
+  renderSavingsLedger,
   renderUnicodeDAG,
   renderValueReceipt,
   sleepSync,

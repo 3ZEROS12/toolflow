@@ -7,7 +7,7 @@ Stop tool overload and context bloat. Workspace-isolated log dehydration, duplic
 [![npm version](https://img.shields.io/npm/v/toolflow?color=blue)](https://www.npmjs.com/package/toolflow)
 [![npm downloads](https://img.shields.io/npm/dm/toolflow?color=22c55e&label=downloads)](https://www.npmjs.com/package/toolflow)
 [![GitHub stars](https://img.shields.io/github/stars/3ZEROS12/toolflow?color=yellow)](https://github.com/3ZEROS12/toolflow)
-[![Tests: 43 Pass](https://img.shields.io/badge/Tests-43%20Pass%20(100%25)-brightgreen)](tests/)
+[![Tests: 51 Pass](https://img.shields.io/badge/Tests-51%20Pass%20(100%25)-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 [English](./README.md) | [简体中文](./README_zh.md) | [日本語](./README_ja.md)
@@ -44,6 +44,8 @@ Two engines share one extension:
 - **Read cache gates**: duplicate full reads are intercepted only when the file is ≥30 lines, hash-identical, not recently edited, not a targeted `offset`/`limit` slice, and no shell mutation happened since the last read. Hits return a symbol outline for targeted follow-up reads.
 - **Blast radius guard**: blocks writes outside the workspace, protected files (`.env*`, `.git*`, lockfiles), destructive shell patterns (`rm -rf /`, `git reset --hard`, `rmdir /s`, …), and out-of-scope edits during an active stage with an explicit escalation prompt.
 - **Stage verification**: each stage declares expected artifacts and verification commands. Missing artifacts or failing commands feed a remediation turn; three consecutive failures trip a circuit breaker.
+- **Footer badge**: `[2/3] Implementing · ~1.4k saved · 2 guarded` — stage title clamped by code point, the product name dropped (Pi already prefixes the key), zero counters hidden, and counters parsed as-is by `pi-tui-status-beautifier`.
+- **Context reclaim is reported**: folding a stale tool block emits one `Stage history compacted (~N tokens released)` notice per fold and refreshes the badge; already-folded blocks stay silent, so a turn never double-counts.
 
 ---
 
@@ -55,6 +57,7 @@ Two engines share one extension:
 | `/toolflow <task>` | Diagnose the task, choose a plan, and run the staged blueprint |
 | `/toolflow fast <task>` | Force a single-stage execution |
 | `/toolflow status` | Show the active blueprint or the capability index |
+| `/toolflow dashboard` | Full dashboard: stage pipeline plus the savings ledger |
 | `/toolflow stats` | Show the token savings ledger |
 | `/toolflow rollback [n]` | Revert workspace files to stage `n` (default: current stage) |
 | `/toolflow export` | Export the active blueprint to `TOOLFLOW_BLUEPRINT.md` |

@@ -221,6 +221,44 @@ export function renderUnicodeDAG(
   return lines;
 }
 
+export function renderSavingsLedger(metrics: {
+  stats: {
+    totalTokensSaved: number;
+    dehydratedLogsCount: number;
+    readCacheHitsCount: number;
+    blastRadiusBlocksCount: number;
+    lastUpdated: number;
+  };
+  estimatedRatioPercent?: number;
+  ledgerPath?: string;
+}): string {
+  const { stats } = metrics;
+  const ratio = metrics.estimatedRatioPercent ?? 0;
+  const kSaved =
+    stats.totalTokensSaved >= 1000
+      ? `${(stats.totalTokensSaved / 1000).toFixed(1)}k`
+      : `${stats.totalTokensSaved}`;
+  const idle = stats.totalTokensSaved === 0 && stats.dehydratedLogsCount === 0 && stats.readCacheHitsCount === 0;
+  const updated =
+    stats.lastUpdated > 0 ? new Date(stats.lastUpdated).toISOString().replace("T", " ").slice(0, 19) : "never";
+
+  const rows: string[] = [
+    "## [ToolFlow Ledger] Context Savings",
+    "| Metric | Value |",
+    "| :--- | :--- |",
+    `| Tokens reclaimed | ~${kSaved} |`,
+    `| Log dehydration | ${stats.dehydratedLogsCount} log(s) |`,
+    `| Read cache hits | ${stats.readCacheHitsCount} hit(s) |`,
+    `| Blast radius blocks | ${stats.blastRadiusBlocksCount} block(s) |`,
+    `| Est. overhead avoided | ~${ratio}% |`,
+    `| Last update | ${updated} |`,
+  ];
+  if (metrics.ledgerPath) rows.push(`| Ledger | \`${metrics.ledgerPath}\` |`);
+  rows.push("> Counters reset with `/toolflow reset`. Run `/toolflow status` for the active stage.");
+  if (idle) rows.push("> No savings recorded yet in this workspace.");
+  return rows.join("\n");
+}
+
 export function renderCompactEcosystemOverview(tax: EcosystemTaxonomy): string {
   const formatItems = (items: CapabilityItem[]): string =>
     items.length > 0 ? items.map(i => `\`${i.name}\``).join(" ") : "none";
