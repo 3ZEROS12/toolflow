@@ -181,6 +181,8 @@ interface StageSnapshot {
     timestamp: number;
     fileHashes: Record<string, string>;
     fileContents?: Record<string, string>;
+    /** Base64 payloads for non-UTF-8 files; writing `fileContents` (UTF-8) would corrupt them. */
+    fileBinaries?: Record<string, string>;
     changedFiles?: string[];
     gitTracked?: boolean;
     shadowCommitHash?: string;
@@ -358,6 +360,15 @@ declare class WorkspaceStateStore {
     captureStageSnapshot(stageIndex: number, stageId: string, blueprint: Blueprint): StageSnapshot;
     startBlueprintExecution(blueprint: Blueprint): void;
     advanceStage(): boolean;
+    /**
+     * Replays the shadow tree into the working copy without touching the user's index.
+     *
+     * The previous implementation ran `git checkout <ref> -- .` followed by a bare
+     * `git reset HEAD`, which unstaged every file the user had staged before the rollback.
+     * `git restore --worktree` restores only the working copy; older gits fall back to
+     * checkout with the reset narrowed to the snapshot's own paths.
+     */
+    private restoreWorktreeFromShadow;
     rollbackStage(targetStageIndex?: number): {
         success: boolean;
         rolledBackToStage: number;
@@ -400,6 +411,12 @@ declare class StatsManager {
     getStats(): ToolFlowStats;
     recordSavings(delta: StatsDelta): ToolFlowStats;
     getFormattedSavings(): string;
+    /**
+     * Delete the on-disk ledger and its compaction backup. `/toolflow reset` used to clear only
+     * the in-memory pool, so the next getStatsManager() re-read the old counters and the card's
+     * "Counters reset with /toolflow reset" promise was false.
+     */
+    resetLedger(): void;
     /** Absolute path of the append-only JSONL ledger backing these counters. */
     getLedgerPath(): string;
     /**
@@ -525,16 +542,17 @@ declare class ContextDehydrator {
     private lastFailedCommandHash;
     private consecutiveIdenticalFailures;
     private static readonly latestLogPaths;
-    private static readonly protectedPathPools;
     constructor(cwd?: string);
     private static workspaceKey;
-    static setProtectedPaths(paths: string[], cwd?: string): void;
-    static getProtectedPaths(cwd?: string): Set<string>;
-    static clearProtectedPaths(cwd?: string): void;
     static getLatestLogPath(cwd?: string): string | null;
     static setLatestLogPath(filePath: string, cwd?: string): void;
     static clearLatestLogPaths(): void;
-    getDirectorySizeBytes(dirPath?: string): number;
+    /**
+     * Newest run log is never evicted: `toolflow_inspect` reads it back, so deleting it under
+     * quota pressure left the tool with nothing to show. (The old `setProtectedPaths` pool had
+     * no caller and only ever compared paths outside the runs directory, so it was inert.)
+     */
+    private protectedRunFiles;
     pruneOldRuns(maxAgeHours?: number, maxTotalBytes?: number): number;
     extractTopologyHints(stageText: string): {
         importedFiles: string[];

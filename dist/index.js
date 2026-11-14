@@ -1,6 +1,7 @@
 // src/extension/commands.ts
 import * as fs11 from "fs";
-import * as path11 from "path";
+import * as path12 from "path";
+import { truncateToWidth as truncateToWidth2 } from "@earendil-works/pi-tui";
 
 // src/core/messages.ts
 var t = {
@@ -30,7 +31,7 @@ var t = {
 import * as fs2 from "fs";
 import * as path2 from "path";
 import * as crypto from "crypto";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 
 // src/core/atomic-fs.ts
 import * as fs from "fs";
@@ -157,6 +158,11 @@ function computeFileSha256(filePath) {
     return "";
   }
 }
+var SNAPSHOT_CONTENT_LIMIT_BYTES = 512 * 1024;
+function isBinaryBuffer(buffer) {
+  const probe = buffer.subarray(0, 8192);
+  return probe.includes(0);
+}
 function getGitChangedFiles(cwd = process.cwd()) {
   try {
     execSync("git rev-parse --is-inside-work-tree", {
@@ -212,6 +218,18 @@ function cloneState(src) {
     customDirectives: src.customDirectives ? [...src.customDirectives] : void 0
   };
 }
+var SESSION_STATUSES = /* @__PURE__ */ new Set([
+  "idle",
+  "awaiting_user_decisions",
+  "in_progress",
+  "stage_completed",
+  "completed",
+  "paused",
+  "healing_failed_circuit_break"
+]);
+function coerceStatus(value) {
+  return typeof value === "string" && SESSION_STATUSES.has(value) ? value : "idle";
+}
 function hydrateStateFromJson(rawJson) {
   try {
     const parsed = JSON.parse(rawJson);
@@ -224,7 +242,7 @@ function hydrateStateFromJson(rawJson) {
       currentBlueprint: obj.currentBlueprint,
       currentStageIndex: typeof obj.currentStageIndex === "number" ? obj.currentStageIndex : 0,
       stepByStepGate: typeof obj.stepByStepGate === "boolean" ? obj.stepByStepGate : true,
-      status: obj.status ?? "idle",
+      status: coerceStatus(obj.status),
       artifactLedger: obj.artifactLedger ?? {},
       snapshots: obj.snapshots ?? {},
       dynamicTargetFiles: Array.isArray(obj.dynamicTargetFiles) ? obj.dynamicTargetFiles : [],
@@ -273,6 +291,7 @@ var WorkspaceStateStore = class {
   }
   resetRetry() {
     this.state.retryCount = 0;
+    this.save();
   }
   addCustomDirective(directive) {
     const trimmed = directive.trim();
@@ -398,6 +417,7 @@ var WorkspaceStateStore = class {
   captureStageSnapshot(stageIndex, stageId, blueprint) {
     const fileHashes = {};
     const fileContents = {};
+    const fileBinaries = {};
     const candidates = new Set(this.scanChangedFiles());
     for (const stage of blueprint.stages) {
       if (stage.expectedArtifact) candidates.add(stage.expectedArtifact);
@@ -414,8 +434,13 @@ var WorkspaceStateStore = class {
         const stat = fs2.statSync(fullPath);
         if (stat.isFile()) {
           fileHashes[relPath] = computeFileSha256(fullPath);
-          if (stat.size <= 512 * 1024) {
-            fileContents[relPath] = fs2.readFileSync(fullPath, "utf-8");
+          if (stat.size <= SNAPSHOT_CONTENT_LIMIT_BYTES) {
+            const buffer = fs2.readFileSync(fullPath);
+            if (isBinaryBuffer(buffer)) {
+              fileBinaries[relPath] = buffer.toString("base64");
+            } else {
+              fileContents[relPath] = buffer.toString("utf-8");
+            }
           }
         }
       } catch {
@@ -465,6 +490,7 @@ var WorkspaceStateStore = class {
       timestamp: Date.now(),
       fileHashes,
       fileContents,
+      ...Object.keys(fileBinaries).length > 0 ? { fileBinaries } : {},
       changedFiles: Array.from(candidates),
       gitTracked,
       shadowCommitHash,
@@ -519,6 +545,36 @@ var WorkspaceStateStore = class {
     this.save();
     return false;
   }
+  /**
+   * Replays the shadow tree into the working copy without touching the user's index.
+   *
+   * The previous implementation ran `git checkout <ref> -- .` followed by a bare
+   * `git reset HEAD`, which unstaged every file the user had staged before the rollback.
+   * `git restore --worktree` restores only the working copy; older gits fall back to
+   * checkout with the reset narrowed to the snapshot's own paths.
+   */
+  restoreWorktreeFromShadow(ref) {
+    const run = (args, timeout = 5e3) => {
+      try {
+        execFileSync("git", args, { cwd: this.cwd, stdio: "ignore", timeout });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    if (run(["restore", `--source=${ref}`, "--worktree", "--", "."])) return true;
+    if (!run(["checkout", ref, "--", "."])) return false;
+    let indexClean = true;
+    try {
+      execSync("git diff --cached --quiet", { cwd: this.cwd, stdio: "ignore", timeout: 3e3 });
+    } catch {
+      indexClean = false;
+    }
+    if (indexClean) {
+      run(["reset", "HEAD"], 3e3);
+    }
+    return true;
+  }
   rollbackStage(targetStageIndex) {
     if (!this.state.currentBlueprint || !this.state.snapshots) {
       return {
@@ -543,25 +599,9 @@ var WorkspaceStateStore = class {
     const restoredFiles = [];
     const deletedFiles = [];
     const resolvedCwd = path2.resolve(this.cwd);
-    if (snapshot.shadowRef) {
-      try {
-        execSync(`git checkout "${snapshot.shadowRef}" -- .`, {
-          cwd: this.cwd,
-          stdio: "ignore",
-          timeout: 5e3
-        });
-        execSync(`git reset HEAD`, { cwd: this.cwd, stdio: "ignore", timeout: 3e3 });
-      } catch {
-      }
-    } else if (snapshot.shadowCommitHash) {
-      try {
-        execSync(`git checkout ${snapshot.shadowCommitHash} -- .`, {
-          cwd: this.cwd,
-          stdio: "ignore",
-          timeout: 5e3
-        });
-      } catch {
-      }
+    const shadowTarget = snapshot.shadowRef ?? snapshot.shadowCommitHash;
+    if (shadowTarget) {
+      this.restoreWorktreeFromShadow(shadowTarget);
     }
     for (const [relPath, content] of Object.entries(snapshot.fileContents ?? {})) {
       const fullPath = path2.resolve(resolvedCwd, relPath);
@@ -570,6 +610,17 @@ var WorkspaceStateStore = class {
         const dir = path2.dirname(fullPath);
         if (!fs2.existsSync(dir)) fs2.mkdirSync(dir, { recursive: true });
         fs2.writeFileSync(fullPath, content, "utf-8");
+        restoredFiles.push(relPath);
+      } catch {
+      }
+    }
+    for (const [relPath, base64] of Object.entries(snapshot.fileBinaries ?? {})) {
+      const fullPath = path2.resolve(resolvedCwd, relPath);
+      if (fullPath !== resolvedCwd && !fullPath.startsWith(resolvedCwd + path2.sep)) continue;
+      try {
+        const dir = path2.dirname(fullPath);
+        if (!fs2.existsSync(dir)) fs2.mkdirSync(dir, { recursive: true });
+        fs2.writeFileSync(fullPath, Buffer.from(base64, "base64"));
         restoredFiles.push(relPath);
       } catch {
       }
@@ -731,6 +782,20 @@ var StatsManager = class {
     const kSaved = s.totalTokensSaved >= 1e3 ? `${(s.totalTokensSaved / 1e3).toFixed(1)}k` : `${s.totalTokensSaved}`;
     return `ToolFlow Saved: ~${kSaved} tokens (${s.dehydratedLogsCount} dehydrated, ${s.readCacheHitsCount} cache hits)`;
   }
+  /**
+   * Delete the on-disk ledger and its compaction backup. `/toolflow reset` used to clear only
+   * the in-memory pool, so the next getStatsManager() re-read the old counters and the card's
+   * "Counters reset with /toolflow reset" promise was false.
+   */
+  resetLedger() {
+    for (const file of [this.statsFilePath, `${this.statsFilePath}.bak`]) {
+      try {
+        fs3.rmSync(file, { force: true });
+      } catch {
+      }
+    }
+    this.cached = null;
+  }
   /** Absolute path of the append-only JSONL ledger backing these counters. */
   getLedgerPath() {
     return this.statsFilePath;
@@ -791,7 +856,9 @@ var StatsManager = class {
     try {
       const st = fs3.statSync(this.statsFilePath);
       if (st.size <= STATS_COMPACT_BYTES) return;
-      const stats = this.getStats();
+      const raw = fs3.readFileSync(this.statsFilePath, "utf-8");
+      if (raw.trim() === "") return;
+      const stats = this.aggregate(raw);
       const snapshot = {
         snap: stats.totalTokensSaved,
         d: stats.dehydratedLogsCount,
@@ -1017,31 +1084,12 @@ var ContextDehydrator = class _ContextDehydrator {
   lastFailedCommandHash = "";
   consecutiveIdenticalFailures = 0;
   static latestLogPaths = /* @__PURE__ */ new Map();
-  static protectedPathPools = /* @__PURE__ */ new Map();
   constructor(cwd = process.cwd()) {
     this.cwd = path5.resolve(cwd);
     this.runsBaseDir = path5.join(this.cwd, ".pi", "toolflow", "runs");
   }
   static workspaceKey(cwd) {
     return normalizeWorkspaceKey(cwd);
-  }
-  static setProtectedPaths(paths, cwd = process.cwd()) {
-    const key = _ContextDehydrator.workspaceKey(cwd);
-    const set = /* @__PURE__ */ new Set();
-    for (const p of paths) {
-      if (p) set.add(path5.resolve(cwd, p));
-    }
-    _ContextDehydrator.protectedPathPools.set(key, set);
-  }
-  static getProtectedPaths(cwd = process.cwd()) {
-    return _ContextDehydrator.protectedPathPools.get(_ContextDehydrator.workspaceKey(cwd)) ?? /* @__PURE__ */ new Set();
-  }
-  static clearProtectedPaths(cwd) {
-    if (cwd) {
-      _ContextDehydrator.protectedPathPools.delete(_ContextDehydrator.workspaceKey(cwd));
-    } else {
-      _ContextDehydrator.protectedPathPools.clear();
-    }
   }
   static getLatestLogPath(cwd) {
     if (cwd) {
@@ -1057,26 +1105,15 @@ var ContextDehydrator = class _ContextDehydrator {
   static clearLatestLogPaths() {
     _ContextDehydrator.latestLogPaths.clear();
   }
-  getDirectorySizeBytes(dirPath = this.runsBaseDir) {
-    let total = 0;
-    try {
-      if (!fs5.existsSync(dirPath)) return 0;
-      const entries = fs5.readdirSync(dirPath, { withFileTypes: true });
-      for (const entry of entries) {
-        const full = path5.join(dirPath, entry.name);
-        if (entry.isDirectory()) {
-          total += this.getDirectorySizeBytes(full);
-        } else if (entry.isFile()) {
-          try {
-            total += fs5.statSync(full).size;
-          } catch {
-          }
-        }
-      }
-    } catch {
-      return 0;
-    }
-    return total;
+  /**
+   * Newest run log is never evicted: `toolflow_inspect` reads it back, so deleting it under
+   * quota pressure left the tool with nothing to show. (The old `setProtectedPaths` pool had
+   * no caller and only ever compared paths outside the runs directory, so it was inert.)
+   */
+  protectedRunFiles() {
+    const key = _ContextDehydrator.workspaceKey(this.cwd);
+    const latest = _ContextDehydrator.latestLogPaths.get(key);
+    return latest ? /* @__PURE__ */ new Set([path5.resolve(this.cwd, latest)]) : /* @__PURE__ */ new Set();
   }
   pruneOldRuns(maxAgeHours = 24, maxTotalBytes = MAX_RUNS_DISK_QUOTA_BYTES) {
     let deletedCount = 0;
@@ -1084,7 +1121,7 @@ var ContextDehydrator = class _ContextDehydrator {
       if (!fs5.existsSync(this.runsBaseDir)) return 0;
       const cutoffMs = Date.now() - maxAgeHours * 60 * 60 * 1e3;
       const allFiles = [];
-      const protectedSet = _ContextDehydrator.getProtectedPaths(this.cwd);
+      const protectedSet = this.protectedRunFiles();
       const walk = (dir) => {
         for (const entry of fs5.readdirSync(dir, { withFileTypes: true })) {
           const full = path5.join(dir, entry.name);
@@ -1314,14 +1351,7 @@ Use \`toolflow_inspect(mode="grep", pattern="...")\` or \`read(path="${relLogPat
     const rawBytes = Buffer.byteLength(params.rawStageOutput || "", "utf-8");
     const compactText = `Stage ${params.stageTitle} completed. Contract: ${params.contractSummary}. Artifacts: ${params.verifiedArtifacts.map((a) => a.path).join(", ")}`;
     const compactBytes = Buffer.byteLength(compactText, "utf-8");
-    const savedTokens = Math.max(0, Math.round((rawBytes - compactBytes) / 4));
     const ratio = rawBytes > 0 ? `${Math.max(0, Math.round((1 - compactBytes / rawBytes) * 100))}%` : "0%";
-    if (savedTokens > 0) {
-      getStatsManager(this.cwd).recordSavings({
-        tokensSaved: savedTokens,
-        dehydratedLogs: 1
-      });
-    }
     const topologyHints = this.extractTopologyHints(params.rawStageOutput || "");
     return {
       stageId: params.stageId,
@@ -1348,14 +1378,24 @@ function getDehydrator(cwd = process.cwd()) {
 function clearAllDehydrators() {
   dehydratorPool.clear();
   ContextDehydrator.clearLatestLogPaths();
-  ContextDehydrator.clearProtectedPaths();
 }
 
 // src/planner/taxonomy.ts
 import * as fs6 from "fs";
-import * as path6 from "path";
+import * as path7 from "path";
 import * as crypto4 from "crypto";
+
+// src/core/agent-dir.ts
 import * as os from "os";
+import * as path6 from "path";
+function getPiAgentDir() {
+  return process.env.PI_CODING_AGENT_DIR || process.env.PI_CONFIG_DIR || process.env.PI_AGENT_DIR || path6.join(os.homedir(), ".pi", "agent");
+}
+function hasExplicitAgentDir() {
+  return Boolean(
+    process.env.PI_CODING_AGENT_DIR || process.env.PI_CONFIG_DIR || process.env.PI_AGENT_DIR
+  );
+}
 
 // src/core/json-extract.ts
 function extractValidJsonObject(raw) {
@@ -1493,11 +1533,11 @@ ${userPrompt}`, { maxTokens });
 }
 
 // src/planner/taxonomy.ts
-function getPiAgentDir() {
-  return process.env.PI_CODING_AGENT_DIR || process.env.PI_CONFIG_DIR || process.env.PI_AGENT_DIR || path6.join(os.homedir(), ".pi", "agent");
+function isTestEnvironment() {
+  return Boolean(process.env.NODE_TEST_CONTEXT || process.env.NODE_ENV === "test" || process.env.VITEST);
 }
 function getRuntimeTaxonomyCachePath() {
-  return path6.join(getPiAgentDir(), "toolflow-taxonomy.json");
+  return path7.join(getPiAgentDir(), "toolflow-taxonomy.json");
 }
 function cleanName(rawName) {
   let clean = rawName;
@@ -1524,18 +1564,18 @@ function sniffProjectFingerprint(cwd = process.cwd()) {
   let testDir = "tests";
   const keyConfigFiles = [];
   const checkFile = (rel) => {
-    const exists = fs6.existsSync(path6.join(cwd, rel));
+    const exists = fs6.existsSync(path7.join(cwd, rel));
     if (exists && !keyConfigFiles.includes(rel)) keyConfigFiles.push(rel);
     return exists;
   };
   if (checkFile("package.json")) {
     projectType = "node";
-    if (fs6.existsSync(path6.join(cwd, "pnpm-lock.yaml"))) packageManager = "pnpm";
-    else if (fs6.existsSync(path6.join(cwd, "yarn.lock"))) packageManager = "yarn";
-    else if (fs6.existsSync(path6.join(cwd, "bun.lockb")) || fs6.existsSync(path6.join(cwd, "bun.lock"))) packageManager = "bun";
+    if (fs6.existsSync(path7.join(cwd, "pnpm-lock.yaml"))) packageManager = "pnpm";
+    else if (fs6.existsSync(path7.join(cwd, "yarn.lock"))) packageManager = "yarn";
+    else if (fs6.existsSync(path7.join(cwd, "bun.lockb")) || fs6.existsSync(path7.join(cwd, "bun.lock"))) packageManager = "bun";
     else packageManager = "npm";
     try {
-      const parsed = JSON.parse(fs6.readFileSync(path6.join(cwd, "package.json"), "utf-8"));
+      const parsed = JSON.parse(fs6.readFileSync(path7.join(cwd, "package.json"), "utf-8"));
       if (parsed && typeof parsed === "object") {
         const pkg = parsed;
         const allDeps = { ...pkg.dependencies ?? {}, ...pkg.devDependencies ?? {} };
@@ -1569,7 +1609,7 @@ function sniffProjectFingerprint(cwd = process.cwd()) {
     mainFramework = "Cargo";
     testDir = "tests";
     try {
-      const cargo = fs6.readFileSync(path6.join(cwd, "Cargo.toml"), "utf-8");
+      const cargo = fs6.readFileSync(path7.join(cwd, "Cargo.toml"), "utf-8");
       if (cargo.includes("axum")) mainFramework = "Axum";
       else if (cargo.includes("actix-web")) mainFramework = "Actix-Web";
       else if (cargo.includes("tokio")) mainFramework = "Tokio";
@@ -1582,7 +1622,7 @@ function sniffProjectFingerprint(cwd = process.cwd()) {
     else if (checkFile("poetry.lock")) packageManager = "poetry";
     else if (packageManager === "unknown") packageManager = "pip";
     try {
-      const pyText = fs6.existsSync(path6.join(cwd, "pyproject.toml")) ? fs6.readFileSync(path6.join(cwd, "pyproject.toml"), "utf-8") : fs6.existsSync(path6.join(cwd, "requirements.txt")) ? fs6.readFileSync(path6.join(cwd, "requirements.txt"), "utf-8") : "";
+      const pyText = fs6.existsSync(path7.join(cwd, "pyproject.toml")) ? fs6.readFileSync(path7.join(cwd, "pyproject.toml"), "utf-8") : fs6.existsSync(path7.join(cwd, "requirements.txt")) ? fs6.readFileSync(path7.join(cwd, "requirements.txt"), "utf-8") : "";
       if (pyText.includes("fastapi")) mainFramework = "FastAPI";
       else if (pyText.includes("django")) mainFramework = "Django";
       else if (pyText.includes("flask")) mainFramework = "Flask";
@@ -1596,7 +1636,7 @@ function sniffProjectFingerprint(cwd = process.cwd()) {
     sourceDir = ".";
     testDir = ".";
     try {
-      const goMod = fs6.readFileSync(path6.join(cwd, "go.mod"), "utf-8");
+      const goMod = fs6.readFileSync(path7.join(cwd, "go.mod"), "utf-8");
       if (goMod.includes("gin-gonic/gin")) mainFramework = "Gin";
       else if (goMod.includes("gofiber/fiber")) mainFramework = "Fiber";
     } catch {
@@ -1611,16 +1651,16 @@ function sniffProjectFingerprint(cwd = process.cwd()) {
     projectType = "monorepo";
   }
   if (projectType === "unknown") {
-    if (fs6.existsSync(path6.join(cwd, "index.html"))) {
+    if (fs6.existsSync(path7.join(cwd, "index.html"))) {
       projectType = "web";
       mainFramework = "Vanilla HTML/JS";
-    } else if (fs6.existsSync(path6.join(cwd, "src"))) {
+    } else if (fs6.existsSync(path7.join(cwd, "src"))) {
       projectType = "node";
     }
   }
-  if (fs6.existsSync(path6.join(cwd, "test"))) testDir = "test";
-  else if (fs6.existsSync(path6.join(cwd, "__tests__"))) testDir = "__tests__";
-  if (!fs6.existsSync(path6.join(cwd, sourceDir)) && fs6.existsSync(path6.join(cwd, "app"))) {
+  if (fs6.existsSync(path7.join(cwd, "test"))) testDir = "test";
+  else if (fs6.existsSync(path7.join(cwd, "__tests__"))) testDir = "__tests__";
+  if (!fs6.existsSync(path7.join(cwd, sourceDir)) && fs6.existsSync(path7.join(cwd, "app"))) {
     sourceDir = "app";
   }
   const gitInfo = getGitChangedFiles(cwd);
@@ -1666,10 +1706,10 @@ function scanMarkdownItems(dirs, type, target, seenNames) {
         if (entry.name.startsWith(".")) continue;
         let mdPath = null;
         if (entry.isDirectory()) {
-          const nested = path6.join(dir, entry.name, type === "skill" ? "SKILL.md" : "PROMPT.md");
+          const nested = path7.join(dir, entry.name, type === "skill" ? "SKILL.md" : "PROMPT.md");
           if (fs6.existsSync(nested)) mdPath = nested;
         } else if (entry.isFile() && entry.name.endsWith(".md")) {
-          mdPath = path6.join(dir, entry.name);
+          mdPath = path7.join(dir, entry.name);
         }
         if (!mdPath) continue;
         const baseName = entry.name.replace(/\.md$/, "");
@@ -1708,13 +1748,15 @@ function scanMarkdownItems(dirs, type, target, seenNames) {
   }
 }
 function discoverEcosystemTaxonomy(cwd = process.cwd(), runtimeTools = []) {
+  const agentDir = isTestEnvironment() && !hasExplicitAgentDir() ? "" : getPiAgentDir();
+  const agentPaths = (...segments) => agentDir ? [path7.join(agentDir, ...segments)] : [];
   const extensions = [];
   const skills = [];
   const prompts = [];
   const tools = [];
   const extSeen = /* @__PURE__ */ new Set();
-  const settingsPath = path6.join(getPiAgentDir(), "settings.json");
-  if (fs6.existsSync(settingsPath)) {
+  const settingsPath = agentDir ? path7.join(agentDir, "settings.json") : "";
+  if (settingsPath && fs6.existsSync(settingsPath)) {
     try {
       const parsed = JSON.parse(fs6.readFileSync(settingsPath, "utf-8"));
       if (parsed && typeof parsed === "object" && "packages" in parsed && Array.isArray(parsed.packages)) {
@@ -1743,13 +1785,13 @@ function discoverEcosystemTaxonomy(cwd = process.cwd(), runtimeTools = []) {
     }
   }
   scanMarkdownItems(
-    [path6.join(cwd, ".pi", "skills"), path6.join(getPiAgentDir(), "skills")],
+    [path7.join(cwd, ".pi", "skills"), ...agentPaths("skills")],
     "skill",
     skills,
     /* @__PURE__ */ new Set()
   );
   scanMarkdownItems(
-    [path6.join(cwd, ".pi", "prompts"), path6.join(getPiAgentDir(), "prompts")],
+    [path7.join(cwd, ".pi", "prompts"), ...agentPaths("prompts")],
     "prompt",
     prompts,
     /* @__PURE__ */ new Set()
@@ -1856,7 +1898,7 @@ async function deepAnalyzeTaxonomyWithLLM(taxonomy, ctx) {
 
 // src/planner/deep-ecosystem.ts
 import * as fs7 from "fs";
-import * as path7 from "path";
+import * as path8 from "path";
 import { exec, execSync as execSync2 } from "child_process";
 import { promisify } from "util";
 var execAsync = promisify(exec);
@@ -2044,9 +2086,9 @@ var EcosystemRadar = class _EcosystemRadar {
     const localAppData = process.env.LOCALAPPDATA || "";
     const appData = process.env.APPDATA || "";
     const candidates = [
-      path7.join(appData, "npm", "pi.cmd"),
-      path7.join(appData, "npm", "pi"),
-      path7.join(localAppData, "pnpm", "pi.cmd"),
+      path8.join(appData, "npm", "pi.cmd"),
+      path8.join(appData, "npm", "pi"),
+      path8.join(localAppData, "pnpm", "pi.cmd"),
       "pi"
     ];
     for (const candidate of candidates) {
@@ -2090,19 +2132,19 @@ var EcosystemRadar = class _EcosystemRadar {
 
 // src/planner/router.ts
 import * as fs9 from "fs";
-import * as path9 from "path";
+import * as path10 from "path";
 
 // src/planner/anchor-handshake.ts
 import * as fs8 from "fs";
 import * as os2 from "os";
-import * as path8 from "path";
+import * as path9 from "path";
 function anchorStatePath() {
-  const dir = process.env.ANCHOR_DIR || path8.join(os2.homedir(), ".anchor");
-  return path8.join(dir, "state.json");
+  const dir = process.env.ANCHOR_DIR || path9.join(os2.homedir(), ".anchor");
+  return path9.join(dir, "state.json");
 }
-function isTestEnvironment() {
+function isTestEnvironment2() {
   return Boolean(
-    process.env.NODE_TEST_CONTEXT || process.env.NODE_ENV === "test" || process.env.VITEST || process.argv && process.argv.some((arg) => /test/i.test(arg))
+    process.env.NODE_TEST_CONTEXT || process.env.NODE_ENV === "test" || process.env.VITEST
   );
 }
 function readAnchorState() {
@@ -2118,7 +2160,7 @@ function readAnchorState() {
 }
 function matchesWorkspace(anchor, cwd) {
   const target = normalizeWorkspaceKey(cwd);
-  const targetBase = path8.basename(path8.resolve(cwd)).toLowerCase();
+  const targetBase = path9.basename(path9.resolve(cwd)).toLowerCase();
   const anchorCwd = typeof anchor.cwd === "string" && anchor.cwd ? normalizeWorkspaceKey(anchor.cwd) : "";
   const project = typeof anchor.project === "string" ? anchor.project.toLowerCase() : "";
   const matchesCwd = Boolean(
@@ -2131,7 +2173,7 @@ function matchesWorkspace(anchor, cwd) {
   return matchesCwd || matchesProject;
 }
 function loadActiveAnchorFiles(cwd = process.cwd()) {
-  if (isTestEnvironment() && !process.env.ANCHOR_DIR) return [];
+  if (isTestEnvironment2() && !process.env.ANCHOR_DIR) return [];
   const state = readAnchorState();
   if (!state || !Array.isArray(state.anchors)) return [];
   const collected = /* @__PURE__ */ new Set();
@@ -2150,7 +2192,7 @@ function loadActiveAnchorFiles(cwd = process.cwd()) {
   return [...collected];
 }
 function formatActiveAnchorHint(cwd = process.cwd()) {
-  if (isTestEnvironment() && !process.env.ANCHOR_DIR) return "";
+  if (isTestEnvironment2() && !process.env.ANCHOR_DIR) return "";
   const state = readAnchorState();
   if (!state || !Array.isArray(state.anchors)) return "";
   const active = state.anchors.filter(
@@ -2242,8 +2284,8 @@ function inferArtifactProfile(fp, cwd = process.cwd()) {
   const testDir = fp?.testDir && fp.testDir !== "." ? fp.testDir : "tests";
   const pType = fp?.projectType || "unknown";
   const pkgMgr = fp?.packageManager || "npm";
-  const reportDir = path9.join(".pi", "toolflow", "reports");
-  const summaryPath = path9.join(reportDir, "verification_summary.json").replace(/\\/g, "/");
+  const reportDir = path10.join(".pi", "toolflow", "reports");
+  const summaryPath = path10.join(reportDir, "verification_summary.json").replace(/\\/g, "/");
   switch (pType) {
     case "rust":
       return {
@@ -2257,8 +2299,8 @@ function inferArtifactProfile(fp, cwd = process.cwd()) {
     case "python": {
       const runner = pkgMgr === "uv" ? "uv run pytest" : pkgMgr === "poetry" ? "poetry run pytest" : "pytest";
       return {
-        srcPath: path9.join(srcDir, "main.py").replace(/\\/g, "/"),
-        testPath: path9.join(testDir, "test_main.py").replace(/\\/g, "/"),
+        srcPath: path10.join(srcDir, "main.py").replace(/\\/g, "/"),
+        testPath: path10.join(testDir, "test_main.py").replace(/\\/g, "/"),
         summaryPath,
         testCommands: [runner],
         buildCommands: ["python -m py_compile"],
@@ -2285,12 +2327,12 @@ function inferArtifactProfile(fp, cwd = process.cwd()) {
       };
     case "web": {
       const fw = (fp?.mainFramework || "").toLowerCase();
-      const hasPkgJson = fs9.existsSync(path9.join(cwd, "package.json"));
-      const srcPath = fw.includes("vue") ? "src/App.vue" : fw.includes("react") || fw.includes("next") ? "src/App.tsx" : hasPkgJson ? path9.join(srcDir, "index.ts").replace(/\\/g, "/") : "index.html";
+      const hasPkgJson = fs9.existsSync(path10.join(cwd, "package.json"));
+      const srcPath = fw.includes("vue") ? "src/App.vue" : fw.includes("react") || fw.includes("next") ? "src/App.tsx" : hasPkgJson ? path10.join(srcDir, "index.ts").replace(/\\/g, "/") : "index.html";
       const runCmd = pkgMgr === "pnpm" ? "pnpm" : pkgMgr === "yarn" ? "yarn" : pkgMgr === "bun" ? "bun" : "npm";
       return {
         srcPath,
-        testPath: hasPkgJson ? path9.join(testDir, "app.test.ts").replace(/\\/g, "/") : "index.test.js",
+        testPath: hasPkgJson ? path10.join(testDir, "app.test.ts").replace(/\\/g, "/") : "index.test.js",
         summaryPath,
         testCommands: hasPkgJson ? [`${runCmd} test`] : ["node --test"],
         buildCommands: hasPkgJson ? [`${runCmd} run build`] : [],
@@ -2301,8 +2343,8 @@ function inferArtifactProfile(fp, cwd = process.cwd()) {
     case "monorepo": {
       const runCmd = pkgMgr === "pnpm" ? "pnpm" : pkgMgr === "yarn" ? "yarn" : pkgMgr === "bun" ? "bun" : "npm";
       let isPlainJs = false;
-      const fullSrcDir = path9.join(cwd, srcDir);
-      if (!fs9.existsSync(path9.join(cwd, "tsconfig.json")) && fs9.existsSync(fullSrcDir)) {
+      const fullSrcDir = path10.join(cwd, srcDir);
+      if (!fs9.existsSync(path10.join(cwd, "tsconfig.json")) && fs9.existsSync(fullSrcDir)) {
         try {
           const entries = fs9.readdirSync(fullSrcDir);
           const hasJs = entries.some((e) => /\.(?:c|m)?js$/.test(e));
@@ -2313,8 +2355,8 @@ function inferArtifactProfile(fp, cwd = process.cwd()) {
       }
       const ext = isPlainJs ? "js" : "ts";
       return {
-        srcPath: path9.join(srcDir, `index.${ext}`).replace(/\\/g, "/"),
-        testPath: path9.join(testDir, `index.test.${ext}`).replace(/\\/g, "/"),
+        srcPath: path10.join(srcDir, `index.${ext}`).replace(/\\/g, "/"),
+        testPath: path10.join(testDir, `index.test.${ext}`).replace(/\\/g, "/"),
         summaryPath,
         testCommands: [`${runCmd} test`],
         buildCommands: [`${runCmd} run build`],
@@ -2323,8 +2365,8 @@ function inferArtifactProfile(fp, cwd = process.cwd()) {
     }
     default:
       return {
-        srcPath: path9.join(srcDir, "index.ts").replace(/\\/g, "/"),
-        testPath: path9.join(testDir, "index.test.ts").replace(/\\/g, "/"),
+        srcPath: path10.join(srcDir, "index.ts").replace(/\\/g, "/"),
+        testPath: path10.join(testDir, "index.test.ts").replace(/\\/g, "/"),
         summaryPath,
         testCommands: ["npm test"],
         buildCommands: ["npm run build"],
@@ -3248,14 +3290,13 @@ import {
 
 // src/planner/prompts-manager.ts
 import * as fs10 from "fs";
-import * as path10 from "path";
-import * as os3 from "os";
+import * as path11 from "path";
 var PromptsManager = class {
   static getAgentDir() {
-    return process.env.PI_AGENT_DIR || path10.join(os3.homedir(), ".pi", "agent");
+    return getPiAgentDir();
   }
   static getMruFilePath() {
-    return path10.join(this.getAgentDir(), "toolflow_prompts_mru.json");
+    return path11.join(this.getAgentDir(), "toolflow_prompts_mru.json");
   }
   static loadMruMap() {
     try {
@@ -3272,7 +3313,7 @@ var PromptsManager = class {
     mruMap[command] = Date.now();
     try {
       const file = this.getMruFilePath();
-      fs10.mkdirSync(path10.dirname(file), { recursive: true });
+      fs10.mkdirSync(path11.dirname(file), { recursive: true });
       fs10.writeFileSync(file, JSON.stringify(mruMap, null, 2), "utf-8");
     } catch {
     }
@@ -3296,7 +3337,7 @@ var PromptsManager = class {
       try {
         for (const entry of fs10.readdirSync(dir, { withFileTypes: true })) {
           if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
-          const filePath = path10.join(dir, entry.name);
+          const filePath = path11.join(dir, entry.name);
           const name = entry.name.replace(/\.md$/, "");
           const command = `/${name}`;
           if (seen.has(command)) continue;
@@ -3332,16 +3373,16 @@ var PromptsManager = class {
       } catch {
       }
     };
-    scanDir(path10.join(cwd, ".pi", "prompts"), "project", "user");
-    scanDir(path10.join(agentDir, "prompts"), "global", "user");
-    scanDir(path10.join(agentDir, "packages", "prompts"), "package", "system");
+    scanDir(path11.join(cwd, ".pi", "prompts"), "project", "user");
+    scanDir(path11.join(agentDir, "prompts"), "global", "user");
+    scanDir(path11.join(agentDir, "packages", "prompts"), "package", "system");
     return results.sort((a, b) => b.updatedAt - a.updatedAt);
   }
   static addUserPrompt(name, description, content) {
     const cleanName2 = name.replace(/[^a-zA-Z0-9_-]/g, "").toLowerCase() || `prompt_${Date.now()}`;
-    const promptsDir = path10.join(this.getAgentDir(), "prompts");
+    const promptsDir = path11.join(this.getAgentDir(), "prompts");
     fs10.mkdirSync(promptsDir, { recursive: true });
-    const filePath = path10.join(promptsDir, `${cleanName2}.md`);
+    const filePath = path11.join(promptsDir, `${cleanName2}.md`);
     const formatted = [
       "---",
       `description: ${description.trim() || "Custom engineering prompt"}`,
@@ -3951,9 +3992,8 @@ function asCustomUiHost(ctx) {
   const ui = ctx.ui;
   return ui && typeof ui.custom === "function" ? ui : null;
 }
-function clampLabel(text, max = 30) {
-  const chars = [...text];
-  return chars.length > max ? `${chars.slice(0, max - 1).join("")}\u2026` : text;
+function clampLabel(text, maxColumns = 30) {
+  return truncateToWidth2(text, maxColumns, "\u2026");
 }
 function updateToolFlowStatusBar(ctx, state, cwd) {
   const ui = ctx?.ui;
@@ -4131,6 +4171,7 @@ ${generateStageActionPrompt(firstStage, blueprint, 0)}`
         store.reset();
         store.restoreInitialActiveTools(toolHost);
         clearAllReadCaches();
+        getStatsManager(cwd).resetLedger();
         clearAllStatsManagers();
         ContextDehydrator.clearLatestLogPaths();
         updateToolFlowStatusBar(ctx, store.getState(), cwd);
@@ -4164,7 +4205,7 @@ ${renderStatsLedger(cwd)}`, "info");
           ctx.ui?.notify?.(t.exportNoBlueprint, "warning");
           return;
         }
-        const outPath = path11.join(cwd, "TOOLFLOW_BLUEPRINT.md");
+        const outPath = path12.join(cwd, "TOOLFLOW_BLUEPRINT.md");
         fs11.writeFileSync(outPath, renderBlueprintSummary(current.currentBlueprint), "utf-8");
         ctx.ui?.notify?.(t.exportSuccess("TOOLFLOW_BLUEPRINT.md"), "info");
         return;
@@ -4239,7 +4280,7 @@ ${renderStatsLedger(cwd)}`, "info");
 }
 
 // src/optimizer/blast-radius.ts
-import * as path12 from "path";
+import * as path13 from "path";
 var WRITE_TOOLS = {
   write: true,
   edit: true,
@@ -4375,7 +4416,7 @@ var BlastRadiusGuard = class {
   }
   isCriticalFile(relPath) {
     const normalized = this.normalizeRel(relPath);
-    const baseName = path12.basename(normalized);
+    const baseName = path13.basename(normalized);
     if (normalized.startsWith(".git/") || normalized === ".git") return true;
     return CRITICAL_CONFIG_PATTERNS.some(
       (pattern) => pattern.test(baseName) || pattern.test(normalized)
@@ -4390,19 +4431,28 @@ var BlastRadiusGuard = class {
         const prefix = pattern.replace(/\/\*+$/, "");
         if (normalized.startsWith(`${prefix}/`) || normalized === prefix) return true;
       } else if (pattern.includes("*")) {
-        const regexStr = "^" + pattern.replace(/\./g, "\\.").replace(/\*/g, ".*") + "$";
-        if (new RegExp(regexStr).test(normalized)) return true;
+        const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regexStr = "^" + escaped.replace(/\*/g, ".*") + "$";
+        try {
+          if (new RegExp(regexStr).test(normalized)) return true;
+        } catch {
+        }
       }
     }
     return false;
   }
   verifyToolCall(event, cwd = process.cwd()) {
     const tool = (event.toolName || "").toLowerCase();
-    const resolvedCwd = path12.resolve(cwd);
+    const resolvedCwd = path13.resolve(cwd);
     if (WRITE_TOOLS[tool]) {
       const targetPath = this.extractTargetPath(event.input);
-      if (!targetPath) return { block: false };
-      const absoluteTarget = path12.isAbsolute(targetPath) ? path12.resolve(targetPath) : path12.resolve(resolvedCwd, targetPath);
+      if (!targetPath) {
+        return {
+          block: true,
+          reason: `[ToolFlow Guard] Blocked "${tool}": no recognizable target path in tool arguments.`
+        };
+      }
+      const absoluteTarget = path13.isAbsolute(targetPath) ? path13.resolve(targetPath) : path13.resolve(resolvedCwd, targetPath);
       const isInsideWorkspace = isPathInsideWorkspace(absoluteTarget, resolvedCwd);
       if (!isInsideWorkspace) {
         return {
@@ -4410,7 +4460,7 @@ var BlastRadiusGuard = class {
           reason: `[ToolFlow Guard] Blocked "${tool}" outside workspace root (${absoluteTarget}).`
         };
       }
-      const relPath = this.normalizeRel(path12.relative(resolvedCwd, absoluteTarget));
+      const relPath = this.normalizeRel(path13.relative(resolvedCwd, absoluteTarget));
       if (this.isCriticalFile(relPath)) {
         return {
           block: true,
@@ -4446,6 +4496,16 @@ var BlastRadiusGuard = class {
           };
         }
       }
+      for (const match of command.matchAll(/>>?\s*([^\s;&|]+)/g)) {
+        const target = match[1].replace(/^['"`]+|['"`]+$/g, "");
+        if (!target || target === "&1" || target === "&2" || target.startsWith("&")) continue;
+        if (this.isCriticalFile(this.normalizeRel(target))) {
+          return {
+            block: true,
+            reason: `[ToolFlow Guard] Blocked shell redirection into protected file "${target}".`
+          };
+        }
+      }
       const tokens = command.replace(/&&|\|\||;/g, " ; ").split(/\s+/).filter(Boolean);
       let inMutatingCommand = false;
       for (let i = 0; i < tokens.length; i++) {
@@ -4461,7 +4521,7 @@ var BlastRadiusGuard = class {
           continue;
         }
         if (!inMutatingCommand || cleaned.startsWith("-")) continue;
-        const baseName = path12.basename(cleaned);
+        const baseName = path13.basename(cleaned);
         if (this.isCriticalFile(baseName) || cleaned.includes(".git/") || cleaned.includes(".git\\")) {
           return {
             block: true,
@@ -4579,20 +4639,20 @@ function slimHistoricalContextMessages(event, cwd) {
 
 // src/planner/memory.ts
 import * as fs12 from "fs";
-import * as path13 from "path";
+import * as path14 from "path";
 var MAX_LESSONS = 15;
 var CodebaseMemoryManager = class {
   memoryFilePath;
   workspaceRoot;
   constructor(cwd = process.cwd()) {
-    this.workspaceRoot = path13.resolve(cwd);
-    const memoryDir = path13.join(this.workspaceRoot, ".pi", "toolflow", "memory");
-    this.memoryFilePath = path13.join(memoryDir, "codebase_lessons.json");
+    this.workspaceRoot = path14.resolve(cwd);
+    const memoryDir = path14.join(this.workspaceRoot, ".pi", "toolflow", "memory");
+    this.memoryFilePath = path14.join(memoryDir, "codebase_lessons.json");
   }
   loadMemory() {
     const defaultStore = {
       version: "1.0.0",
-      codebaseId: path13.basename(this.workspaceRoot) || "workspace",
+      codebaseId: path14.basename(this.workspaceRoot) || "workspace",
       updatedAt: Date.now(),
       conventions: [],
       lessons: []
@@ -4692,7 +4752,7 @@ function clearAllCodebaseMemories() {
 
 // src/planner/verifier.ts
 import * as fs13 from "fs";
-import * as path14 from "path";
+import * as path15 from "path";
 import { execSync as execSync3 } from "child_process";
 function captureReviewSnapshot(cwd = process.cwd()) {
   try {
@@ -4813,12 +4873,12 @@ function verifyStageArtifacts(stage, cwd = process.cwd(), rawStageOutput = "") {
   const currentState = store.getState();
   const artifactPaths = getArtifactPaths(stage);
   const primaryRelPath = artifactPaths[0] || "";
-  const resolvedCwd = path14.resolve(cwd);
+  const resolvedCwd = path15.resolve(cwd);
   const missingArtifacts = [];
   const verifiedRecords = [];
   const gitInfo = getGitChangedFiles(cwd);
   for (const relPath of artifactPaths) {
-    const fullPath = path14.resolve(resolvedCwd, relPath);
+    const fullPath = path15.resolve(resolvedCwd, relPath);
     if (!isPathInsideWorkspace(fullPath, resolvedCwd)) {
       missingArtifacts.push(relPath);
       continue;
@@ -4839,7 +4899,6 @@ function verifyStageArtifacts(stage, cwd = process.cwd(), rawStageOutput = "") {
         gitStatus
       };
       verifiedRecords.push(record);
-      store.recordArtifact(relPath, record);
     } catch {
       missingArtifacts.push(relPath);
     }
@@ -4908,6 +4967,9 @@ Fix the failing check and re-verify.`
       reason: "Turn ended with exploration only and no file updates yet.",
       remediationGuidance: `Continue implementing "${stage.title}" until ${primaryRelPath} reflects the required changes.`
     };
+  }
+  for (const record of verifiedRecords) {
+    store.recordArtifact(record.path, record);
   }
   store.resetRetry();
   if (rawStageOutput) {
@@ -5215,19 +5277,19 @@ ${receipt.join("\n")}`,
 
 // src/extension/inspect-tool.ts
 import * as fs14 from "fs";
-import * as path15 from "path";
+import * as path16 from "path";
 import { Type } from "@sinclair/typebox";
 function isSafeRunLog(candidate, workDir) {
   if (!candidate || typeof candidate !== "string") return false;
   try {
-    const resolvedWorkDir = path15.resolve(workDir);
-    const runsRoot = path15.join(resolvedWorkDir, ".pi", "toolflow", "runs");
+    const resolvedWorkDir = path16.resolve(workDir);
+    const runsRoot = path16.join(resolvedWorkDir, ".pi", "toolflow", "runs");
     if (!fs14.existsSync(runsRoot)) return false;
     const realRunsRoot = fs14.realpathSync(runsRoot);
-    const targetPath = path15.isAbsolute(candidate) ? candidate : path15.resolve(resolvedWorkDir, candidate);
+    const targetPath = path16.isAbsolute(candidate) ? candidate : path16.resolve(resolvedWorkDir, candidate);
     if (!fs14.existsSync(targetPath)) return false;
     const realTarget = fs14.realpathSync(targetPath);
-    const prefix = realRunsRoot.endsWith(path15.sep) ? realRunsRoot : realRunsRoot + path15.sep;
+    const prefix = realRunsRoot.endsWith(path16.sep) ? realRunsRoot : realRunsRoot + path16.sep;
     if (process.platform === "win32") {
       return realTarget.toLowerCase().startsWith(prefix.toLowerCase());
     }
@@ -5277,7 +5339,7 @@ function registerToolFlowInspectTool(pi, getActiveCwd) {
           details: {}
         };
       }
-      const fullPath = path15.isAbsolute(candidate) ? candidate : path15.resolve(workDir, candidate);
+      const fullPath = path16.isAbsolute(candidate) ? candidate : path16.resolve(workDir, candidate);
       const raw = fs14.readFileSync(fullPath, "utf-8");
       const lines = raw.split(/\r?\n/);
       const mode = params.mode || "tail";
@@ -5320,7 +5382,7 @@ function registerToolFlowInspectTool(pi, getActiveCwd) {
         selected = matched.length > 0 ? matched : [`(No matches for "${query}")`];
         headerInfo = `grep "${query}" (${matched.length} matches in ${lines.length} lines)`;
       }
-      const rel = path15.relative(workDir, fullPath).replace(/\\/g, "/");
+      const rel = path16.relative(workDir, fullPath).replace(/\\/g, "/");
       return {
         content: [
           {
