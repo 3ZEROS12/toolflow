@@ -7,7 +7,7 @@ Pi Coding Agent 向けの動的ツールサンドボックスとコンテキス�
 [![npm version](https://img.shields.io/npm/v/toolflow?color=blue)](https://www.npmjs.com/package/toolflow)
 [![npm downloads](https://img.shields.io/npm/dm/toolflow?color=22c55e&label=downloads)](https://www.npmjs.com/package/toolflow)
 [![GitHub stars](https://img.shields.io/github/stars/3ZEROS12/toolflow?color=yellow)](https://github.com/3ZEROS12/toolflow)
-[![Tests: 60 Pass](https://img.shields.io/badge/Tests-60%20Pass%20(100%25)-brightgreen)](tests/)
+[![Tests: 61 Pass](https://img.shields.io/badge/Tests-61%20Pass%20(100%25)-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 [English](./README.md) | [简体中文](./README_zh.md) | **日本語**

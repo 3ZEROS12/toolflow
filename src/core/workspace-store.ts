@@ -128,6 +128,26 @@ function cloneState(src: SessionPlanState): SessionPlanState {
   };
 }
 
+const SESSION_STATUSES: ReadonlySet<string> = new Set<SessionPlanState["status"]>([
+  "idle",
+  "awaiting_user_decisions",
+  "in_progress",
+  "stage_completed",
+  "completed",
+  "paused",
+  "healing_failed_circuit_break",
+]);
+
+/**
+ * A corrupt or foreign `status` string used to hydrate verbatim and fall through every
+ * status branch silently (no badge, no gate, no recovery). Normalize to "idle" instead.
+ */
+function coerceStatus(value: unknown): SessionPlanState["status"] {
+  return typeof value === "string" && SESSION_STATUSES.has(value)
+    ? (value as SessionPlanState["status"])
+    : "idle";
+}
+
 function hydrateStateFromJson(rawJson: string): SessionPlanState | null {
   try {
     const parsed: unknown = JSON.parse(rawJson);
@@ -140,7 +160,7 @@ function hydrateStateFromJson(rawJson: string): SessionPlanState | null {
       currentBlueprint: obj.currentBlueprint,
       currentStageIndex: typeof obj.currentStageIndex === "number" ? obj.currentStageIndex : 0,
       stepByStepGate: typeof obj.stepByStepGate === "boolean" ? obj.stepByStepGate : true,
-      status: obj.status ?? "idle",
+      status: coerceStatus(obj.status),
       artifactLedger: obj.artifactLedger ?? {},
       snapshots: obj.snapshots ?? {},
       dynamicTargetFiles: Array.isArray(obj.dynamicTargetFiles) ? obj.dynamicTargetFiles : [],

@@ -119,3 +119,25 @@ test("messages: chrome dictionary stays English-only", () => {
   assert.equal(/[\u4e00-\u9fa5]/.test(chrome), false);
   assert.match(t.analyzingTask("x"), /build|x/);
 });
+
+test("store: a corrupt persisted status hydrates as idle instead of falling through every branch", () => {
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "toolflow-corrupt-status-"));
+  const stateFile = path.join(workspace, ".pi", "blueprint_state.json");
+  fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+  fs.writeFileSync(
+    stateFile,
+    JSON.stringify({
+      currentBlueprint: { blueprintId: "bp", task: "t", stages: [] },
+      currentStageIndex: 0,
+      status: "exploded",
+    }),
+    "utf-8"
+  );
+
+  const store = getWorkspaceStore(workspace);
+  store.load();
+  assert.equal(store.getState().status, "idle");
+
+  fs.rmSync(workspace, { recursive: true, force: true });
+  clearAllWorkspaceStores();
+});
